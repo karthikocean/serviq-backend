@@ -1,0 +1,102 @@
+import { Request, Response } from "express";
+import { StatusCodes } from "http-status-codes";
+import Admin from "../../models/Admin";
+import Role from "../../models/Role";
+import { sendSuccess, sendError } from "../../utils/response";
+import { AuthRequest } from "../../middleware/authMiddleware";
+
+// GET all managers
+export const getAllManagers = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const managers = await Admin.find({ isDelete: false })
+      .select("-password")
+      .populate("role")
+      .sort({ createdAt: -1 });
+
+    sendSuccess(res, "Managers fetched.", managers);
+  } catch (error) {
+    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+// POST create manager
+export const createManager = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, email, phoneNumber, password, roleId, canLoginAdmin } = req.body;
+
+    if (!name || !email || !phoneNumber || !password || !roleId) {
+      sendError(res, "All fields are required.", StatusCodes.BAD_REQUEST);
+      return;
+    }
+
+    const existing = await Admin.findOne({ $or: [{ email }, { phoneNumber }], isDelete: false });
+    if (existing) {
+      sendError(res, "Email or phone already exists.", StatusCodes.CONFLICT);
+      return;
+    }
+
+    const role = await Role.findById(roleId);
+    if (!role) {
+      sendError(res, "Role not found.", StatusCodes.NOT_FOUND);
+      return;
+    }
+
+    const manager = await Admin.create({
+      name,
+      email,
+      phoneNumber,
+      password,
+      role: roleId,
+      canLoginAdmin: canLoginAdmin ?? true,
+      isActive: true,
+      isDelete: false,
+    });
+
+    sendSuccess(res, "Manager created successfully.", { id: manager._id }, StatusCodes.CREATED);
+  } catch (error) {
+    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+// PUT update manager
+export const updateManager = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { name, email, phoneNumber, roleId, canLoginAdmin, isActive } = req.body;
+
+    const manager = await Admin.findOne({ _id: id, isDelete: false });
+    if (!manager) {
+      sendError(res, "Manager not found.", StatusCodes.NOT_FOUND);
+      return;
+    }
+
+    if (name) manager.name = name;
+    if (email) manager.email = email;
+    if (phoneNumber) manager.phoneNumber = phoneNumber;
+    if (roleId) manager.role = roleId;
+    if (canLoginAdmin !== undefined) manager.canLoginAdmin = canLoginAdmin;
+    if (isActive !== undefined) manager.isActive = isActive;
+
+    await manager.save();
+    sendSuccess(res, "Manager updated successfully.");
+  } catch (error) {
+    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+// DELETE soft delete manager
+export const deleteManager = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const manager = await Admin.findOne({ _id: id, isDelete: false });
+    if (!manager) {
+      sendError(res, "Manager not found.", StatusCodes.NOT_FOUND);
+      return;
+    }
+    manager.isDelete = true;
+    await manager.save();
+    sendSuccess(res, "Manager deleted successfully.");
+  } catch (error) {
+    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
