@@ -2,15 +2,19 @@ import Module from "../models/Module";
 
 export const seedModules = async (): Promise<void> => {
   const modulesToSeed = [
-    { name: "Dashboard", key: "dashboard" },
-    { name: "User Roles", key: "user_roles" },
-    { name: "Managers", key: "managers" },
-    { name: "User List", key: "user_list" },
-    { name: "Report", key: "report" },
-    { name: "User Log", key: "user_log" },
-    { name: "Support", key: "support" },
-    { name: "Settings", key: "settings" },
-  ];
+    { name: "Dashboard Overview", key: "overview", plan: false },
+    { name: "Incoming Orders", key: "orders", plan: true },
+    { name: "Menu Management", key: "menu", plan: true },
+    { name: "Billing & Settlement", key: "billing", plan: false },
+    { name: "QR Management", key: "qr-code-config", plan: true },
+    { name: "Dining Tables", key: "tables", plan: true },
+    { name: "Waiter Management", key: "waiter-list", plan: true },
+    { name: "Kitchen Management", key: "kitchen-list", plan: true },
+    { name: "Business Reports & Analytics", key: "reports", plan: false },
+    { name: "Roles & Permissions", key: "roles-permissions", plan: false },
+    { name: "User Management", key: "users", plan: false },
+    { name: "Store Configurations", key: "settings", plan: false },
+  ];;
 
   try {
     const seedKeys = modulesToSeed.map((m) => m.key);
