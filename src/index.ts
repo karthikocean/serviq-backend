@@ -1,3 +1,6 @@
+import dns from "dns";
+dns.setServers(["8.8.8.8", "8.8.4.4"]);
+dns.setDefaultResultOrder("ipv4first");
 import express, { Application, Request, Response } from "express";
 import mongoose from "mongoose";
 import cors from "cors";
@@ -16,6 +19,7 @@ import { errorHandler, notFound } from "./middleware/errorMiddleware";
 import { seedAdmin } from "./utils/adminSeed";
 import { seedModules } from "./utils/moduleSeed";
 import { seedRoles } from "./utils/roleSeed";
+import { seedPlans } from "./utils/planSeed";
 
 dotenv.config({ quiet: true } as any);
 
@@ -27,6 +31,7 @@ const startServer = async () => {
     await connectDB();
 
     await seedModules();
+    await seedPlans();
     await seedRoles();
     await seedAdmin();
 
