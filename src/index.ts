@@ -16,6 +16,7 @@ import { errorHandler, notFound } from "./middleware/errorMiddleware";
 import { seedAdmin } from "./utils/adminSeed";
 import { seedModules } from "./utils/moduleSeed";
 import { seedRoles } from "./utils/roleSeed";
+import { seedOrders } from "./utils/orderSeed";
 
 dotenv.config({ quiet: true } as any);
 
@@ -29,6 +30,7 @@ const startServer = async () => {
     await seedModules();
     await seedRoles();
     await seedAdmin();
+    await seedOrders();
 
     app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
     app.use(cors());
