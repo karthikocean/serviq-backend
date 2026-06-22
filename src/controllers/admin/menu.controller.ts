@@ -1,0 +1,119 @@
+import { Response } from "express";
+import { StatusCodes } from "http-status-codes";
+import { sendSuccess, sendError } from "../../utils/response";
+import { AuthRequest } from "../../middleware/authMiddleware";
+import Menu from "../../models/Menu";
+
+export const createMenuItem = async (req: AuthRequest, res: Response): Promise<void> => {
+    const { name, desc, price, category, image, available, veg, bestseller } = req.body;
+    if (!name || price === undefined || !category) {
+        sendError(res, "Name, price, and category are required.", StatusCodes.BAD_REQUEST);
+        return;
+    }
+    try {
+        const exist = await Menu.findOne({ name, category, isDelete: false });
+        if (exist) {
+            sendError(res, "Menu item with this name already exists in this category.", StatusCodes.CONFLICT);
+            return;
+        }
+        const menuItem = await Menu.create({
+            name,
+            desc: desc || "",
+            price: Number(price),
+            category,
+            image: image || "",
+            available: available !== undefined ? available : true,
+            veg: veg !== undefined ? veg : true,
+            bestseller: bestseller !== undefined ? bestseller : false,
+            isDelete: false
+        });
+        sendSuccess(res, "Menu item created successfully.", menuItem, StatusCodes.CREATED);
+    } catch (err) {
+        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
+export const getMenuItems = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const menuItems = await Menu.find({ isDelete: false }).sort({ createdAt: -1 });
+        sendSuccess(res, "Menu items fetched successfully.", menuItems);
+    } catch (err) {
+        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
+export const getMenuItem = async (req: AuthRequest, res: Response): Promise<void> => {
+    const { id } = req.params;
+    if (!id) {
+        sendError(res, "Menu item ID is required.", StatusCodes.BAD_REQUEST);
+        return;
+    }
+    try {
+        const menuItem = await Menu.findOne({ _id: id, isDelete: false });
+        if (!menuItem) {
+            sendError(res, "Menu item not found.", StatusCodes.NOT_FOUND);
+            return;
+        }
+        sendSuccess(res, "Menu item fetched successfully.", menuItem);
+    } catch (err) {
+        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
+export const updateMenuItem = async (req: AuthRequest, res: Response): Promise<void> => {
+    const { id } = req.params;
+    const { name, desc, price, category, image, available, veg, bestseller } = req.body;
+    if (!id) {
+        sendError(res, "Menu item ID is required.", StatusCodes.BAD_REQUEST);
+        return;
+    }
+    try {
+        const menuItem = await Menu.findOne({ _id: id, isDelete: false });
+        if (!menuItem) {
+            sendError(res, "Menu item not found.", StatusCodes.NOT_FOUND);
+            return;
+        }
+
+        if (name !== undefined) {
+            const exist = await Menu.findOne({ name, category: category || menuItem.category, _id: { $ne: id }, isDelete: false });
+            if (exist) {
+                sendError(res, "Menu item with this name already exists in this category.", StatusCodes.CONFLICT);
+                return;
+            }
+            menuItem.name = name;
+        }
+
+        if (desc !== undefined) menuItem.desc = desc;
+        if (price !== undefined) menuItem.price = Number(price);
+        if (category !== undefined) menuItem.category = category;
+        if (image !== undefined) menuItem.image = image;
+        if (available !== undefined) menuItem.available = available;
+        if (veg !== undefined) menuItem.veg = veg;
+        if (bestseller !== undefined) menuItem.bestseller = bestseller;
+
+        await menuItem.save();
+        sendSuccess(res, "Menu item updated successfully.", menuItem);
+    } catch (err) {
+        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
+export const deleteMenuItem = async (req: AuthRequest, res: Response): Promise<void> => {
+    const { id } = req.params;
+    if (!id) {
+        sendError(res, "Menu item ID is required.", StatusCodes.BAD_REQUEST);
+        return;
+    }
+    try {
+        const menuItem = await Menu.findOne({ _id: id, isDelete: false });
+        if (!menuItem) {
+            sendError(res, "Menu item not found.", StatusCodes.NOT_FOUND);
+            return;
+        }
+        menuItem.isDelete = true;
+        await menuItem.save();
+        sendSuccess(res, "Menu item deleted successfully.", menuItem);
+    } catch (err) {
+        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};

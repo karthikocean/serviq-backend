@@ -5,6 +5,7 @@ import { protect } from "../middleware/authMiddleware";
 import { createTable, getTables, getTable, updateTable, deleteTable } from "../controllers/admin/table.controller";
 import { getQrCodes, generateQrCode, assignQrCode, revokeQrCode, deleteQrCode } from "../controllers/admin/qr.controller";
 import { getOrders, createOrder, updateOrder, deleteOrder, payBill } from "../controllers/admin/order.controller";
+import { createMenuItem, getMenuItems, getMenuItem, updateMenuItem, deleteMenuItem } from "../controllers/admin/menu.controller";
 const router = Router();
 
 // Auth
@@ -34,5 +35,13 @@ router.post("/orders", createOrder);
 router.put("/orders/:id", updateOrder);
 router.delete("/orders/:id", deleteOrder);
 router.post("/billing/pay", payBill);
+
+// Menu Management
+router.get("/menu", getMenuItems);
+router.post("/menu", createMenuItem);
+router.get("/menu/:id", getMenuItem);
+router.put("/menu/:id", updateMenuItem);
+router.patch("/menu/:id", updateMenuItem);
+router.delete("/menu/:id", deleteMenuItem);
 
 export default router;

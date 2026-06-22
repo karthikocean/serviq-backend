@@ -4,3 +4,5 @@ dist/
 pm2logs/
 public/uploads/
 *.js.map
+package-lock.json
+package.json
