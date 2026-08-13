@@ -29,7 +29,7 @@ export const superAdminLogin = async (req: Request, res: Response): Promise<void
 
     // Only "Admin" role can access super-admin routes
     const role = admin.role as any;
-    if (role?.roleName !== "Admin") {
+    if (role?.roleName !== "Super Admin" || role?.type !== "SUPER_ADMIN") {
       sendError(res, "Access denied. Super admin only.", StatusCodes.FORBIDDEN);
       return;
     }

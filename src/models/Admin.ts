@@ -6,7 +6,7 @@ export interface IAdmin extends Document {
   email: string;
   phoneNumber: string;
   password?: string;
-  role: mongoose.Types.ObjectId;
+  role?: mongoose.Types.ObjectId;
   canLoginAdmin: boolean;
   isActive: boolean;
   isDelete: boolean;
@@ -20,7 +20,7 @@ const AdminSchema = new Schema<IAdmin>(
     email: { type: String, required: true, unique: true, lowercase: true },
     phoneNumber: { type: String, required: true, unique: true },
     password: { type: String },
-    role: { type: Schema.Types.ObjectId, ref: "Role", required: true },
+    role: { type: Schema.Types.ObjectId, ref: "Role" },
     canLoginAdmin: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     isDelete: { type: Boolean, default: false },

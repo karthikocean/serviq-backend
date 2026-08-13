@@ -3,17 +3,29 @@ import { StatusCodes } from "http-status-codes";
 import Admin from "../../models/Admin";
 import Role from "../../models/Role";
 import { sendSuccess, sendError } from "../../utils/response";
+import { pagination } from "../../utils/pagination";
 import { AuthRequest } from "../../middleware/authMiddleware";
 
 // GET all managers
 export const getAllManagers = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    
+    // Convert 1-based page to 0-based for internal calculation
+    const pageIndex = Math.max(0, page - 1);
+    const skip = pageIndex * limit;
+
+    const total = await Admin.countDocuments({ isDelete: false });
+
     const managers = await Admin.find({ isDelete: false })
       .select("-password")
       .populate("role")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    sendSuccess(res, "Managers fetched.", managers);
+    pagination(total, managers, limit, pageIndex, res, "Managers fetched successfully.");
   } catch (error) {
     sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
   }

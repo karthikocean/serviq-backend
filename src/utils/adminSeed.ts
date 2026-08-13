@@ -7,13 +7,21 @@ export const seedAdmin = async (): Promise<void> => {
     const adminPhone = "9988775544";
     const adminPass = "serviq@2026";
 
-    const existingAdmin = await Admin.findOne({ phoneNumber: adminPhone });
-    const adminRole = await Role.findOne({ roleName: "Admin" });
+    let superAdminRole = await Role.findOne({ type: "SUPER_ADMIN", roleName: "Super Admin" });
 
-    if (!adminRole) {
-      console.error("Seeding Error: Admin role not found. Seed roles first.");
-      return;
+    if (!superAdminRole) {
+      superAdminRole = await Role.create({
+        roleName: "Super Admin",
+        type: "SUPER_ADMIN",
+        isDefault: true,
+        permissions: [],
+        isActive: true,
+        isDelete: false,
+      });
+      console.log("Seeding: Super Admin Role created.");
     }
+
+    const existingAdmin = await Admin.findOne({ phoneNumber: adminPhone });
 
     if (!existingAdmin) {
       console.log("Seeding: Admin not found. Creating...");
@@ -22,7 +30,7 @@ export const seedAdmin = async (): Promise<void> => {
         email: "admin@serviq.com",
         phoneNumber: adminPhone,
         password: adminPass,
-        role: adminRole._id,
+        role: superAdminRole._id,
         canLoginAdmin: true,
         isActive: true,
         isDelete: false,

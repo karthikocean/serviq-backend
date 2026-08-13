@@ -4,7 +4,7 @@ export interface IModule extends Document {
   name: string;
   key: string;
   order: number;
-  plan:boolean
+  type: "SUPER_ADMIN" | "RESTAURANT";
 }
 
 const ModuleSchema = new Schema<IModule>(
@@ -12,7 +12,7 @@ const ModuleSchema = new Schema<IModule>(
     name: { type: String, required: true },
     key: { type: String, required: true, unique: true },
     order: { type: Number, default: 0 },
-    plan: { type: Boolean, default: false },
+    type: { type: String, enum: ["SUPER_ADMIN", "RESTAURANT"], required: true },
   },
   { timestamps: true }
 );

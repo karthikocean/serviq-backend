@@ -6,7 +6,8 @@ export interface IPlan extends Document {
     monthlyPrice: number;
     monthlyDiscount: number;
     annualPrice: number;
-    featuresIncluded: mongoose.Types.ObjectId[];
+    maxBranches: number;
+    featuresIncluded: Record<string, boolean>;
     isActive: boolean;
     isDelete: boolean;
 }
@@ -18,7 +19,8 @@ const PlanSchema = new Schema<IPlan>(
         monthlyPrice: { type: Number, required: true },
         monthlyDiscount: { type: Number, required: true },
         annualPrice: { type: Number, required: true },
-        featuresIncluded: [{ type: Schema.Types.ObjectId, ref: "Module", required: true }],
+        maxBranches: { type: Number, required: true, default: 1 },
+        featuresIncluded: { type: Object, required: true },
         isActive: { type: Boolean, default: true },
         isDelete: { type: Boolean, default: false },
     },

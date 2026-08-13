@@ -1,14 +1,27 @@
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { sendSuccess, sendError } from "../../utils/response";
+import { pagination } from "../../utils/pagination";
 import { AuthRequest } from "../../middleware/authMiddleware";
 import Order from "../../models/Order";
 import Table from "../../models/Table";
 
 export const getOrders = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const orders = await Order.find({ isDelete: false }).sort({ createdAt: -1 });
-        sendSuccess(res, "Orders fetched successfully.", orders);
+        const { restaurantId, activeBranchId } = req.user as any;
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
+        const pageIndex = Math.max(0, page - 1);
+        const skip = pageIndex * limit;
+
+        const total = await Order.countDocuments({ restaurantId, branchId: activeBranchId, isDelete: false });
+
+        const orders = await Order.find({ restaurantId, branchId: activeBranchId, isDelete: false })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+            
+        pagination(total, orders, limit, pageIndex, res, "Orders fetched successfully.");
     } catch (err) {
         sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
     }
@@ -23,7 +36,12 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
         }
 
         // Generate next numerical order ID
-        const allOrders = await Order.find({});
+        const { restaurantId, activeBranchId } = req.user as any;
+        if (!activeBranchId) {
+            sendError(res, "Please select an active branch to create an order.", StatusCodes.BAD_REQUEST);
+            return;
+        }
+        const allOrders = await Order.find({ restaurantId, branchId: activeBranchId });
         let maxId = 840;
         allOrders.forEach(o => {
             const num = parseInt(o.orderId);
@@ -44,6 +62,8 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
         const total = subtotal + tax;
 
         const newOrder = await Order.create({
+            restaurantId,
+            branchId: activeBranchId,
             orderId,
             table,
             time,
@@ -68,10 +88,12 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
                 { tableNumber: `T-${parseInt(rawNum)}` },
                 { tableNumber: rawNum }
             ],
+            restaurantId,
+            branchId: activeBranchId,
             isDelete: false
         });
         if (dbTable) {
-            dbTable.status = true;
+            dbTable.status = "Occupied";
             await dbTable.save();
         }
 
@@ -84,11 +106,14 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
 export const updateOrder = async (req: AuthRequest, res: Response): Promise<void> => {
     const { id } = req.params; // order id (e.g. orderId or _id)
     try {
+        const { restaurantId, activeBranchId } = req.user as any;
         const order = await Order.findOne({
             $or: [
                 { orderId: id },
                 { _id: id }
             ],
+            restaurantId,
+            branchId: activeBranchId,
             isDelete: false
         });
 
@@ -122,11 +147,14 @@ export const updateOrder = async (req: AuthRequest, res: Response): Promise<void
 export const deleteOrder = async (req: AuthRequest, res: Response): Promise<void> => {
     const { id } = req.params;
     try {
+        const { restaurantId, activeBranchId } = req.user as any;
         const order = await Order.findOne({
             $or: [
                 { orderId: id },
                 { _id: id }
             ],
+            restaurantId,
+            branchId: activeBranchId,
             isDelete: false
         });
 
@@ -151,9 +179,10 @@ export const payBill = async (req: AuthRequest, res: Response): Promise<void> =>
     }
     try {
         const rawNum = tableLabel.replace("Table ", "").trim();
+        const { restaurantId, activeBranchId } = req.user as any;
 
         // 1. Find all unpaid orders for the table
-        const unpaidOrders = await Order.find({ isDelete: false, billingStatus: "unpaid" });
+        const unpaidOrders = await Order.find({ restaurantId, branchId: activeBranchId, isDelete: false, billingStatus: "unpaid" });
         const targetOrders = unpaidOrders.filter(o => {
             const oNum = o.table.replace("Table ", "").trim();
             return oNum === rawNum || parseInt(oNum) === parseInt(rawNum);
@@ -174,10 +203,12 @@ export const payBill = async (req: AuthRequest, res: Response): Promise<void> =>
                 { tableNumber: `T-${parseInt(rawNum)}` },
                 { tableNumber: rawNum }
             ],
+            restaurantId,
+            branchId: activeBranchId,
             isDelete: false
         });
         if (dbTable) {
-            dbTable.status = false; // set status to Free
+            dbTable.status = "Available"; // set status to Free
             await dbTable.save();
         }
 

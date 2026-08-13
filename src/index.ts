@@ -9,6 +9,8 @@ import morgan from "morgan";
 import dotenv from "dotenv";
 import fileUpload from "express-fileupload";
 import path from "path";
+import swaggerUi from "swagger-ui-express";
+import swaggerJsDoc from "swagger-jsdoc";
 
 import connectDB from "./Config/db";
 import adminRoute from "./routes/admin.route";
@@ -18,7 +20,7 @@ import websiteRoute from "./routes/website.route";
 import { errorHandler, notFound } from "./middleware/errorMiddleware";
 import { seedAdmin } from "./utils/adminSeed";
 import { seedModules } from "./utils/moduleSeed";
-import { seedRoles } from "./utils/roleSeed";
+// roleSeed was removed because Super Admin role is seeded inside adminSeed.ts now
 import { seedOrders } from "./utils/orderSeed";
 import { seedPlans } from "./utils/planSeed";
 
@@ -32,10 +34,9 @@ const startServer = async () => {
     await connectDB();
 
     await seedModules();
-    await seedPlans();
-    await seedRoles();
+    // await seedPlans();
     await seedAdmin();
-    await seedOrders();
+    // await seedOrders();
 
     app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
     app.use(cors());
@@ -45,6 +46,91 @@ const startServer = async () => {
 
     app.use("/public", express.static(path.join(process.cwd(), "public")));
     app.use("/uploads", express.static(path.join(process.cwd(), "public", "uploads")));
+
+    // Swagger Options
+    const swaggerOptions = {
+      definition: {
+        openapi: "3.0.0",
+        info: {
+          title: "ServiQ Restaurant API",
+          version: "1.0.0",
+          description: "API Documentation for ServiQ backend",
+        },
+        servers: [{ url: "http://localhost:5000" }],
+        components: {
+          securitySchemes: {
+            bearerAuth: {
+              type: "http",
+              scheme: "bearer",
+              bearerFormat: "JWT",
+            },
+          },
+          responses: {
+            400: {
+              description: "Bad Request or Validation Error",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: false },
+                      message: { type: "string", example: "Validation Error or Bad Request" }
+                    }
+                  }
+                }
+              }
+            },
+            401: {
+              description: "Unauthorized",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: false },
+                      message: { type: "string", example: "Not authorized, token failed" }
+                    }
+                  }
+                }
+              }
+            },
+            404: {
+              description: "Not Found",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: false },
+                      message: { type: "string", example: "Resource not found" }
+                    }
+                  }
+                }
+              }
+            },
+            500: {
+              description: "Internal Server Error",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: false },
+                      message: { type: "string", example: "Server Error" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        security: [{ bearerAuth: [] }],
+      },
+      apis: ["./src/routes/**/*.ts", "./src/routes/*.ts"],
+    };
+    
+    const swaggerDocs = swaggerJsDoc(swaggerOptions);
+    app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
     // Health check
     app.get("/", (req: Request, res: Response) => {

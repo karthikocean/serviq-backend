@@ -1,25 +1,34 @@
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { sendSuccess, sendError } from "../../utils/response";
+import { pagination } from "../../utils/pagination";
 import { AuthRequest } from "../../middleware/authMiddleware";
 import QrCode from "../../models/QrCode";
 import Table from "../../models/Table";
+import Branch from "../../models/Branch";
 
 export const getQrCodes = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const qrCodes = await QrCode.find({ isDelete: false }).sort({ createdAt: -1 });
-        // Format to match frontend structure (with id mapped to qrCodeId)
-        const formatted = qrCodes.map(q => ({
-            _id: q._id,
-            id: q.qrCodeId,
-            status: q.status,
-            tableId: q.tableId,
-            scansCount: q.scansCount,
-            createdAt: q.createdAt ? q.createdAt.toISOString().split("T")[0] : null
-        }));
-        sendSuccess(res, "QR codes fetched successfully.", formatted);
-    } catch (err) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        const restaurantId = req.user?.restaurantId;
+        const branchId = req.user?.activeBranchId;
+
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
+        const pageIndex = Math.max(0, page - 1);
+        const skip = pageIndex * limit;
+
+        const total = await QrCode.countDocuments({ isDelete: false, restaurantId, branchId });
+
+        const qrCodes = await QrCode.find({ isDelete: false, restaurantId, branchId })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+            
+        
+        pagination(total, qrCodes, limit, pageIndex, res, "QR codes fetched successfully.");
+    } catch (err: any) {
+        console.error("QR Fetch Error:", err);
+        sendError(res, err ? String(err) : "Unknown error", StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -34,7 +43,19 @@ export const generateQrCode = async (req: AuthRequest, res: Response): Promise<v
             }
         });
         const nextId = `QR-${maxNum + 1}`;
+        let branchId = req.user?.activeBranchId;
+        if (!branchId && req.user?.restaurantId) {
+            const mainBranch = await Branch.findOne({ restaurantId: req.user.restaurantId, isMainBranch: true });
+            if (mainBranch) branchId = mainBranch._id.toString();
+        }
+        if (!branchId) {
+            sendError(res, "Active branch not found for this user.", StatusCodes.BAD_REQUEST);
+            return;
+        }
+
         const newQr = await QrCode.create({
+            restaurantId: req.user?.restaurantId,
+            branchId: branchId,
             qrCodeId: nextId,
             status: "Unassigned",
             tableId: null,
@@ -47,10 +68,11 @@ export const generateQrCode = async (req: AuthRequest, res: Response): Promise<v
             status: newQr.status,
             tableId: newQr.tableId,
             scansCount: newQr.scansCount,
-            createdAt: newQr.createdAt ? newQr.createdAt.toISOString().split("T")[0] : null
+            createdAt: (newQr.createdAt && typeof newQr.createdAt.toISOString === 'function') ? newQr.createdAt.toISOString().split("T")[0] : null
         }, StatusCodes.CREATED);
-    } catch (err) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (err: any) {
+        console.error("Generate QR Error:", err);
+        sendError(res, err ? String(err) : "Unknown error", StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -61,13 +83,16 @@ export const assignQrCode = async (req: AuthRequest, res: Response): Promise<voi
         return;
     }
     try {
-        const qrCode = await QrCode.findOne({ qrCodeId, isDelete: false });
+        const restaurantId = req.user?.restaurantId;
+        const branchId = req.user?.activeBranchId;
+
+        const qrCode = await QrCode.findOne({ qrCodeId, restaurantId, branchId, isDelete: false });
         if (!qrCode) {
             sendError(res, "QR Code not found.", StatusCodes.NOT_FOUND);
             return;
         }
 
-        const table = await Table.findOne({ tableNumber: tableId, isDelete: false });
+        const table = await Table.findOne({ tableNumber: tableId, restaurantId, branchId, isDelete: false });
         if (!table) {
             sendError(res, "Table not found.", StatusCodes.NOT_FOUND);
             return;
@@ -75,13 +100,13 @@ export const assignQrCode = async (req: AuthRequest, res: Response): Promise<voi
 
         // 1. Unlink tableId from any other QR Codes
         await QrCode.updateMany(
-            { tableId: tableId, qrCodeId: { $ne: qrCodeId }, isDelete: false },
+            { tableId: tableId, qrCodeId: { $ne: qrCodeId }, restaurantId, branchId, isDelete: false },
             { status: "Unassigned", tableId: null }
         );
 
         // 2. Unlink this qrCodeId from any other Tables
         await Table.updateMany(
-            { assignedQrId: qrCodeId, tableNumber: { $ne: tableId }, isDelete: false },
+            { assignedQrId: qrCodeId, tableNumber: { $ne: tableId }, restaurantId, branchId, isDelete: false },
             { assignedQrId: null }
         );
 
@@ -107,7 +132,10 @@ export const revokeQrCode = async (req: AuthRequest, res: Response): Promise<voi
         return;
     }
     try {
-        const qrCode = await QrCode.findOne({ qrCodeId, isDelete: false });
+        const restaurantId = req.user?.restaurantId;
+        const branchId = req.user?.activeBranchId;
+
+        const qrCode = await QrCode.findOne({ qrCodeId, restaurantId, branchId, isDelete: false });
         if (!qrCode) {
             sendError(res, "QR Code not found.", StatusCodes.NOT_FOUND);
             return;
@@ -123,7 +151,7 @@ export const revokeQrCode = async (req: AuthRequest, res: Response): Promise<voi
         // 2. Update Table
         if (tableId) {
             await Table.updateMany(
-                { tableNumber: tableId, isDelete: false },
+                { tableNumber: tableId, restaurantId, branchId, isDelete: false },
                 { assignedQrId: null }
             );
         }
@@ -141,7 +169,10 @@ export const deleteQrCode = async (req: AuthRequest, res: Response): Promise<voi
         return;
     }
     try {
-        const qrCode = await QrCode.findOne({ qrCodeId: id, isDelete: false });
+        const restaurantId = req.user?.restaurantId;
+        const branchId = req.user?.activeBranchId;
+
+        const qrCode = await QrCode.findOne({ qrCodeId: id, restaurantId, branchId, isDelete: false });
         if (!qrCode) {
             sendError(res, "QR Code not found.", StatusCodes.NOT_FOUND);
             return;
@@ -158,7 +189,7 @@ export const deleteQrCode = async (req: AuthRequest, res: Response): Promise<voi
         // 2. Update Table
         if (tableId) {
             await Table.updateMany(
-                { tableNumber: tableId, isDelete: false },
+                { tableNumber: tableId, restaurantId, branchId, isDelete: false },
                 { assignedQrId: null }
             );
         }

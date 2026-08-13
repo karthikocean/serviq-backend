@@ -1,6 +1,8 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IQrCode extends Document {
+    restaurantId: mongoose.Types.ObjectId;
+    branchId: mongoose.Types.ObjectId;
     qrCodeId: string;
     status: "Assigned" | "Unassigned";
     tableId: string | null;
@@ -12,6 +14,8 @@ export interface IQrCode extends Document {
 
 const qrCodeSchema = new Schema<IQrCode>(
     {
+        restaurantId: { type: Schema.Types.ObjectId, ref: "Restaurant", required: true },
+        branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true },
         qrCodeId: { type: String, required: true, unique: true },
         status: { type: String, enum: ["Assigned", "Unassigned"], default: "Unassigned" },
         tableId: { type: String, default: null }, // tableNumber mapping (e.g. "T-01")
