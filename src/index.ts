@@ -24,6 +24,7 @@ import { seedModules } from "./utils/moduleSeed";
 // roleSeed was removed because Super Admin role is seeded inside adminSeed.ts now
 import { seedOrders } from "./utils/orderSeed";
 import { seedPlans } from "./utils/planSeed";
+import { startCronJobs } from "./utils/cronJobs";
 
 dotenv.config({ quiet: true } as any);
 
@@ -38,6 +39,9 @@ const startServer = async () => {
     await seedPlans();
     await seedAdmin();
     // await seedOrders();
+
+    // Start background cron jobs
+    startCronJobs();
 
     app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
     app.use(cors());

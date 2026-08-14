@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllRestaurants, createRestaurant, updateRestaurant, deleteRestaurant } from "../../controllers/super-admin/restaurant.controller";
+import { getAllRestaurants, createRestaurant, updateRestaurant, deleteRestaurant, updateRestaurantStatus } from "../../controllers/super-admin/restaurant.controller";
 
 import { validate } from "../../middleware/validate";
 import { createRestaurantSchema, updateRestaurantSchema } from "../../validations/restaurant.validation";
@@ -151,5 +151,33 @@ router.put("/:id", validate(updateRestaurantSchema), updateRestaurant);
  *         $ref: '#/components/responses/500'
  */
 router.delete("/:id", deleteRestaurant);
+
+/**
+ * @swagger
+ * /api/super-admin/restaurants/{id}/status:
+ *   put:
+ *     summary: Update a restaurant's status
+ *     tags: [Super Admin Restaurants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status: { type: string, enum: ['Active', 'Suspended', 'Expired'] }
+ *     responses:
+ *       200:
+ *         description: Status updated
+ */
+router.put("/:id/status", updateRestaurantStatus);
 
 export default router;

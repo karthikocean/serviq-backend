@@ -33,7 +33,7 @@ export const getAllRestaurants = async (req: AuthRequest, res: Response): Promis
                 subscription: subscription || null
             };
         }));
-            
+
         pagination(total, restaurants, limit, pageIndex, res, "Restaurants fetched successfully.");
     } catch (error) {
         sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
@@ -142,7 +142,7 @@ export const createRestaurant = async (req: Request, res: Response): Promise<voi
         // 2. Create Subscription
         if (planId && plan) {
             const cycle = billingCycle || "Monthly";
-            
+
             let finalStartDate = reqStartDate ? new Date(reqStartDate) : new Date();
             let finalEndDate = reqEndDate ? new Date(reqEndDate) : new Date(finalStartDate);
             if (!reqEndDate) {
@@ -206,7 +206,7 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
     try {
         const { id } = req.params;
         const {
-            restaurantName, logoUrl, ownerName, email, phoneNumber, 
+            restaurantName, logoUrl, ownerName, email, phoneNumber,
             websiteDomain, openingTime, closingTime, taxRate, serviceFee, bannerUrl, startDate: reqStartDate, endDate: reqEndDate, renewalDate: reqRenewalDate, subscriptionStatus: reqSubscriptionStatus,
             address, city, state, country, fssaiLicense, gstinNumber, panNumber, isActive
         } = req.body;
@@ -318,6 +318,34 @@ export const deleteRestaurant = async (req: Request, res: Response): Promise<voi
         await User.updateMany({ restaurantId: restaurant._id }, { isDelete: true });
         await Branch.updateMany({ restaurantId: restaurant._id }, { isDelete: true });
         sendSuccess(res, "Restaurant deleted successfully.");
+    } catch (error) {
+        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
+export const updateRestaurantStatus = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!['Active', 'Suspended', 'Expired'].includes(status)) {
+            sendError(res, "Invalid status. Must be Active, Suspended, or Expired.", StatusCodes.BAD_REQUEST);
+            return;
+        }
+
+        const restaurant = await Restaurant.findById(id);
+        if (!restaurant || restaurant.isDelete) {
+            sendError(res, "Restaurant not found.", StatusCodes.NOT_FOUND);
+            return;
+        }
+
+        restaurant.status = status;
+        restaurant.isActive = status === 'Active';
+        await restaurant.save();
+
+
+
+        sendSuccess(res, `Restaurant status updated to ${status}.`, restaurant);
     } catch (error) {
         sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
     }
