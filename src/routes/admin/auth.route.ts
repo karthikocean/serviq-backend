@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { login, getProfile, logout, switchBranch } from "../../controllers/admin/auth.controller";
+import { login, getProfile, logout } from "../../controllers/admin/auth.controller";
 import { protectAdmin } from "../../middleware/authMiddleware";
 
 const router = Router();
@@ -13,7 +13,7 @@ const router = Router();
 
 /**
  * @swagger
- * /api/admin/auth/login:
+ * /api/admin/login:
  *   post:
  *     summary: Admin Login
  *     tags: [Admin Auth]
@@ -57,7 +57,7 @@ router.post("/login", login);
 
 /**
  * @swagger
- * /api/admin/auth/logout:
+ * /api/admin/logout:
  *   post:
  *     summary: Logout Admin
  *     tags: [Admin Auth]
@@ -75,7 +75,7 @@ router.post("/logout", protectAdmin, logout);
 
 /**
  * @swagger
- * /api/admin/auth/profile:
+ * /api/admin/profile:
  *   get:
  *     summary: Get Admin Profile
  *     tags: [Admin Auth]
@@ -103,28 +103,5 @@ router.post("/logout", protectAdmin, logout);
  *         $ref: '#/components/responses/500'
  */
 router.get("/profile", protectAdmin, getProfile);
-
-/**
- * @swagger
- * /api/admin/auth/switch-branch:
- *   post:
- *     summary: Switch Active Branch
- *     tags: [Admin Auth]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               branchId:
- *                 type: string
- *     responses:
- *       200:
- *         description: Branch switched
- */
-router.post("/switch-branch", protectAdmin, switchBranch);
 
 export default router;

@@ -17,6 +17,7 @@ import adminRoute from "./routes/admin.route";
 import superAdminRoute from "./routes/super-admin.route";
 import mobileRoute from "./routes/mobile.route";
 import websiteRoute from "./routes/website.route";
+import uploadRoute from "./routes/upload.route";
 import { errorHandler, notFound } from "./middleware/errorMiddleware";
 import { seedAdmin } from "./utils/adminSeed";
 import { seedModules } from "./utils/moduleSeed";
@@ -34,7 +35,7 @@ const startServer = async () => {
     await connectDB();
 
     await seedModules();
-    // await seedPlans();
+    await seedPlans();
     await seedAdmin();
     // await seedOrders();
 
@@ -128,7 +129,7 @@ const startServer = async () => {
       },
       apis: ["./src/routes/**/*.ts", "./src/routes/*.ts"],
     };
-    
+
     const swaggerDocs = swaggerJsDoc(swaggerOptions);
     app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
@@ -160,6 +161,7 @@ const startServer = async () => {
     app.use("/api/super-admin", superAdminRoute);
     app.use("/api/mobile", mobileRoute);
     app.use("/api/website", websiteRoute);
+    app.use("/api/upload", uploadRoute);
 
     // ─── Error Handlers ───────────────────────────────────
     app.use(notFound);
@@ -171,6 +173,7 @@ const startServer = async () => {
       console.log(`   Super Admin → /api/super-admin`);
       console.log(`   Mobile      → /api/mobile`);
       console.log(`   Website     → /api/website`);
+      console.log(`   Upload      → /api/upload`);
     });
   } catch (error) {
     console.error("Startup error ❌:", error);

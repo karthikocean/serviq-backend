@@ -9,7 +9,7 @@ import { protectSuperAdmin } from "../middleware/authMiddleware";
 
 const router = Router();
 
-router.use("/", authRoutes); 
+router.use("/auth", authRoutes);
 router.use("/managers", protectSuperAdmin, managerRoutes);
 router.use("/roles", protectSuperAdmin, roleRoutes);
 router.use("/plans", protectSuperAdmin, planRoutes);

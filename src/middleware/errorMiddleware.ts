@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { StatusCodes } from "http-status-codes";
 
 export const notFound = (req: Request, res: Response, next: NextFunction): void => {
-  const error = new Error(`Not Found - ${req.originalUrl}`);
+  const error = new Error('Not Found');
   res.status(StatusCodes.NOT_FOUND);
   next(error);
 };

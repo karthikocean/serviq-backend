@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { StatusCodes } from "http-status-codes";
 import User from "../../models/User";
+import UserToken from "../../models/UserToken";
 import { sendSuccess, sendError } from "../../utils/response";
 import { AuthRequest } from "../../middleware/authMiddleware";
 
@@ -28,6 +29,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       process.env.JWT_SECRET as string,
       { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
     );
+
+    await UserToken.create({ userId: user._id, token });
 
     sendSuccess(res, "Registration successful.", {
       token,
@@ -64,14 +67,33 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const token = jwt.sign(
-      { id: user._id, type: "mobile" },
-      process.env.JWT_SECRET as string,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
-    );
+    let finalToken: string;
+    const existingToken = await UserToken.findOne({ userId: user._id });
+
+    if (existingToken) {
+        try {
+            jwt.verify(existingToken.token, process.env.JWT_SECRET as string);
+            finalToken = existingToken.token;
+        } catch (error) {
+            finalToken = jwt.sign(
+              { id: user._id, type: "mobile" },
+              process.env.JWT_SECRET as string,
+              { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
+            );
+            existingToken.token = finalToken;
+            await existingToken.save();
+        }
+    } else {
+        finalToken = jwt.sign(
+          { id: user._id, type: "mobile" },
+          process.env.JWT_SECRET as string,
+          { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
+        );
+        await UserToken.create({ userId: user._id, token: finalToken });
+    }
 
     sendSuccess(res, "Login successful.", {
-      token,
+      token: finalToken,
       user: { id: user._id, name: user.name, phoneNumber: user.phoneNumber, email: user.email },
     });
   } catch (error) {
@@ -110,5 +132,10 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
 };
 
 export const logout = async (req: AuthRequest, res: Response): Promise<void> => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (token) {
+    const userId = req.user?.userId || req.user?.id;
+    await UserToken.findOneAndDelete({ userId, token });
+  }
   sendSuccess(res, "Logged out successfully.");
 };

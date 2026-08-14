@@ -4,8 +4,8 @@ import Role from "../models/Role";
 
 export const seedAdmin = async (): Promise<void> => {
   try {
-    const adminPhone = "9988775544";
-    const adminPass = "serviq@2026";
+    const adminEmail = "admin@serviq.com";
+    const adminPass = "admin123"; // Changed to password for frontend login
 
     let superAdminRole = await Role.findOne({ type: "SUPER_ADMIN", roleName: "Super Admin" });
 
@@ -21,14 +21,14 @@ export const seedAdmin = async (): Promise<void> => {
       console.log("Seeding: Super Admin Role created.");
     }
 
-    const existingAdmin = await Admin.findOne({ phoneNumber: adminPhone });
+    const existingAdmin = await Admin.findOne({ email: adminEmail });
 
     if (!existingAdmin) {
       console.log("Seeding: Admin not found. Creating...");
       await Admin.create({
         name: "Super Admin",
-        email: "admin@serviq.com",
-        phoneNumber: adminPhone,
+        email: adminEmail,
+        phoneNumber: "9988775544",
         password: adminPass,
         role: superAdminRole._id,
         canLoginAdmin: true,

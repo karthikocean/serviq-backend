@@ -20,10 +20,19 @@ export const getAllRestaurants = async (req: AuthRequest, res: Response): Promis
 
         const total = await Restaurant.countDocuments({ isDelete: false });
 
-        const restaurants = await Restaurant.find({ isDelete: false })
+        const dbRestaurants = await Restaurant.find({ isDelete: false })
             .sort({ createdAt: -1 })
             .skip(skip)
-            .limit(limit);
+            .limit(limit)
+            .lean();
+
+        const restaurants = await Promise.all(dbRestaurants.map(async (rest) => {
+            const subscription = await Subscription.findOne({ restaurant: rest._id }).populate("plan").lean();
+            return {
+                ...rest,
+                subscription: subscription || null
+            };
+        }));
             
         pagination(total, restaurants, limit, pageIndex, res, "Restaurants fetched successfully.");
     } catch (error) {
@@ -36,13 +45,46 @@ export const createRestaurant = async (req: Request, res: Response): Promise<voi
     try {
         const {
             restaurantName, logoUrl, ownerName, email, phoneNumber, planId, password, billingCycle,
-            websiteDomain, openingTime, closingTime, taxRate, serviceFee, bannerUrl,
+            websiteDomain, openingTime, closingTime, taxRate, serviceFee, bannerUrl, startDate: reqStartDate, endDate: reqEndDate, renewalDate: reqRenewalDate, subscriptionStatus: reqSubscriptionStatus,
             address, city, state, country, fssaiLicense, gstinNumber, panNumber
         } = req.body;
 
-        if (!restaurantName || !ownerName || !email || !phoneNumber || !planId || !password) {
+        if (!restaurantName || !ownerName || !email || !phoneNumber || !password) {
             sendError(res, "All required fields must be provided.", StatusCodes.BAD_REQUEST);
             return;
+        }
+
+        const fssaiLicenseRegex = /^1\d{13}$/;
+        if (fssaiLicense && !fssaiLicenseRegex.test(fssaiLicense.trim())) {
+            sendError(
+                res,
+                "Invalid FSSAI License number. It must contain exactly 14 digits and start with 1.",
+                StatusCodes.BAD_REQUEST
+            );
+            return;
+        }
+
+        const normalizedGstin = gstinNumber ? gstinNumber.trim().toUpperCase() : undefined;
+        if (normalizedGstin) {
+            const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+            if (!gstinRegex.test(normalizedGstin)) {
+                sendError(res, "Invalid GSTIN. Please enter a valid 15-character GSTIN.", StatusCodes.BAD_REQUEST);
+                return;
+            }
+            const existingGstin = await Restaurant.findOne({ gstinNumber: normalizedGstin, isDelete: false });
+            if (existingGstin) {
+                sendError(res, "GSTIN is already registered with another restaurant.", StatusCodes.CONFLICT);
+                return;
+            }
+        }
+
+        const normalizedPan = panNumber ? panNumber.trim().toUpperCase() : undefined;
+        if (normalizedPan) {
+            const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+            if (!panRegex.test(normalizedPan)) {
+                sendError(res, "Invalid PAN number. Please enter a valid 10-character PAN.", StatusCodes.BAD_REQUEST);
+                return;
+            }
         }
 
         // Check for existing active email in Restaurant
@@ -59,10 +101,13 @@ export const createRestaurant = async (req: Request, res: Response): Promise<voi
             return;
         }
 
-        const plan = await Plan.findById(planId);
-        if (!plan) {
-            sendError(res, "Plan not found.", StatusCodes.NOT_FOUND);
-            return;
+        let plan = null;
+        if (planId) {
+            plan = await Plan.findById(planId);
+            if (!plan) {
+                sendError(res, "Plan not found.", StatusCodes.NOT_FOUND);
+                return;
+            }
         }
 
         // Generate next Restaurant ID
@@ -81,15 +126,13 @@ export const createRestaurant = async (req: Request, res: Response): Promise<voi
             websiteDomain,
             openingTime,
             closingTime,
-            taxRate,
-            serviceFee,
             bannerUrl,
             address,
             city,
             state,
             country,
             fssaiLicense,
-            gstinNumber,
+            gstinNumber: normalizedGstin || gstinNumber,
             panNumber,
             isActive: true,
             isDelete: false
@@ -97,27 +140,34 @@ export const createRestaurant = async (req: Request, res: Response): Promise<voi
         await newRestaurant.save();
 
         // 2. Create Subscription
-        const startDate = new Date();
-        const endDate = new Date();
-        const cycle = billingCycle || "Monthly";
-        if (cycle === "Monthly") {
-            endDate.setMonth(endDate.getMonth() + 1);
-        } else {
-            endDate.setFullYear(endDate.getFullYear() + 1);
-        }
+        if (planId && plan) {
+            const cycle = billingCycle || "Monthly";
+            
+            let finalStartDate = reqStartDate ? new Date(reqStartDate) : new Date();
+            let finalEndDate = reqEndDate ? new Date(reqEndDate) : new Date(finalStartDate);
+            if (!reqEndDate) {
+                if (cycle === "Monthly") {
+                    finalEndDate.setMonth(finalEndDate.getMonth() + 1);
+                } else {
+                    finalEndDate.setFullYear(finalEndDate.getFullYear() + 1);
+                }
+            }
+            let finalRenewalDate = reqRenewalDate ? new Date(reqRenewalDate) : finalEndDate;
+            let finalStatus = reqSubscriptionStatus || "Active";
 
-        const newSubscription = new Subscription({
-            restaurant: newRestaurant._id,
-            plan: plan._id,
-            billingCycle: cycle,
-            startDate,
-            endDate,
-            renewalDate: endDate,
-            maxBranches: plan.maxBranches,
-            features: plan.featuresIncluded,
-            status: "Active"
-        });
-        await newSubscription.save();
+            const newSubscription = new Subscription({
+                restaurant: newRestaurant._id,
+                plan: plan._id,
+                billingCycle: cycle,
+                startDate: finalStartDate,
+                endDate: finalEndDate,
+                renewalDate: finalRenewalDate,
+                maxBranches: plan.maxBranches,
+                features: plan.featuresIncluded,
+                status: finalStatus
+            });
+            await newSubscription.save();
+        }
 
         // 3. Create Main Branch
         const mainBranch = new Branch({
@@ -156,15 +206,48 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
     try {
         const { id } = req.params;
         const {
-            restaurantName, logoUrl, ownerName, email, phoneNumber, isActive,
-            websiteDomain, openingTime, closingTime, taxRate, serviceFee, bannerUrl,
-            address, city, state, country, fssaiLicense, gstinNumber, panNumber
+            restaurantName, logoUrl, ownerName, email, phoneNumber, 
+            websiteDomain, openingTime, closingTime, taxRate, serviceFee, bannerUrl, startDate: reqStartDate, endDate: reqEndDate, renewalDate: reqRenewalDate, subscriptionStatus: reqSubscriptionStatus,
+            address, city, state, country, fssaiLicense, gstinNumber, panNumber, isActive
         } = req.body;
 
         const restaurant = await Restaurant.findOne({ _id: id, isDelete: false });
         if (!restaurant) {
             sendError(res, "Restaurant not found.", StatusCodes.NOT_FOUND);
             return;
+        }
+
+        const fssaiLicenseRegex = /^1\d{13}$/;
+        if (fssaiLicense && !fssaiLicenseRegex.test(fssaiLicense.trim())) {
+            sendError(
+                res,
+                "Invalid FSSAI License number. It must contain exactly 14 digits and start with 1.",
+                StatusCodes.BAD_REQUEST
+            );
+            return;
+        }
+
+        const normalizedGstin = gstinNumber ? gstinNumber.trim().toUpperCase() : undefined;
+        if (normalizedGstin) {
+            const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+            if (!gstinRegex.test(normalizedGstin)) {
+                sendError(res, "Invalid GSTIN. Please enter a valid 15-character GSTIN.", StatusCodes.BAD_REQUEST);
+                return;
+            }
+            const existingGstin = await Restaurant.findOne({ gstinNumber: normalizedGstin, _id: { $ne: id }, isDelete: false });
+            if (existingGstin) {
+                sendError(res, "GSTIN is already registered with another restaurant.", StatusCodes.CONFLICT);
+                return;
+            }
+        }
+
+        const normalizedPan = panNumber ? panNumber.trim().toUpperCase() : undefined;
+        if (normalizedPan) {
+            const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+            if (!panRegex.test(normalizedPan)) {
+                sendError(res, "Invalid PAN number. Please enter a valid 10-character PAN.", StatusCodes.BAD_REQUEST);
+                return;
+            }
         }
 
         if (restaurantName) restaurant.restaurantName = restaurantName;
@@ -177,16 +260,14 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
         if (websiteDomain !== undefined) restaurant.websiteDomain = websiteDomain;
         if (openingTime !== undefined) restaurant.openingTime = openingTime;
         if (closingTime !== undefined) restaurant.closingTime = closingTime;
-        if (taxRate !== undefined) restaurant.taxRate = taxRate;
-        if (serviceFee !== undefined) restaurant.serviceFee = serviceFee;
         if (bannerUrl !== undefined) restaurant.bannerUrl = bannerUrl;
         if (address !== undefined) restaurant.address = address;
         if (city !== undefined) restaurant.city = city;
         if (state !== undefined) restaurant.state = state;
         if (country !== undefined) restaurant.country = country;
         if (fssaiLicense !== undefined) restaurant.fssaiLicense = fssaiLicense;
-        if (gstinNumber !== undefined) restaurant.gstinNumber = gstinNumber;
-        if (panNumber !== undefined) restaurant.panNumber = panNumber;
+        if (normalizedGstin !== undefined) restaurant.gstinNumber = normalizedGstin;
+        if (normalizedPan !== undefined) restaurant.panNumber = normalizedPan;
 
         if (isActive !== undefined) restaurant.isActive = isActive;
 
@@ -241,3 +322,16 @@ export const deleteRestaurant = async (req: Request, res: Response): Promise<voi
         sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -10,8 +10,6 @@ export interface IRestaurant extends Document {
     websiteDomain?: string;
     openingTime?: string;
     closingTime?: string;
-    taxRate?: number;
-    serviceFee?: number;
     bannerUrl?: string;
     address: string;
     city: string;
@@ -35,8 +33,6 @@ const RestaurantSchema = new Schema<IRestaurant>(
         websiteDomain: { type: String },
         openingTime: { type: String },
         closingTime: { type: String },
-        taxRate: { type: Number, default: 0 },
-        serviceFee: { type: Number, default: 0 },
         bannerUrl: { type: String },
         address: { type: String, required: true },
         city: { type: String, required: true },
@@ -53,3 +49,4 @@ const RestaurantSchema = new Schema<IRestaurant>(
 
 const Restaurant = mongoose.model<IRestaurant>("Restaurant", RestaurantSchema);
 export default Restaurant;
+

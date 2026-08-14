@@ -6,9 +6,9 @@ export const createRestaurantSchema = z.object({
     ownerName: z.string(),
     email: z.string().email("Invalid email format"),
     phoneNumber: z.string().min(10, "Phone number must be at least 10 digits"),
-    planId: z.string(),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-    
+    planId: z.string().optional(),
+    password: z.string().min(4, "Password must be at least 4 characters"),
+
     // New optional/required fields from UI
     websiteDomain: z.string().optional(),
     openingTime: z.string().optional(),
@@ -17,18 +17,18 @@ export const createRestaurantSchema = z.object({
     serviceFee: z.number().optional().default(0),
     bannerUrl: z.string().optional(),
     logoUrl: z.string().optional(),
-    
+
     // Address info
     address: z.string(),
     city: z.string(),
     state: z.string(),
     country: z.string(),
-    
+
     // Compliance info
     fssaiLicense: z.string(),
     gstinNumber: z.string(),
     panNumber: z.string(),
-    
+
     isActive: z.boolean().optional().default(true),
     billingCycle: z.enum(["Monthly", "Annually"]).optional().default("Monthly"),
   }),

@@ -4,19 +4,20 @@ import jwt from "jsonwebtoken";
 import { StatusCodes } from "http-status-codes";
 import User from "../../models/User";
 import Branch from "../../models/Branch";
+import UserToken from "../../models/UserToken";
 import { sendSuccess, sendError } from "../../utils/response";
 import { AuthRequest } from "../../middleware/authMiddleware";
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { phoneNumber, password } = req.body;
+    const { email, password } = req.body;
 
-    if (!phoneNumber || !password) {
-      sendError(res, "Phone number and password are required.", StatusCodes.BAD_REQUEST);
+    if (!email || !password) {
+      sendError(res, "Email and password are required.", StatusCodes.BAD_REQUEST);
       return;
     }
 
-    const user = await User.findOne({ phoneNumber, isDelete: false }).populate("roleId");
+    const user = await User.findOne({ email, isDelete: false }).populate("roleId");
 
     if (!user) {
       sendError(res, "Invalid credentials.", StatusCodes.UNAUTHORIZED);
@@ -43,19 +44,43 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         }
     }
 
-    const token = jwt.sign(
-      { 
-        userId: user._id, 
-        userType: user.userType, 
-        restaurantId: user.restaurantId,
-        activeBranchId: activeBranchId
-      },
-      process.env.JWT_SECRET as string,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
-    );
+    let finalToken: string;
+    const existingToken = await UserToken.findOne({ userId: user._id });
+
+    if (existingToken) {
+        try {
+            jwt.verify(existingToken.token, process.env.JWT_SECRET as string);
+            finalToken = existingToken.token;
+        } catch (err) {
+            finalToken = jwt.sign(
+              { 
+                userId: user._id, 
+                userType: user.userType, 
+                restaurantId: user.restaurantId,
+                activeBranchId: activeBranchId
+              },
+              process.env.JWT_SECRET as string,
+              { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
+            );
+            existingToken.token = finalToken;
+            await existingToken.save();
+        }
+    } else {
+        finalToken = jwt.sign(
+          { 
+            userId: user._id, 
+            userType: user.userType, 
+            restaurantId: user.restaurantId,
+            activeBranchId: activeBranchId
+          },
+          process.env.JWT_SECRET as string,
+          { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
+        );
+        await UserToken.create({ userId: user._id, token: finalToken });
+    }
 
     sendSuccess(res, "Login successful.", {
-      token,
+      token: finalToken,
       user: {
         id: user._id,
         name: user.name,
@@ -86,42 +111,11 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
 };
 
 export const logout = async (req: AuthRequest, res: Response): Promise<void> => {
-  // Stateless JWT — client removes token
+  const token = req.headers.authorization?.split(" ")[1];
+  if (token) {
+    await UserToken.findOneAndDelete({ userId: req.user?.userId, token });
+  }
   sendSuccess(res, "Logged out successfully.");
 };
 
-export const switchBranch = async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-        if (req.user?.userType !== 'RESTAURANT_OWNER') {
-            sendError(res, "Only Restaurant Owners can switch branches.", StatusCodes.FORBIDDEN);
-            return;
-        }
 
-        const { branchId } = req.body;
-        if (!branchId) {
-            sendError(res, "branchId is required.", StatusCodes.BAD_REQUEST);
-            return;
-        }
-
-        const branch = await Branch.findOne({ _id: branchId, restaurantId: req.user.restaurantId, isDelete: false });
-        if (!branch) {
-            sendError(res, "Branch not found or unauthorized.", StatusCodes.NOT_FOUND);
-            return;
-        }
-
-        const token = jwt.sign(
-            { 
-                userId: req.user.userId, 
-                userType: req.user.userType, 
-                restaurantId: req.user.restaurantId,
-                activeBranchId: branchId
-            },
-            process.env.JWT_SECRET as string,
-            { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
-        );
-
-        sendSuccess(res, "Branch switched successfully.", { token, activeBranchId: branchId });
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
-    }
-};

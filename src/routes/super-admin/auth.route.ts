@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { superAdminLogin, getSuperAdminProfile, logout } from "../../controllers/super-admin/auth.controller";
+import { superAdminLogin, getSuperAdminProfile, logout, updateSuperAdminProfile, updateSuperAdminPassword } from "../../controllers/super-admin/auth.controller";
 import { protectSuperAdmin } from "../../middleware/authMiddleware";
 
 const router = Router();
@@ -111,5 +111,71 @@ router.post("/logout", protectSuperAdmin, logout);
  *         $ref: '#/components/responses/500'
  */
 router.get("/profile", protectSuperAdmin, getSuperAdminProfile);
+
+/**
+ * @swagger
+ * /api/super-admin/auth/profile:
+ *   put:
+ *     summary: Update Super Admin Profile
+ *     tags: [Super Admin Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               phoneNumber:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *       401:
+ *         $ref: '#/components/responses/401'
+ *       404:
+ *         $ref: '#/components/responses/404'
+ *       500:
+ *         $ref: '#/components/responses/500'
+ */
+router.put("/profile", protectSuperAdmin, updateSuperAdminProfile);
+
+/**
+ * @swagger
+ * /api/super-admin/auth/change-password:
+ *   put:
+ *     summary: Update Super Admin Password
+ *     tags: [Super Admin Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password updated successfully
+ *       400:
+ *         $ref: '#/components/responses/400'
+ *       401:
+ *         $ref: '#/components/responses/401'
+ *       404:
+ *         $ref: '#/components/responses/404'
+ *       500:
+ *         $ref: '#/components/responses/500'
+ */
+router.put("/change-password", protectSuperAdmin, updateSuperAdminPassword);
 
 export default router;
