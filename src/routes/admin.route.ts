@@ -5,6 +5,7 @@ import tableRoutes from "./admin/table.route";
 import qrRoutes from "./admin/qr.route";
 import orderRoutes from "./admin/order.route";
 import menuRoutes from "./admin/menu.route";
+import branchRoutes from "./admin/branch.route";
 import { protectAdmin } from "../middleware/authMiddleware";
 
 const router = Router();
@@ -16,5 +17,6 @@ router.use("/qr", protectAdmin, qrRoutes);
 router.use("/orders", protectAdmin, orderRoutes);
 router.use("/billing", protectAdmin, orderRoutes);
 router.use("/menu", protectAdmin, menuRoutes);
+router.use("/branches", protectAdmin, branchRoutes);
 
 export default router;

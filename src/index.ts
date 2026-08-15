@@ -36,7 +36,7 @@ const startServer = async () => {
     await connectDB();
 
     await seedModules();
-    await seedPlans();
+    // await seedPlans();
     await seedAdmin();
     // await seedOrders();
 
