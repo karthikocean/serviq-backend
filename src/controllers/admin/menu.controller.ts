@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { sendSuccess, sendError } from "../../utils/response";
+import { pagination } from "../../utils/pagination";
 import { AuthRequest } from "../../middleware/authMiddleware";
 import Menu from "../../models/Menu";
 
@@ -11,12 +12,19 @@ export const createMenuItem = async (req: AuthRequest, res: Response): Promise<v
         return;
     }
     try {
-        const exist = await Menu.findOne({ name, category, isDelete: false });
+        const { restaurantId, activeBranchId } = req.user as any;
+        if (!activeBranchId) {
+            sendError(res, "Please select an active branch to create a menu item.", StatusCodes.BAD_REQUEST);
+            return;
+        }
+        const exist = await Menu.findOne({ name, category, restaurantId, branchId: activeBranchId, isDelete: false });
         if (exist) {
             sendError(res, "Menu item with this name already exists in this category.", StatusCodes.CONFLICT);
             return;
         }
         const menuItem = await Menu.create({
+            restaurantId,
+            branchId: activeBranchId,
             name,
             desc: desc || "",
             price: Number(price),
@@ -35,8 +43,20 @@ export const createMenuItem = async (req: AuthRequest, res: Response): Promise<v
 
 export const getMenuItems = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const menuItems = await Menu.find({ isDelete: false }).sort({ createdAt: -1 });
-        sendSuccess(res, "Menu items fetched successfully.", menuItems);
+        const { restaurantId, activeBranchId } = req.user as any;
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
+        const pageIndex = Math.max(0, page - 1);
+        const skip = pageIndex * limit;
+
+        const total = await Menu.countDocuments({ restaurantId, branchId: activeBranchId, isDelete: false });
+
+        const menuItems = await Menu.find({ restaurantId, branchId: activeBranchId, isDelete: false })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+            
+        pagination(total, menuItems, limit, pageIndex, res, "Menu items fetched successfully.");
     } catch (err) {
         sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
     }
@@ -49,7 +69,8 @@ export const getMenuItem = async (req: AuthRequest, res: Response): Promise<void
         return;
     }
     try {
-        const menuItem = await Menu.findOne({ _id: id, isDelete: false });
+        const { restaurantId, activeBranchId } = req.user as any;
+        const menuItem = await Menu.findOne({ _id: id, restaurantId, branchId: activeBranchId, isDelete: false });
         if (!menuItem) {
             sendError(res, "Menu item not found.", StatusCodes.NOT_FOUND);
             return;
@@ -68,14 +89,15 @@ export const updateMenuItem = async (req: AuthRequest, res: Response): Promise<v
         return;
     }
     try {
-        const menuItem = await Menu.findOne({ _id: id, isDelete: false });
+        const { restaurantId, activeBranchId } = req.user as any;
+        const menuItem = await Menu.findOne({ _id: id, restaurantId, branchId: activeBranchId, isDelete: false });
         if (!menuItem) {
             sendError(res, "Menu item not found.", StatusCodes.NOT_FOUND);
             return;
         }
 
         if (name !== undefined) {
-            const exist = await Menu.findOne({ name, category: category || menuItem.category, _id: { $ne: id }, isDelete: false });
+            const exist = await Menu.findOne({ name, category: category || menuItem.category, _id: { $ne: id }, restaurantId, branchId: activeBranchId, isDelete: false });
             if (exist) {
                 sendError(res, "Menu item with this name already exists in this category.", StatusCodes.CONFLICT);
                 return;
@@ -105,7 +127,8 @@ export const deleteMenuItem = async (req: AuthRequest, res: Response): Promise<v
         return;
     }
     try {
-        const menuItem = await Menu.findOne({ _id: id, isDelete: false });
+        const { restaurantId, activeBranchId } = req.user as any;
+        const menuItem = await Menu.findOne({ _id: id, restaurantId, branchId: activeBranchId, isDelete: false });
         if (!menuItem) {
             sendError(res, "Menu item not found.", StatusCodes.NOT_FOUND);
             return;

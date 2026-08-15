@@ -1,16 +1,10 @@
 import { Router } from "express";
-import { register, login, getProfile, updateProfile, logout } from "../controllers/mobile/auth.controller";
-import { protect } from "../middleware/authMiddleware";
+import authRoutes from "./mobile/auth.route";
+import profileRoutes from "./mobile/profile.route";
 
 const router = Router();
 
-// ─── Auth ────────────────────────────────────────────
-router.post("/register", register);
-router.post("/login", login);
-router.post("/logout", protect, logout);
-
-// ─── Profile ─────────────────────────────────────────
-router.get("/profile", protect, getProfile);
-router.put("/profile", protect, updateProfile);
+router.use("/", authRoutes);
+router.use("/profile", profileRoutes);
 
 export default router;

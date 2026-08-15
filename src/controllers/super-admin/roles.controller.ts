@@ -3,14 +3,25 @@ import { StatusCodes } from "http-status-codes";
 import Role from "../../models/Role";
 import Module from "../../models/Module";
 import { sendSuccess, sendError } from "../../utils/response";
+import { pagination } from "../../utils/pagination";
 
 // GET all roles
 export const getAllRoles = async (req: Request, res: Response): Promise<void> => {
   try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const pageIndex = Math.max(0, page - 1);
+    const skip = pageIndex * limit;
+
+    const total = await Role.countDocuments({ isDelete: false });
+
     const roles = await Role.find({ isDelete: false })
       .populate("permissions.module")
-      .sort({ createdAt: -1 });
-    sendSuccess(res, "Roles fetched.", roles);
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+      
+    pagination(total, roles, limit, pageIndex, res, "Roles fetched.");
   } catch (error) {
     sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
   }
@@ -82,8 +93,19 @@ export const deleteRole = async (req: Request, res: Response): Promise<void> => 
 // GET all modules (for role permission setup)
 export const getAllModules = async (req: Request, res: Response): Promise<void> => {
   try {
-    const modules = await Module.find().sort({ order: 1 });
-    sendSuccess(res, "Modules fetched.", modules);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 100;
+    const pageIndex = Math.max(0, page - 1);
+    const skip = pageIndex * limit;
+
+    const total = await Module.countDocuments();
+
+    const modules = await Module.find()
+      .sort({ order: 1 })
+      .skip(skip)
+      .limit(limit);
+      
+    pagination(total, modules, limit, pageIndex, res, "Modules fetched.");
   } catch (error) {
     sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
   }

@@ -2,14 +2,24 @@ import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import Plan from "../../models/Plan";
 import { sendSuccess, sendError } from "../../utils/response";
+import { pagination } from "../../utils/pagination";
 
 
 export const getAllPlans = async (req: Request, res: Response): Promise<void> => {
   try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const pageIndex = Math.max(0, page - 1);
+    const skip = pageIndex * limit;
+
+    const total = await Plan.countDocuments({ isDelete: false, isActive: true });
+
     const plans = await Plan.find({ isDelete: false, isActive: true })
-      .populate("featuresIncluded")
-      .sort({ createdAt: -1 });
-    sendSuccess(res, "Plans fetched.", plans);
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    pagination(total, plans, limit, pageIndex, res, "Plans fetched.");
   } catch (error) {
     sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
   }

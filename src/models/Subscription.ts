@@ -3,9 +3,12 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface ISubscription extends Document {
     restaurant: mongoose.Types.ObjectId; // Reference to Restaurant
     plan: mongoose.Types.ObjectId;       // Reference to Plan
+    billingCycle: "Monthly" | "Annually";
     startDate: Date;
     endDate: Date;
     renewalDate: Date;
+    maxBranches: number;
+    features: Record<string, boolean>;
     status: "Active" | "Expiring Soon" | "Expired" | "Cancelled";
     isActive: boolean;
     isDelete: boolean;
@@ -15,9 +18,12 @@ const SubscriptionSchema = new Schema<ISubscription>(
     {
         restaurant: { type: Schema.Types.ObjectId, ref: "Restaurant", required: true },
         plan: { type: Schema.Types.ObjectId, ref: "Plan", required: true },
+        billingCycle: { type: String, enum: ["Monthly", "Annually"], required: true, default: "Monthly" },
         startDate: { type: Date, required: true },
         endDate: { type: Date, required: true },
         renewalDate: { type: Date, required: true },
+        maxBranches: { type: Number, required: true },
+        features: { type: Object, required: true },
         status: {
             type: String,
             enum: ["Active", "Expiring Soon", "Expired", "Cancelled"],

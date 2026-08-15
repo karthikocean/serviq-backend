@@ -7,9 +7,19 @@ export interface IRestaurant extends Document {
     ownerName: string;
     email: string;
     phoneNumber: string;
-    subscriptionPlan: mongoose.Types.ObjectId; // Reference to Plan
-    password?: string; // For restaurant owner login
+    websiteDomain?: string;
+    openingTime?: string;
+    closingTime?: string;
+    bannerUrl?: string;
+    address: string;
+    city: string;
+    state: string;
+    country: string;
+    fssaiLicense?: string;
+    gstinNumber?: string;
+    panNumber?: string;
     isActive: boolean;
+    status: 'Active' | 'Suspended' | 'Expired';
     isDelete: boolean;
 }
 
@@ -21,9 +31,19 @@ const RestaurantSchema = new Schema<IRestaurant>(
         ownerName: { type: String, required: true },
         email: { type: String, required: true, unique: true },
         phoneNumber: { type: String, required: true },
-        subscriptionPlan: { type: Schema.Types.ObjectId, ref: "Plan", required: true },
-        password: { type: String, required: true },
+        websiteDomain: { type: String },
+        openingTime: { type: String },
+        closingTime: { type: String },
+        bannerUrl: { type: String },
+        address: { type: String, required: true },
+        city: { type: String, required: true },
+        state: { type: String, required: true },
+        country: { type: String, required: true },
+        fssaiLicense: { type: String },
+        gstinNumber: { type: String },
+        panNumber: { type: String },
         isActive: { type: Boolean, default: true },
+        status: { type: String, enum: ['Active', 'Suspended', 'Expired'], default: 'Active' },
         isDelete: { type: Boolean, default: false },
     },
     { timestamps: true }
@@ -31,3 +51,4 @@ const RestaurantSchema = new Schema<IRestaurant>(
 
 const Restaurant = mongoose.model<IRestaurant>("Restaurant", RestaurantSchema);
 export default Restaurant;
+

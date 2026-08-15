@@ -7,6 +7,10 @@ export interface IUser extends Document {
   phoneNumber: string;
   password?: string;
   profileImage?: string;
+  userType: 'RESTAURANT_OWNER' | 'BRANCH_ADMIN' | 'STAFF';
+  restaurantId: mongoose.Types.ObjectId;
+  branchId?: mongoose.Types.ObjectId;
+  roleId?: mongoose.Types.ObjectId;
   isActive: boolean;
   isDelete: boolean;
   createdAt?: Date;
@@ -20,6 +24,10 @@ const UserSchema = new Schema<IUser>(
     phoneNumber: { type: String, required: true, unique: true },
     password: { type: String },
     profileImage: { type: String, default: null },
+    userType: { type: String, enum: ['RESTAURANT_OWNER', 'BRANCH_ADMIN', 'STAFF'], required: true },
+    restaurantId: { type: Schema.Types.ObjectId, ref: "Restaurant", required: true },
+    branchId: { type: Schema.Types.ObjectId, ref: "Branch" },
+    roleId: { type: Schema.Types.ObjectId, ref: "Role" },
     isActive: { type: Boolean, default: true },
     isDelete: { type: Boolean, default: false },
   },

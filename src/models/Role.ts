@@ -9,8 +9,11 @@ interface IPermission {
 }
 
 export interface IRole extends Document {
+  restaurantId?: mongoose.Types.ObjectId;
+  type: "SUPER_ADMIN" | "RESTAURANT";
   roleName: string;
   permissions: IPermission[];
+  isDefault: boolean;
   isActive: boolean;
   isDelete: boolean;
 }
@@ -28,8 +31,11 @@ const PermissionSchema = new Schema<IPermission>(
 
 const RoleSchema = new Schema<IRole>(
   {
-    roleName: { type: String, required: true, unique: true },
+    restaurantId: { type: Schema.Types.ObjectId, ref: "Restaurant" },
+    type: { type: String, enum: ["SUPER_ADMIN", "RESTAURANT"], required: true },
+    roleName: { type: String, required: true },
     permissions: [PermissionSchema],
+    isDefault: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     isDelete: { type: Boolean, default: false },
   },

@@ -8,6 +8,8 @@ export interface IOrderItem {
 }
 
 export interface IOrder extends Document {
+    restaurantId: mongoose.Types.ObjectId;
+    branchId: mongoose.Types.ObjectId;
     orderId: string;
     table: string;
     time: string;
@@ -27,6 +29,8 @@ export interface IOrder extends Document {
 
 const orderSchema = new Schema<IOrder>(
     {
+        restaurantId: { type: Schema.Types.ObjectId, ref: "Restaurant", required: true },
+        branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true },
         orderId: { type: String, required: true, unique: true },
         table: { type: String, required: true },
         time: { type: String, required: true },

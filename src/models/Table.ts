@@ -2,9 +2,11 @@ import mongoose, { Schema, Document } from "mongoose";
 import bcrypt from "bcryptjs";
 
 export interface Itable extends Document {
+    restaurantId: mongoose.Types.ObjectId;
+    branchId: mongoose.Types.ObjectId;
     tableNumber: string;
     seatingCapacity: number;
-    status: boolean;
+    status: string;
     isActive: boolean;
     isDelete: boolean;
     assignedQrId?: string | null;
@@ -14,9 +16,11 @@ export interface Itable extends Document {
 
 const tableSchema = new Schema<Itable>(
     {
+        restaurantId: { type: Schema.Types.ObjectId, ref: "Restaurant", required: true },
+        branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true },
         tableNumber: { type: String, required: true },
         seatingCapacity: { type: Number, required: true },
-        status: { type: Boolean, default: false },
+        status: { type: String, default: "Available" },
         isActive: { type: Boolean, default: true },
         isDelete: { type: Boolean, default: false },
         assignedQrId: { type: String, default: null }

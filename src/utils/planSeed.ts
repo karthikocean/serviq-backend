@@ -57,7 +57,7 @@ export const seedPlans = async (): Promise<void> => {
       await Plan.findOneAndUpdate(
         { planName: planData.planName },
         { $set: planData },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
     }
 

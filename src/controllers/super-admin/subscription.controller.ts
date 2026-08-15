@@ -4,16 +4,27 @@ import Subscription from "../../models/Subscription";
 import Restaurant from "../../models/Restaurant";
 import Plan from "../../models/Plan";
 import { sendSuccess, sendError } from "../../utils/response";
+import { pagination } from "../../utils/pagination";
 import { AuthRequest } from "../../middleware/authMiddleware";
 
 // GET all active subscriptions
 export const getAllSubscriptions = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
+        const pageIndex = Math.max(0, page - 1);
+        const skip = pageIndex * limit;
+
+        const total = await Subscription.countDocuments({ isDelete: false });
+
         const subscriptions = await Subscription.find({ isDelete: false })
             .populate("restaurant", "restaurantName restaurantId")
             .populate("plan", "planName")
-            .sort({ createdAt: -1 });
-        sendSuccess(res, "Subscriptions fetched successfully.", subscriptions);
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+        
+        pagination(total, subscriptions, limit, pageIndex, res, "Subscriptions fetched successfully.");
     } catch (error) {
         sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
     }
@@ -47,17 +58,16 @@ export const assignSubscription = async (req: Request, res: Response): Promise<v
         const newSubscription = await Subscription.create({
             restaurant,
             plan,
+            billingCycle: "Monthly", // Defaulting as it wasn't in the original request body
             startDate,
             endDate,
             renewalDate,
+            maxBranches: existingPlan.maxBranches,
+            features: existingPlan.featuresIncluded,
             status: status || "Active",
             isActive: true,
             isDelete: false
         });
-
-        // Sync subscription plan in Restaurant model
-        existingRestaurant.subscriptionPlan = plan;
-        await existingRestaurant.save();
 
         sendSuccess(res, "Subscription assigned successfully.", newSubscription, StatusCodes.CREATED);
     } catch (error) {
@@ -84,12 +94,8 @@ export const updateSubscription = async (req: Request, res: Response): Promise<v
                 return;
             }
             subscription.plan = plan;
-
-            // Also update the restaurant's active plan
-            await Restaurant.updateOne(
-                { _id: subscription.restaurant },
-                { $set: { subscriptionPlan: plan } }
-            );
+            subscription.maxBranches = existingPlan.maxBranches;
+            subscription.features = existingPlan.featuresIncluded as any;
         }
 
         if (startDate) subscription.startDate = startDate;
