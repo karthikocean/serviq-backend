@@ -1,147 +1,98 @@
-import { Response } from "express";
+import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { sendSuccess, sendError } from "../../utils/response";
-import { pagination } from "../../utils/pagination";
 import { AuthRequest } from "../../middleware/authMiddleware";
-import Table from "../../models/Table";
-import QrCode from "../../models/QrCode";
+import {
+  getTables,
+  createTable,
+  updateTable,
+  deleteTable,
+  generateQRsForTables
+} from "../../services/admin/table.service";
+import { getTargetBranchId } from "../../utils/authUtils";
 
-export const createTable = async (req: AuthRequest, res: Response): Promise<void> => {
-    const { tableNumber, seatingCapacity } = req.body;
-    if (!tableNumber || !seatingCapacity) {
-        sendError(res, "Table number and seating capacity are required.", StatusCodes.BAD_REQUEST);
-        return;
-    }
-    try {
-        const { restaurantId, activeBranchId } = req.user as any;
-        if (!activeBranchId) {
-            sendError(res, "Please select an active branch to create a table.", StatusCodes.BAD_REQUEST);
-            return;
-        }
-        const exist = await Table.findOne({ tableNumber, restaurantId, branchId: activeBranchId, isDelete: false });
-        if (exist) {
-            sendError(res, "Table number already exists.", StatusCodes.CONFLICT);
-            return;
-        }
-        const table = await Table.create({ restaurantId, branchId: activeBranchId, tableNumber, seatingCapacity, isDelete: false, isActive: true });
-        sendSuccess(res, "Table created successfully.", table, StatusCodes.CREATED);
-    } catch (err) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
-    }
+export const getAllTables = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.user?.restaurantId;
+    const branchId = getTargetBranchId(req);
+    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    const tables = await getTables(restaurantId, branchId);
+    sendSuccess(res, "Tables fetched successfully.", tables);
+  } catch (error) {
+    sendError(res, "Failed to fetch tables", StatusCodes.INTERNAL_SERVER_ERROR);
+  }
 };
 
-export const getTables = async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-        const { restaurantId, activeBranchId } = req.user as any;
-        const page = parseInt(req.query.page as string) || 1;
-        const limit = parseInt(req.query.limit as string) || 10;
-        const pageIndex = Math.max(0, page - 1);
-        const skip = pageIndex * limit;
+export const createNewTable = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.user?.restaurantId;
+    const branchId = getTargetBranchId(req);
+    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
-        const total = await Table.countDocuments({ restaurantId, branchId: activeBranchId, isDelete: false });
-
-        const tables = await Table.find({ restaurantId, branchId: activeBranchId, isDelete: false })
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit);
-            
-        pagination(total, tables, limit, pageIndex, res, "Tables fetched successfully.");
-    } catch (err) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    const newTable = await createTable(restaurantId, branchId, req.body);
+    sendSuccess(res, "Table created successfully.", { id: newTable._id });
+  } catch (error: any) {
+    if (error.message === "Table number already exists") {
+      sendError(res, error.message, StatusCodes.CONFLICT);
+    } else {
+      sendError(res, "Failed to create table", StatusCodes.INTERNAL_SERVER_ERROR);
     }
+  }
 };
 
-export const getTable = async (req: AuthRequest, res: Response): Promise<void> => {
-    const { id } = req.params;
-    if (!id) {
-        sendError(res, "Table ID is required.", StatusCodes.BAD_REQUEST);
-        return;
+export const updateTableDetails = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.user?.restaurantId;
+    const branchId = getTargetBranchId(req);
+    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    const tableId = req.params.tableId as string;
+    await updateTable(restaurantId, branchId, tableId, req.body);
+    sendSuccess(res, "Table updated successfully.");
+  } catch (error: any) {
+    if (error.message === "Table not found") {
+      sendError(res, error.message, StatusCodes.NOT_FOUND);
+    } else if (error.message === "Table number already exists") {
+      sendError(res, error.message, StatusCodes.CONFLICT);
+    } else {
+      sendError(res, "Failed to update table", StatusCodes.INTERNAL_SERVER_ERROR);
     }
-    try {
-        const { restaurantId, activeBranchId } = req.user as any;
-        const table = await Table.findOne({ _id: id, restaurantId, branchId: activeBranchId, isDelete: false });
-        if (!table) {
-            sendError(res, "Table not found.", StatusCodes.NOT_FOUND);
-            return;
-        }
-        sendSuccess(res, "Table fetched successfully.", table);
-    } catch (err) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
-    }
+  }
 };
 
-export const updateTable = async (req: AuthRequest, res: Response): Promise<void> => {
-    const { id } = req.params;
-    const { tableNumber, seatingCapacity, status, isActive } = req.body;
-    if (!id) {
-        sendError(res, "Table ID is required.", StatusCodes.BAD_REQUEST);
-        return;
+export const deleteTableData = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.user?.restaurantId;
+    const branchId = getTargetBranchId(req);
+    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    const tableId = req.params.tableId as string;
+    await deleteTable(restaurantId, branchId, tableId);
+    sendSuccess(res, "Table deleted successfully.");
+  } catch (error: any) {
+    if (error.message === "Table not found") {
+      sendError(res, error.message, StatusCodes.NOT_FOUND);
+    } else {
+      sendError(res, "Failed to delete table", StatusCodes.INTERNAL_SERVER_ERROR);
     }
-    try {
-        const { restaurantId, activeBranchId } = req.user as any;
-        const table = await Table.findOne({ _id: id, restaurantId, branchId: activeBranchId, isDelete: false });
-        if (!table) {
-            sendError(res, "Table not found.", StatusCodes.NOT_FOUND);
-            return;
-        }
-
-        if (tableNumber !== undefined) {
-            const exist = await Table.findOne({ tableNumber, _id: { $ne: id }, restaurantId, branchId: activeBranchId, isDelete: false });
-            if (exist) {
-                sendError(res, "Table number already exists.", StatusCodes.CONFLICT);
-                return;
-            }
-            if (table.tableNumber !== tableNumber) {
-                await QrCode.updateMany({ tableId: table.tableNumber, restaurantId, branchId: activeBranchId, isDelete: false }, { tableId: tableNumber });
-            }
-            table.tableNumber = tableNumber;
-        }
-
-        if (seatingCapacity !== undefined) {
-            table.seatingCapacity = seatingCapacity;
-        }
-
-        if (status !== undefined) {
-            table.status = status;
-        }
-
-        if (isActive !== undefined) {
-            table.isActive = isActive;
-        }
-
-        await table.save();
-        sendSuccess(res, "Table updated successfully.", table);
-    } catch (err) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
-    }
+  }
 };
 
-export const deleteTable = async (req: AuthRequest, res: Response): Promise<void> => {
-    const { id } = req.params;
-    if (!id) {
-        sendError(res, "Table ID is required.", StatusCodes.BAD_REQUEST);
-        return;
+export const generateQrCodes = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.user?.restaurantId;
+    const branchId = getTargetBranchId(req);
+    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    const { tableIds } = req.body;
+    const qrs = await generateQRsForTables(restaurantId, branchId, tableIds);
+    sendSuccess(res, "QR codes generated successfully.", { generated: qrs });
+  } catch (error: any) {
+    if (error.message === "No valid tables found") {
+      sendError(res, error.message, StatusCodes.NOT_FOUND);
+    } else {
+      sendError(res, "Failed to generate QR codes", StatusCodes.INTERNAL_SERVER_ERROR);
     }
-    try {
-        const { restaurantId, activeBranchId } = req.user as any;
-        const table = await Table.findOne({ _id: id, restaurantId, branchId: activeBranchId, isDelete: false });
-        if (!table) {
-            sendError(res, "Table not found.", StatusCodes.NOT_FOUND);
-            return;
-        }
-        table.isDelete = true;
-        if (table.assignedQrId) {
-            await QrCode.updateMany({ qrCodeId: table.assignedQrId, restaurantId, branchId: activeBranchId, isDelete: false }, { status: "Unassigned", tableId: null });
-        }
-        await table.save();
-        sendSuccess(res, "Table deleted successfully.", table);
-    } catch (err) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
-    }
+  }
 };
-
-
-
-
-
-

@@ -1,6 +1,19 @@
 import { Router } from "express";
-import { getOrders, createOrder, updateOrder, deleteOrder, payBill } from "../../controllers/admin/order.controller";
+import { 
+  getAllOrders, 
+  getSingleOrder, 
+  createNewOrder, 
+  updateStatus, 
+  updateItems, 
+  deleteOrderRecord 
+} from "../../controllers/admin/order.controller";
 import { checkBranchAccess, checkSubscriptionFeature, checkPermission } from "../../middleware/rbacMiddleware";
+import { validate } from "../../middleware/validate";
+import { 
+  createOrderSchema, 
+  updateOrderStatusSchema, 
+  updateOrderItemsSchema 
+} from "../../validations/admin/order.validation";
 
 const router = Router();
 
@@ -8,7 +21,7 @@ const router = Router();
  * @swagger
  * tags:
  *   name: Admin Orders
- *   description: Manage restaurant orders and billing
+ *   description: Manage restaurant orders
  */
 
 /**
@@ -19,11 +32,37 @@ const router = Router();
  *     tags: [Admin Orders]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [new, preparing, ready, done]
  *     responses:
  *       200:
  *         description: List of orders
  */
-router.get("/", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "canView"), getOrders);
+router.get("/", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "view"), getAllOrders);
+
+/**
+ * @swagger
+ * /api/admin/orders/{orderId}:
+ *   get:
+ *     summary: Get a specific order
+ *     tags: [Admin Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Order details
+ */
+router.get("/:orderId", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "view"), getSingleOrder);
 
 /**
  * @swagger
@@ -40,42 +79,37 @@ router.get("/", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermi
  *           schema:
  *             type: object
  *             properties:
- *               table: { type: string, example: "Table 1" }
- *               items:
+ *               tableId: { type: string }
+ *               waiterId: { type: string }
+ *               items: 
  *                 type: array
  *                 items:
  *                   type: object
  *                   properties:
- *                     menuItem: { type: string, example: "Margherita Pizza" }
- *                     qty: { type: integer, example: 2 }
- *                     price: { type: number, example: 299 }
- *               notes: { type: string, example: "Extra spicy" }
- *               waiter: { type: string, example: "John" }
+ *                     menuId: { type: string }
+ *                     name: { type: string }
+ *                     qty: { type: number }
+ *                     price: { type: number }
+ *               subtotal: { type: number }
+ *               tax: { type: number }
+ *               total: { type: number }
  *     responses:
  *       201:
  *         description: Order created
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       500:
- *         $ref: '#/components/responses/500'
  */
-router.post("/", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "canCreate"), createOrder);
-
-
+router.post("/", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "add"), validate(createOrderSchema), createNewOrder);
 
 /**
  * @swagger
- * /api/admin/orders/{id}:
- *   put:
- *     summary: Update an order
+ * /api/admin/orders/{orderId}/status:
+ *   patch:
+ *     summary: Update order status
  *     tags: [Admin Orders]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: orderId
  *         required: true
  *         schema:
  *           type: string
@@ -86,35 +120,44 @@ router.post("/", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPerm
  *           schema:
  *             type: object
  *             properties:
- *               status: { type: string, example: "preparing" }
- *               billingStatus: { type: string, example: "unpaid" }
- *               waiter: { type: string, example: "Mike" }
- *               notes: { type: string, example: "Less spicy" }
- *               items:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     menuItem: { type: string, example: "Margherita Pizza" }
- *                     qty: { type: integer, example: 1 }
- *                     price: { type: number, example: 299 }
+ *               status:
+ *                 type: string
+ *                 enum: [new, preparing, ready, done]
  *     responses:
  *       200:
- *         description: Order updated
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
+ *         description: Order status updated
  */
-router.put("/:id", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "canEdit"), updateOrder);
+router.patch("/:orderId/status", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "edit"), validate(updateOrderStatusSchema), updateStatus);
 
 /**
  * @swagger
- * /api/admin/orders/{id}:
+ * /api/admin/orders/{orderId}/items:
+ *   put:
+ *     summary: Update order items and totals
+ *     tags: [Admin Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Order items updated
+ */
+router.put("/:orderId/items", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "edit"), validate(updateOrderItemsSchema), updateItems);
+
+/**
+ * @swagger
+ * /api/admin/orders/{orderId}:
  *   delete:
  *     summary: Delete an order
  *     tags: [Admin Orders]
@@ -122,45 +165,14 @@ router.put("/:id", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPe
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: orderId
  *         required: true
  *         schema:
  *           type: string
  *     responses:
  *       200:
  *         description: Order deleted
- *       401:
- *         $ref: '#/components/responses/401'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
  */
-router.delete("/:id", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "canDelete"), deleteOrder);
-
-/**
- * @swagger
- * /api/admin/orders/pay:
- *   post:
- *     summary: Pay a bill for an order
- *     tags: [Admin Orders]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               orderId:
- *                 type: string
- *               paymentMethod:
- *                 type: string
- *     responses:
- *       200:
- *         description: Bill paid successfully
- */
-router.post("/pay", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "canEdit"), payBill);
+router.delete("/:orderId", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "delete"), deleteOrderRecord);
 
 export default router;

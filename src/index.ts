@@ -61,7 +61,9 @@ const startServer = async () => {
           version: "1.0.0",
           description: "API Documentation for ServiQ backend",
         },
-        servers: [{ url: "http://localhost:5000" }],
+        servers: [
+          { url: "http://localhost:5000" },
+          { url: "http://192.168.1.17:5000", description: "Network" }],
         components: {
           securitySchemes: {
             bearerAuth: {

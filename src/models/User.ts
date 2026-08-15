@@ -13,6 +13,9 @@ export interface IUser extends Document {
   roleId?: mongoose.Types.ObjectId;
   isActive: boolean;
   isDelete: boolean;
+  dutyStatus: 'ON_DUTY' | 'OFF_DUTY';
+  kitchenPin?: string;
+  autoAccept: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -30,6 +33,9 @@ const UserSchema = new Schema<IUser>(
     roleId: { type: Schema.Types.ObjectId, ref: "Role" },
     isActive: { type: Boolean, default: true },
     isDelete: { type: Boolean, default: false },
+    dutyStatus: { type: String, enum: ['ON_DUTY', 'OFF_DUTY'], default: 'OFF_DUTY' },
+    kitchenPin: { type: String },
+    autoAccept: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

@@ -4,6 +4,15 @@ import Subscription from "../models/Subscription";
 import User from "../models/User";
 import Role from "../models/Role";
 
+const FEATURE_MAP: Record<string, string> = {
+    'MENU': 'menu',
+    'TABLE_QR': 'tables',
+    'QR': 'qr-code-config',
+    'ORDER': 'orders',
+    'STAFF': 'waiter-list',
+    'KDS': 'kitchen-list'
+};
+
 // 1. Check if the Restaurant's Subscription Plan includes a specific feature module
 export const checkSubscriptionFeature = (moduleKey: string) => {
     return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
@@ -18,20 +27,23 @@ export const checkSubscriptionFeature = (moduleKey: string) => {
                 return;
             }
 
-            // Get active subscription and populate features (Modules)
+            // Get active subscription and populate the plan
             const subscription = await Subscription.findOne({
                 restaurant: restaurantId,
                 status: "Active"
-            }).populate("features");
+            }).populate("plan");
 
             if (!subscription) {
                 res.status(403).json({ success: false, message: "No active subscription found." });
                 return;
             }
 
-            // Check if feature is in plan
-            const features = subscription.features as Record<string, boolean>;
-            const hasFeature = features && features[moduleKey] === true;
+            // Check if feature is in plan's featuresIncluded or subscription.features
+            const plan = subscription.plan as any;
+            const features = plan?.featuresIncluded || subscription.features;
+            
+            const mappedKey = FEATURE_MAP[moduleKey] || moduleKey;
+            const hasFeature = features && features[mappedKey] === true;
 
             if (!hasFeature) {
                 res.status(403).json({ success: false, message: `Your plan does not include access to ${moduleKey}` });
@@ -69,7 +81,7 @@ export const checkBranchAccess = async (req: AuthRequest, res: Response, next: N
 };
 
 // 3. Check specific Role permission
-export const checkPermission = (moduleKey: string, action: 'canView' | 'canCreate' | 'canEdit' | 'canDelete') => {
+export const checkPermission = (moduleKey: string, action: 'canView' | 'canCreate' | 'canEdit' | 'canDelete' | 'view' | 'add' | 'edit' | 'delete') => {
     return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
         try {
             if (req.user?.userType === 'SUPER_ADMIN' || req.user?.userType === 'RESTAURANT_OWNER') {
@@ -89,9 +101,18 @@ export const checkPermission = (moduleKey: string, action: 'canView' | 'canCreat
             }
 
             const role = user.roleId as any;
-            const permission = role.permissions.find((p: any) => p.module.key === moduleKey);
+            const mappedKey = FEATURE_MAP[moduleKey] || moduleKey;
+            const permission = role.permissions ? role.permissions.get(mappedKey) : undefined;
 
-            if (permission && permission[action]) {
+            const actionMap: any = {
+                'canView': 'view',
+                'canCreate': 'add',
+                'canEdit': 'edit',
+                'canDelete': 'delete'
+            };
+            const mappedAction = actionMap[action] || action;
+
+            if (permission && permission[mappedAction] === true) {
                 return next();
             }
 

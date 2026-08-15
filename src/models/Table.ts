@@ -10,6 +10,9 @@ export interface Itable extends Document {
     isActive: boolean;
     isDelete: boolean;
     assignedQrId?: string | null;
+    qrUrl?: string;
+    section?: string;
+    assignedWaiter?: mongoose.Types.ObjectId;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -23,7 +26,10 @@ const tableSchema = new Schema<Itable>(
         status: { type: String, default: "Available" },
         isActive: { type: Boolean, default: true },
         isDelete: { type: Boolean, default: false },
-        assignedQrId: { type: String, default: null }
+        assignedQrId: { type: String, default: null },
+        qrUrl: { type: String, default: "" },
+        section: { type: String, default: "Main" },
+        assignedWaiter: { type: Schema.Types.ObjectId, ref: "User", default: null }
     },
     { timestamps: true }
 );

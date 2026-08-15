@@ -1,18 +1,17 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 interface IPermission {
-  module: mongoose.Types.ObjectId;
-  canView: boolean;
-  canCreate: boolean;
-  canEdit: boolean;
-  canDelete: boolean;
+  view: boolean;
+  add: boolean;
+  edit: boolean;
+  delete: boolean;
 }
 
 export interface IRole extends Document {
   restaurantId?: mongoose.Types.ObjectId;
   type: "SUPER_ADMIN" | "RESTAURANT";
   roleName: string;
-  permissions: IPermission[];
+  permissions: Record<string, IPermission>;
   isDefault: boolean;
   isActive: boolean;
   isDelete: boolean;
@@ -20,11 +19,10 @@ export interface IRole extends Document {
 
 const PermissionSchema = new Schema<IPermission>(
   {
-    module: { type: Schema.Types.ObjectId, ref: "Module", required: true },
-    canView: { type: Boolean, default: false },
-    canCreate: { type: Boolean, default: false },
-    canEdit: { type: Boolean, default: false },
-    canDelete: { type: Boolean, default: false },
+    view: { type: Boolean, default: false },
+    add: { type: Boolean, default: false },
+    edit: { type: Boolean, default: false },
+    delete: { type: Boolean, default: false },
   },
   { _id: false }
 );
@@ -34,7 +32,7 @@ const RoleSchema = new Schema<IRole>(
     restaurantId: { type: Schema.Types.ObjectId, ref: "Restaurant" },
     type: { type: String, enum: ["SUPER_ADMIN", "RESTAURANT"], required: true },
     roleName: { type: String, required: true },
-    permissions: [PermissionSchema],
+    permissions: { type: Map, of: PermissionSchema },
     isDefault: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     isDelete: { type: Boolean, default: false },

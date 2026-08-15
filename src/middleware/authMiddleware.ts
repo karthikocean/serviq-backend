@@ -116,3 +116,13 @@ export const protectSuperAdmin = async (req: AuthRequest, res: Response, next: N
     res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: "Invalid token." });
   }
 };
+
+export const restrictTo = (...allowedTypes: string[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!req.user || !allowedTypes.includes(req.user.userType)) {
+      res.status(StatusCodes.FORBIDDEN).json({ success: false, message: "You do not have permission to perform this action." });
+      return;
+    }
+    next();
+  };
+};
