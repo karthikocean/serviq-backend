@@ -43,7 +43,12 @@ const startServer = async () => {
     // Start background cron jobs
     startCronJobs();
 
-    app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+    app.use((req, res, next) => {
+      if (req.path.startsWith('/api-docs')) return next();
+      helmet({ 
+        crossOriginResourcePolicy: { policy: "cross-origin" } 
+      })(req, res, next);
+    });
     app.use(cors());
     app.use(morgan("dev"));
     app.use(express.json({ limit: '50mb' }));
@@ -63,7 +68,7 @@ const startServer = async () => {
         },
         servers: [
           { url: "http://localhost:5000" },
-          { url: "http://192.168.1.17:5000", description: "Network" }],
+          { url: "http://192.168.1.19:5000", description: "Network" }],
         components: {
           securitySchemes: {
             bearerAuth: {

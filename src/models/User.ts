@@ -12,6 +12,7 @@ export interface IUser extends Document {
   branchId?: mongoose.Types.ObjectId;
   roleId?: mongoose.Types.ObjectId;
   isActive: boolean;
+  status: 'Active' | 'Inactive';
   isDelete: boolean;
   dutyStatus: 'ON_DUTY' | 'OFF_DUTY';
   kitchenPin?: string;
@@ -32,6 +33,7 @@ const UserSchema = new Schema<IUser>(
     branchId: { type: Schema.Types.ObjectId, ref: "Branch" },
     roleId: { type: Schema.Types.ObjectId, ref: "Role" },
     isActive: { type: Boolean, default: true },
+    status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
     isDelete: { type: Boolean, default: false },
     dutyStatus: { type: String, enum: ['ON_DUTY', 'OFF_DUTY'], default: 'OFF_DUTY' },
     kitchenPin: { type: String },

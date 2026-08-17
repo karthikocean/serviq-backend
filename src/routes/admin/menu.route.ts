@@ -6,7 +6,9 @@ import {
   toggleItem, 
   deleteItem, 
   getCats, 
-  createCats 
+  createCategoryController,
+  updateCategoryController,
+  deleteCategoryController
 } from "../../controllers/admin/menu.controller";
 import { checkBranchAccess, checkSubscriptionFeature, checkPermission } from "../../middleware/rbacMiddleware";
 import { validate } from "../../middleware/validate";
@@ -14,7 +16,7 @@ import {
   createMenuItemSchema, 
   updateMenuItemSchema, 
   toggleMenuAvailabilitySchema, 
-  createCategoriesSchema 
+  createCategorySchema 
 } from "../../validations/admin/menu.validation";
 
 const router = Router();
@@ -43,9 +45,9 @@ router.get("/categories", checkBranchAccess, checkSubscriptionFeature("MENU"), c
 
 /**
  * @swagger
- * /api/admin/menu/categories:
+ * /api/admin/menu/category:
  *   post:
- *     summary: Add or update categories
+ *     summary: Create a menu category
  *     tags: [Admin Menu]
  *     security:
  *       - bearerAuth: []
@@ -55,16 +57,73 @@ router.get("/categories", checkBranchAccess, checkSubscriptionFeature("MENU"), c
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - name
  *             properties:
- *               categories:
- *                 type: array
- *                 items:
- *                   type: string
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               status:
+ *                 type: string
  *     responses:
  *       200:
- *         description: Categories updated
+ *         description: Category created
  */
-router.post("/categories", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "add"), validate(createCategoriesSchema), createCats);
+router.post("/category", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "add"), validate(createCategorySchema), createCategoryController);
+
+/**
+ * @swagger
+ * /api/admin/menu/category/{id}:
+ *   put:
+ *     summary: Update a menu category
+ *     tags: [Admin Menu]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Category updated
+ */
+router.put("/category/:id", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "edit"), updateCategoryController);
+
+/**
+ * @swagger
+ * /api/admin/menu/category/{id}:
+ *   delete:
+ *     summary: Delete a menu category
+ *     tags: [Admin Menu]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Category deleted
+ */
+router.delete("/category/:id", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "delete"), deleteCategoryController);
 
 // Menu Items Routes
 /**

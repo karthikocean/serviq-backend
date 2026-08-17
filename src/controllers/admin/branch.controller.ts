@@ -6,16 +6,12 @@ import { sendSuccess, sendError } from "../../utils/response";
 import Branch from "../../models/Branch";
 import User from "../../models/User";
 import Subscription from "../../models/Subscription";
+import Role from "../../models/Role";
 
 export const createBranch = async (req: AuthRequest, res: Response): Promise<void> => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     const user = req.user as any;
     if (!user || user.userType !== 'RESTAURANT_OWNER') {
-      await session.abortTransaction();
-      session.endSession();
       sendError(res, "Only Restaurant Owners can create branches.", StatusCodes.FORBIDDEN);
       return;
     }
@@ -31,33 +27,25 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
 
     // Validate Required Fields
     if (!branchName || !branchCode || !contactNumber || !street || !city || !state || !country || !pincode || !managerName || !managerMobile || !managerPassword) {
-      await session.abortTransaction();
-      session.endSession();
       sendError(res, "All required fields must be provided.", StatusCodes.BAD_REQUEST);
       return;
     }
 
     // Validate Subscription
-    const subscription = await Subscription.findOne({ restaurant: restaurantId, status: "Active" }).session(session);
+    const subscription = await Subscription.findOne({ restaurant: restaurantId, status: "Active" });
     if (!subscription) {
-      await session.abortTransaction();
-      session.endSession();
       sendError(res, "No active subscription found for this restaurant.", StatusCodes.FORBIDDEN);
       return;
     }
 
     if (!subscription.maxBranches) {
-      await session.abortTransaction();
-      session.endSession();
       sendError(res, "Invalid subscription plan configuration.", StatusCodes.INTERNAL_SERVER_ERROR);
       return;
     }
 
-    const existingBranchCount = await Branch.countDocuments({ restaurantId, isDelete: false }).session(session);
+    const existingBranchCount = await Branch.countDocuments({ restaurantId, isDelete: false });
 
     if (existingBranchCount >= subscription.maxBranches) {
-      await session.abortTransaction();
-      session.endSession();
       sendError(res, "Maximum branch limit reached based on your active plan.", StatusCodes.FORBIDDEN);
       return;
     }
@@ -68,20 +56,16 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
       existingUserQuery.push({ email: managerEmail });
     }
 
-    const existingUser = await User.findOne({ $or: existingUserQuery }).session(session);
+    const existingUser = await User.findOne({ $or: existingUserQuery });
 
     if (existingUser) {
-      await session.abortTransaction();
-      session.endSession();
       sendError(res, "A user with this email or mobile number already exists.", StatusCodes.CONFLICT);
       return;
     }
 
     // Check branch code uniqueness globally or per restaurant
-    const existingBranch = await Branch.findOne({ branchCode }).session(session);
+    const existingBranch = await Branch.findOne({ branchCode });
     if (existingBranch) {
-      await session.abortTransaction();
-      session.endSession();
       sendError(res, "Branch code already exists.", StatusCodes.CONFLICT);
       return;
     }
@@ -105,29 +89,63 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
       isMainBranch: existingBranchCount === 0 // First branch becomes main automatically
     });
     
-    await newBranch.save({ session });
+    await newBranch.save();
 
-    // Create User (Branch Manager)
-    const newManager = new User({
-      name: managerName,
-      email: managerEmail,
-      phoneNumber: managerMobile,
-      password: managerPassword,
-      userType: 'BRANCH_ADMIN',
-      restaurantId,
-      branchId: newBranch._id,
-      isActive: true
-    });
+    let newManager;
+    try {
+      // Find or Create 'Branch Manager' Role
+      let branchManagerRole = await Role.findOne({ restaurantId, roleName: 'Branch Manager', isDelete: false });
+      
+      if (!branchManagerRole) {
+        const defaultManagerPermissions = {
+          dashboard: { view: true, add: false, edit: false, delete: false },
+          menu: { view: true, add: true, edit: true, delete: true },
+          tables: { view: true, add: true, edit: true, delete: true },
+          orders: { view: true, add: true, edit: true, delete: true },
+          staff_management: { view: true, add: true, edit: true, delete: true },
+          reports_analytics: { view: true, add: false, edit: false, delete: false },
+          user_accounts: { view: true, add: true, edit: true, delete: true },
+          settings: { view: true, add: true, edit: true, delete: false },
+          'waiter-list': { view: true, add: true, edit: true, delete: true },
+          'kitchen-list': { view: true, add: true, edit: true, delete: true },
+          'qr-code-config': { view: true, add: true, edit: true, delete: true },
+          // NO access to: branch_management, plans_subscription, billing_payments, roles_permissions
+        };
 
-    await newManager.save({ session });
+        branchManagerRole = new Role({
+          restaurantId,
+          type: "RESTAURANT",
+          roleName: 'Branch Manager',
+          roleType: 'BRANCH_MANAGER',
+          permissions: defaultManagerPermissions,
+          isDefault: false,
+          isActive: true
+        });
+        await branchManagerRole.save();
+      }
 
-    await session.commitTransaction();
-    session.endSession();
+      // Create User (Branch Manager)
+      newManager = new User({
+        name: managerName,
+        email: managerEmail,
+        phoneNumber: managerMobile,
+        password: managerPassword,
+        userType: 'BRANCH_ADMIN',
+        restaurantId,
+        branchId: newBranch._id,
+        roleId: branchManagerRole._id,
+        isActive: true
+      });
+
+      await newManager.save();
+    } catch (error) {
+      // Manual rollback
+      await Branch.findByIdAndDelete(newBranch._id);
+      throw error;
+    }
 
     sendSuccess(res, "Branch and Manager created successfully.", { branch: newBranch, manager: { id: newManager._id, name: newManager.name, email: newManager.email } }, StatusCodes.CREATED);
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     console.error("Error creating branch:", error);
     sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
   }
@@ -140,8 +158,20 @@ export const getAllBranches = async (req: AuthRequest, res: Response): Promise<v
       sendError(res, "Only Restaurant Owners can view branches.", StatusCodes.FORBIDDEN);
       return;
     }
-    const branches = await Branch.find({ restaurantId: user.restaurantId, isDelete: false });
-    sendSuccess(res, "Branches retrieved successfully.", branches, StatusCodes.OK);
+    const branches = await Branch.find({ restaurantId: user.restaurantId, isDelete: false }).lean();
+    
+    // Attach manager details for each branch
+    const branchesWithManagers = await Promise.all(branches.map(async (branch) => {
+        const manager = await User.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false }).select("name email phoneNumber");
+        return {
+            ...branch,
+            managerName: manager?.name || '',
+            managerEmail: manager?.email || '',
+            managerMobile: manager?.phoneNumber || ''
+        };
+    }));
+
+    sendSuccess(res, "Branches retrieved successfully.", branchesWithManagers, StatusCodes.OK);
   } catch (error) {
     console.error("Error fetching branches:", error);
     sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
@@ -155,15 +185,22 @@ export const getBranchById = async (req: AuthRequest, res: Response): Promise<vo
       sendError(res, "Only Restaurant Owners can view branches.", StatusCodes.FORBIDDEN);
       return;
     }
-    const branch = await Branch.findOne({ _id: req.params.id, restaurantId: user.restaurantId, isDelete: false });
+    const branch = await Branch.findOne({ _id: req.params.id, restaurantId: user.restaurantId, isDelete: false }).lean();
     if (!branch) {
       sendError(res, "Branch not found.", StatusCodes.NOT_FOUND);
       return;
     }
     
-    const manager = await User.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false }).select("-password");
+    const manager = await User.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false }).select("name email phoneNumber");
     
-    sendSuccess(res, "Branch details retrieved successfully.", { branch, manager }, StatusCodes.OK);
+    const branchWithManager = {
+        ...branch,
+        managerName: manager?.name || '',
+        managerEmail: manager?.email || '',
+        managerMobile: manager?.phoneNumber || ''
+    };
+
+    sendSuccess(res, "Branch details retrieved successfully.", branchWithManager, StatusCodes.OK);
   } catch (error) {
     console.error("Error fetching branch details:", error);
     sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
@@ -181,7 +218,8 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
     const { 
         branchName, branchCode, branchOpeningDate, contactNumber, email, 
         street, city, state, country, pincode, 
-        status 
+        status,
+        managerName, managerMobile, managerEmail
     } = req.body;
 
     const branch = await Branch.findOne({ _id: req.params.id, restaurantId: user.restaurantId, isDelete: false });
@@ -217,6 +255,18 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
     }
 
     await branch.save();
+
+    // Update Manager Details
+    if (managerName || managerMobile || managerEmail) {
+        const manager = await User.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false });
+        if (manager) {
+            if (managerName) manager.name = managerName;
+            if (managerMobile) manager.phoneNumber = managerMobile;
+            if (managerEmail) manager.email = managerEmail;
+            await manager.save();
+        }
+    }
+
     sendSuccess(res, "Branch updated successfully.", branch, StatusCodes.OK);
   } catch (error) {
     console.error("Error updating branch:", error);

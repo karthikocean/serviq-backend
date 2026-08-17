@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { getRoles, updateRole } from "../../controllers/admin/role.controller";
+import { getRoles, getRole, createRole, updateRole, deleteRole } from "../../controllers/admin/role.controller";
 import { protectAdmin, restrictTo } from "../../middleware/authMiddleware";
 import { validate } from "../../middleware/validate";
-import { updateRolePermissionsSchema } from "../../validations/admin/role.validation";
+import { updateRolePermissionsSchema, createRoleSchema } from "../../validations/admin/role.validation";
 
 const router = Router();
 
@@ -32,7 +32,52 @@ router.get("/", getRoles);
 
 /**
  * @swagger
- * /api/admin/roles-permissions/{roleName}:
+ * /api/admin/roles-permissions/{id}:
+ *   get:
+ *     summary: Retrieves a specific role by ID.
+ *     tags: [Admin Roles & Permissions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Role fetched successfully
+ */
+router.get("/:id", getRole);
+
+/**
+ * @swagger
+ * /api/admin/roles-permissions:
+ *   post:
+ *     summary: Creates a new role with permissions.
+ *     tags: [Admin Roles & Permissions]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               roleName:
+ *                 type: string
+ *               permissions:
+ *                 type: object
+ *     responses:
+ *       201:
+ *         description: Role created
+ */
+router.post("/", validate(createRoleSchema), createRole);
+
+/**
+ * @swagger
+ * /api/admin/roles-permissions/{id}:
  *   put:
  *     summary: Updates module-wise granular permissions for a role.
  *     tags: [Admin Roles & Permissions]
@@ -40,7 +85,7 @@ router.get("/", getRoles);
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: roleName
+ *         name: id
  *         required: true
  *         schema:
  *           type: string
@@ -51,23 +96,34 @@ router.get("/", getRoles);
  *           schema:
  *             type: object
  *             properties:
+ *               roleName:
+ *                 type: string
  *               permissions:
  *                 type: object
- *                 additionalProperties:
- *                   type: object
- *                   properties:
- *                     view:
- *                       type: boolean
- *                     add:
- *                       type: boolean
- *                     edit:
- *                       type: boolean
- *                     delete:
- *                       type: boolean
  *     responses:
  *       200:
  *         description: Permissions updated
  */
-router.put("/:roleName", validate(updateRolePermissionsSchema), updateRole);
+router.put("/:id", validate(updateRolePermissionsSchema), updateRole);
+
+/**
+ * @swagger
+ * /api/admin/roles-permissions/{id}:
+ *   delete:
+ *     summary: Deletes a role (soft delete).
+ *     tags: [Admin Roles & Permissions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Role deleted
+ */
+router.delete("/:id", deleteRole);
 
 export default router;

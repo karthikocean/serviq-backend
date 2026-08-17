@@ -1,12 +1,33 @@
 import Menu from "../../models/Menu";
 import Category from "../../models/Category";
 
-export const getMenuItems = async (restaurantId: string, branchId: string, categoryFilter?: string, availableFilter?: string) => {
+export const getMenuItems = async (
+  restaurantId: string,
+  branchId: string,
+  categoryFilter?: string,
+  availableFilter?: string,
+  skip: number = 0,
+  limit: number = 10,
+  search?: string
+) => {
   const query: any = { restaurantId, branchId, isDelete: false };
-  if (categoryFilter) query.category = categoryFilter;
+  if (categoryFilter && categoryFilter !== 'All Items') query.category = categoryFilter;
   if (availableFilter !== undefined) query.available = availableFilter === 'true';
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { desc: { $regex: search, $options: 'i' } }
+    ];
+  }
 
-  return await Menu.find(query);
+  const total = await Menu.countDocuments(query);
+  const items = await Menu.find(query)
+    .populate('category', 'name _id')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  return { total, items };
 };
 
 export const createMenuItem = async (restaurantId: string, branchId: string, itemData: any) => {
@@ -31,6 +52,7 @@ export const updateMenuItem = async (restaurantId: string, branchId: string, ite
   if (itemData.veg !== undefined) item.veg = itemData.veg;
   if (itemData.available !== undefined) item.available = itemData.available;
   if (itemData.image !== undefined) item.image = itemData.image;
+  if (itemData.coverImage !== undefined) item.coverImage = itemData.coverImage;
 
   await item.save();
   return item;
@@ -50,23 +72,52 @@ export const deleteMenuItem = async (restaurantId: string, branchId: string, ite
   if (!item) throw new Error("Menu item not found");
 
   item.isDelete = true;
+  item.isActive = false;
   await item.save();
   return true;
 };
 
-export const getCategories = async (restaurantId: string, branchId: string) => {
-  const categories = await Category.find({ restaurantId, branchId }).sort({ order: 1 });
-  return categories.map(c => c.name);
+export const getCategories = async (restaurantId: string, branchId: string, skip: number = 0, limit: number = 0, search: string = "") => {
+  const query: any = { restaurantId, branchId };
+  if (search) {
+    query.name = { $regex: search, $options: "i" };
+  }
+
+  if (limit > 0) {
+    const total = await Category.countDocuments(query);
+    const items = await Category.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
+    return { total, items };
+  } else {
+    const categories = await Category.find(query).sort({ createdAt: -1 });
+    return { total: categories.length, items: categories };
+  }
 };
 
-export const addCategories = async (restaurantId: string, branchId: string, newCategories: string[]) => {
-  for (let i = 0; i < newCategories.length; i++) {
-    const name = newCategories[i];
-    await Category.findOneAndUpdate(
-      { restaurantId, branchId, name },
-      { order: i },
-      { upsert: true, new: true }
-    );
-  }
-  return await getCategories(restaurantId, branchId);
+export const updateCategory = async (restaurantId: string, branchId: string, categoryId: string, updateData: any) => {
+  const cat = await Category.findOneAndUpdate(
+    { _id: categoryId, restaurantId, branchId },
+    { $set: updateData },
+    { new: true }
+  );
+  if (!cat) throw new Error("Category not found");
+  return cat;
+};
+
+export const deleteCategory = async (restaurantId: string, branchId: string, categoryId: string) => {
+  const cat = await Category.findOneAndDelete({ _id: categoryId, restaurantId, branchId });
+  if (!cat) throw new Error("Category not found");
+  return true;
+};
+
+export const createCategory = async (restaurantId: string, branchId: string, catData: any) => {
+  const category = new Category({
+    restaurantId,
+    branchId,
+    name: catData.name,
+    description: catData.description || "",
+    status: catData.status || "AVAILABLE"
+  });
+
+  await category.save();
+  return category;
 };

@@ -16,7 +16,12 @@ export const createTable = async (restaurantId: string, branchId: string, tableD
     branchId
   });
   await newTable.save();
-  return newTable;
+  
+  // Automatically generate QR code for the new table
+  await generateQRsForTables(restaurantId, branchId, [newTable._id.toString()]);
+  
+  const updatedTable = await Table.findById(newTable._id);
+  return updatedTable;
 };
 
 export const updateTable = async (restaurantId: string, branchId: string, tableId: string, tableData: any) => {

@@ -11,6 +11,7 @@ import settingsRoutes from "./admin/settings.route";
 import userRoutes from "./admin/user.route";
 import roleRoutes from "./admin/role.route";
 import staffRoutes from "./admin/staff.route";
+import uploadRoutes from "./upload.route";
 import { protectAdmin } from "../middleware/authMiddleware";
 
 const router = Router();
@@ -27,5 +28,6 @@ router.use("/settings", protectAdmin, settingsRoutes);
 router.use("/users", protectAdmin, userRoutes);
 router.use("/roles-permissions", protectAdmin, roleRoutes);
 router.use("/staff", protectAdmin, staffRoutes);
+router.use("/upload", protectAdmin, uploadRoutes);
 
 export default router;

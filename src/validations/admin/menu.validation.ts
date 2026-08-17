@@ -10,6 +10,8 @@ export const createMenuItemSchema = z.object({
     veg: z.boolean().optional(),
     available: z.boolean().optional(),
     image: z.string().optional(),
+    coverImage: z.string().optional(),
+    isActive: z.boolean().optional(),
   }),
 });
 
@@ -23,6 +25,8 @@ export const updateMenuItemSchema = z.object({
     veg: z.boolean().optional(),
     available: z.boolean().optional(),
     image: z.string().optional(),
+    coverImage: z.string().optional(),
+    isActive: z.boolean().optional(),
   }),
 });
 
@@ -32,8 +36,10 @@ export const toggleMenuAvailabilitySchema = z.object({
   }),
 });
 
-export const createCategoriesSchema = z.object({
+export const createCategorySchema = z.object({
   body: z.object({
-    categories: z.array(z.string()).min(1, "Provide at least one category"),
+    name: z.string().min(1, "Category name is required"),
+    description: z.string().optional(),
+    status: z.string().optional()
   }),
 });

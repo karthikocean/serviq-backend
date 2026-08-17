@@ -11,6 +11,7 @@ export interface IRole extends Document {
   restaurantId?: mongoose.Types.ObjectId;
   type: "SUPER_ADMIN" | "RESTAURANT";
   roleName: string;
+  roleType?: string;
   permissions: Record<string, IPermission>;
   isDefault: boolean;
   isActive: boolean;
@@ -32,6 +33,7 @@ const RoleSchema = new Schema<IRole>(
     restaurantId: { type: Schema.Types.ObjectId, ref: "Restaurant" },
     type: { type: String, enum: ["SUPER_ADMIN", "RESTAURANT"], required: true },
     roleName: { type: String, required: true },
+    roleType: { type: String },
     permissions: { type: Map, of: PermissionSchema },
     isDefault: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },

@@ -31,7 +31,7 @@ export const createNewTable = async (req: AuthRequest, res: Response): Promise<v
     if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
     const newTable = await createTable(restaurantId, branchId, req.body);
-    sendSuccess(res, "Table created successfully.", { id: newTable._id });
+    sendSuccess(res, "Table created successfully.", { id: newTable?._id });
   } catch (error: any) {
     if (error.message === "Table number already exists") {
       sendError(res, error.message, StatusCodes.CONFLICT);

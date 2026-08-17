@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getUsers, createUser, updateUser, deleteUser } from "../../controllers/admin/user.controller";
+import { getUsers, createUser, updateUser, deleteUser, changePassword } from "../../controllers/admin/user.controller";
 import { protectAdmin, restrictTo } from "../../middleware/authMiddleware";
 import { validate } from "../../middleware/validate";
 import { createUserSchema, updateUserSchema } from "../../validations/admin/user.validation";
@@ -131,5 +131,34 @@ router.put("/:userId", validate(updateUserSchema), updateUser);
  *         description: User deleted
  */
 router.delete("/:userId", deleteUser);
+
+/**
+ * @swagger
+ * /api/admin/users/{userId}/password:
+ *   put:
+ *     summary: Update a user's password.
+ *     tags: [Admin Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password updated
+ */
+router.put("/:userId/password", changePassword);
 
 export default router;
