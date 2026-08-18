@@ -11,7 +11,7 @@ import Subscription from "../models/Subscription";
 export interface AuthRequest extends Request {
   user?: {
     userId: string;
-    userType: 'SUPER_ADMIN' | 'RESTAURANT_OWNER' | 'BRANCH_ADMIN' | 'STAFF';
+    userType: 'SUPER_ADMIN' | 'RESTAURANT_OWNER' | 'BRANCH_ADMIN' | 'STAFF' | 'STATION';
     restaurantId?: string;
     activeBranchId?: string;
     roleId?: string;

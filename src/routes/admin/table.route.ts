@@ -1,17 +1,20 @@
 import { Router } from "express";
 import { 
   getAllTables, 
+  getTable,
   createNewTable, 
   updateTableDetails, 
   deleteTableData, 
-  generateQrCodes 
+  generateQrCodes,
+  assignWaiter
 } from "../../controllers/admin/table.controller";
 import { checkBranchAccess, checkSubscriptionFeature, checkPermission } from "../../middleware/rbacMiddleware";
 import { validate } from "../../middleware/validate";
 import { 
   createTableSchema, 
   updateTableSchema, 
-  qrGenerationSchema 
+  qrGenerationSchema,
+  assignWaiterSchema
 } from "../../validations/admin/table.validation";
 
 const router = Router();
@@ -64,6 +67,32 @@ router.post("/", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkP
 
 /**
  * @swagger
+ * /api/admin/tables/assign-waiter:
+ *   put:
+ *     summary: Assign a primary and/or cover waiter to selected tables
+ *     tags: [Admin Tables & QR]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               waiterId: { type: string, example: "60d5ecb8b392d7001f3e9b11" }
+ *               tableIds: { type: array, items: { type: string }, example: ["60d5ecb8b392d7001f3e9b12"] }
+ *               coverWaiterId: { type: string, example: "60d5ecb8b392d7001f3e9b13" }
+ *     responses:
+ *       200:
+ *         description: Waiter assigned successfully
+ *       400:
+ *         description: Bad request / validation error
+ */
+router.put("/assign-waiter", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkPermission("TABLE_QR", "edit"), validate(assignWaiterSchema), assignWaiter);
+
+/**
+ * @swagger
  * /api/admin/tables/{tableId}:
  *   put:
  *     summary: Update table details
@@ -92,6 +121,7 @@ router.post("/", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkP
  *       200:
  *         description: Table updated
  */
+router.get("/:tableId", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkPermission("TABLE_QR", "view"), getTable);
 router.put("/:tableId", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkPermission("TABLE_QR", "edit"), validate(updateTableSchema), updateTableDetails);
 
 /**

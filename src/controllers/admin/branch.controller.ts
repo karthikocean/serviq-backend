@@ -154,11 +154,19 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
 export const getAllBranches = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const user = req.user as any;
-    if (!user || user.userType !== 'RESTAURANT_OWNER') {
-      sendError(res, "Only Restaurant Owners can view branches.", StatusCodes.FORBIDDEN);
+    if (!user || (user.userType !== 'RESTAURANT_OWNER' && user.userType !== 'BRANCH_ADMIN')) {
+      sendError(res, "Not authorized to view branches.", StatusCodes.FORBIDDEN);
       return;
     }
-    const branches = await Branch.find({ restaurantId: user.restaurantId, isDelete: false }).lean();
+    
+    let query: any = { restaurantId: user.restaurantId, isDelete: false };
+    if (user.userType === 'BRANCH_ADMIN' || user.userType === 'STAFF') {
+        if (user.branchId && user.branchId !== 'ALL') {
+            query._id = user.branchId;
+        }
+    }
+    
+    const branches = await Branch.find(query).lean();
     
     // Attach manager details for each branch
     const branchesWithManagers = await Promise.all(branches.map(async (branch) => {

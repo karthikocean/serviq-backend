@@ -25,3 +25,11 @@ export const qrGenerationSchema = z.object({
     tableIds: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/)).min(1, "Provide at least one table ID"),
   }),
 });
+
+export const assignWaiterSchema = z.object({
+  body: z.object({
+    waiterId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid waiter ID"),
+    tableIds: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid table ID")),
+    coverWaiterId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid cover waiter ID").optional().nullable(),
+  }),
+});

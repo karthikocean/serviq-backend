@@ -7,7 +7,7 @@ export interface IUser extends Document {
   phoneNumber: string;
   password?: string;
   profileImage?: string;
-  userType: 'RESTAURANT_OWNER' | 'BRANCH_ADMIN' | 'STAFF';
+  userType: 'RESTAURANT_OWNER' | 'BRANCH_ADMIN' | 'STAFF' | 'STATION';
   restaurantId: mongoose.Types.ObjectId;
   branchId?: mongoose.Types.ObjectId;
   roleId?: mongoose.Types.ObjectId;
@@ -25,10 +25,10 @@ const UserSchema = new Schema<IUser>(
   {
     name: { type: String, required: true },
     email: { type: String, lowercase: true, sparse: true },
-    phoneNumber: { type: String, required: true, unique: true },
+    phoneNumber: { type: String, unique: true, sparse: true },
     password: { type: String },
     profileImage: { type: String, default: null },
-    userType: { type: String, enum: ['RESTAURANT_OWNER', 'BRANCH_ADMIN', 'STAFF'], required: true },
+    userType: { type: String, enum: ['RESTAURANT_OWNER', 'BRANCH_ADMIN', 'STAFF', 'STATION'], required: true },
     restaurantId: { type: Schema.Types.ObjectId, ref: "Restaurant", required: true },
     branchId: { type: Schema.Types.ObjectId, ref: "Branch" },
     roleId: { type: Schema.Types.ObjectId, ref: "Role" },

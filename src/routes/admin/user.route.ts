@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getUsers, createUser, updateUser, deleteUser, changePassword } from "../../controllers/admin/user.controller";
+import { getUsers, getStations, createUser, updateUser, deleteUser, changePassword } from "../../controllers/admin/user.controller";
 import { protectAdmin, restrictTo } from "../../middleware/authMiddleware";
 import { validate } from "../../middleware/validate";
 import { createUserSchema, updateUserSchema } from "../../validations/admin/user.validation";
@@ -35,6 +35,7 @@ router.use(restrictTo("RESTAURANT_OWNER", "SUPER_ADMIN"));
  *         description: Users fetched successfully
  */
 router.get("/", getUsers);
+router.get("/stations", getStations);
 
 /**
  * @swagger

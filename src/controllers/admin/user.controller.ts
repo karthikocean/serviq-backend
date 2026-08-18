@@ -4,7 +4,7 @@ import { StatusCodes } from "http-status-codes";
 import { sendSuccess, sendError } from "../../utils/response";
 import { pagination } from "../../utils/pagination";
 import { AuthRequest } from "../../middleware/authMiddleware";
-import { getUsersByRestaurantId, createUserForRestaurant, updateUserForRestaurant, deleteUserForRestaurant, changePasswordForRestaurant } from "../../services/admin/user.service";
+import { getUsersByRestaurantId, getStationsByRestaurantId, createUserForRestaurant, updateUserForRestaurant, deleteUserForRestaurant, changePasswordForRestaurant } from "../../services/admin/user.service";
 
 export const getUsers = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -29,6 +29,21 @@ export const getUsers = async (req: AuthRequest, res: Response): Promise<void> =
   }
 };
 
+export const getStations = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.user?.restaurantId;
+    if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    const branchId = req.query.branchId as string;
+    
+    const { data } = await getStationsByRestaurantId(restaurantId, branchId);
+    
+    sendSuccess(res, "Station users fetched successfully.", data);
+  } catch (error: any) {
+    sendError(res, "Failed to fetch station users", StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
 export const createUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const restaurantId = req.user?.restaurantId;
@@ -37,10 +52,13 @@ export const createUser = async (req: AuthRequest, res: Response): Promise<void>
     const newUser = await createUserForRestaurant(restaurantId, req.body);
     sendSuccess(res, "User created successfully.", { id: newUser._id });
   } catch (error: any) {
-    if (error.message === "Email already registered" || error.message === "This branch already has an active manager.") {
+    if (error.message === "Email already registered" || 
+        error.message === "This branch already has an active manager." || 
+        error.message === "This branch already has a Kitchen Station account.") {
         sendError(res, error.message, StatusCodes.CONFLICT);
     } else {
-        sendError(res, "Failed to create user", StatusCodes.INTERNAL_SERVER_ERROR);
+        console.error("createUser Error:", error);
+        sendError(res, "Failed to create user: " + error.message, StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
 };

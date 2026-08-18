@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import User from "../../models/User";
 import Role from "../../models/Role";
+import Table from "../../models/Table";
 
 export const getUsersByRestaurantId = async (
   restaurantId: string,
@@ -11,7 +12,7 @@ export const getUsersByRestaurantId = async (
   skip: number = 0,
   limit: number = 10
 ) => {
-  const query: any = { restaurantId, isDelete: false, userType: { $ne: 'RESTAURANT_OWNER' } };
+  const query: any = { restaurantId, isDelete: false, userType: { $nin: ['RESTAURANT_OWNER', 'STATION'] } };
 
   if (statusFilter === 'Active') {
     query.status = 'Active';
@@ -48,14 +49,76 @@ export const getUsersByRestaurantId = async (
     .populate("roleId branchId")
     .skip(skip)
     .limit(limit)
+    .sort({ createdAt: -1 })
+    .lean();
+
+
+  const userIds = users.map(u => u._id);
+  const userTables = await Table.find({
+    restaurantId,
+    $or: [
+      { assignedWaiter: { $in: userIds } },
+      { coverWaiter: { $in: userIds } }
+    ],
+    isDelete: false
+  }).select("_id tableNumber tableNo assignedWaiter coverWaiter");
+
+  const usersWithTables = users.map(u => {
+    const assignedTables: string[] = [];
+    userTables.forEach((t: any) => {
+      const primaryId = t.assignedWaiter?.toString();
+      const coverId = t.coverWaiter?.toString();
+      const userIdStr = u._id.toString();
+
+      if (primaryId === userIdStr) {
+        assignedTables.push(t.tableNumber || t.tableNo || t._id.toString().substring(0, 4));
+      } else if (coverId === userIdStr) {
+        assignedTables.push(`${t.tableNumber || t.tableNo || t._id.toString().substring(0, 4)} (Cover)`);
+      }
+    });
+
+    return {
+      ...u,
+      assignedTableBadges: assignedTables
+    };
+  });
+
+  return { total, users: usersWithTables };
+};
+
+export const getStationsByRestaurantId = async (restaurantId: string, branchId?: string) => {
+  const query: any = { restaurantId, isDelete: false, userType: 'STATION' };
+
+  if (branchId && branchId !== 'ALL') {
+    query.branchId = branchId;
+  }
+
+  const stations = await User.find(query)
+    .select("-password")
+    .populate("roleId branchId")
     .sort({ createdAt: -1 });
 
-  return { total, users };
+  return { data: stations };
 };
 
 export const createUserForRestaurant = async (restaurantId: string, userData: any) => {
-  const existingUser = await User.findOne({ email: userData.email, isDelete: false });
-  if (existingUser) throw new Error("Email already registered");
+  if (userData.email) {
+    const existingUser = await User.findOne({ email: userData.email, isDelete: false });
+    if (existingUser) throw new Error("Email already registered");
+  }
+
+  if (userData.userType === 'STATION' && userData.branchId) {
+    const existingStation = await User.findOne({
+      restaurantId,
+      branchId: userData.branchId,
+      userType: 'STATION',
+      isDelete: false
+    });
+    if (existingStation) {
+      throw new Error("This branch already has a Kitchen Station account.");
+    }
+  }
+
 
   if (userData.roleId && userData.branchId && userData.isActive !== false) {
     const role = await Role.findById(userData.roleId);
@@ -75,12 +138,8 @@ export const createUserForRestaurant = async (restaurantId: string, userData: an
     }
   }
 
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(userData.password, salt);
-
   const newUser = new User({
     ...userData,
-    password: hashedPassword,
     restaurantId,
     status: userData.status || (userData.isActive ? 'Active' : 'Inactive'),
   });
@@ -122,6 +181,7 @@ export const updateUserForRestaurant = async (restaurantId: string, userId: stri
   if (updateData.userType) user.userType = updateData.userType;
   if (updateData.roleId) user.roleId = updateData.roleId;
   if (updateData.branchId) user.branchId = updateData.branchId;
+  if (updateData.dutyStatus) user.dutyStatus = updateData.dutyStatus;
 
   if (updateData.status !== undefined) {
     user.status = updateData.status;
@@ -152,9 +212,6 @@ export const changePasswordForRestaurant = async (restaurantId: string, userId: 
   const user = await User.findOne({ _id: userId, restaurantId, isDelete: false });
   if (!user) throw new Error("User not found");
 
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-  user.password = hashedPassword;
+  user.password = newPassword;
   await user.save();
 };
