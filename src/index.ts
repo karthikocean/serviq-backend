@@ -11,6 +11,8 @@ import fileUpload from "express-fileupload";
 import path from "path";
 import swaggerUi from "swagger-ui-express";
 import swaggerJsDoc from "swagger-jsdoc";
+import http from "http";
+import { initSocket } from "./socket";
 
 import connectDB from "./Config/db";
 import adminRoute from "./routes/admin.route";
@@ -45,8 +47,8 @@ const startServer = async () => {
 
     app.use((req, res, next) => {
       if (req.path.startsWith('/api-docs')) return next();
-      helmet({ 
-        crossOriginResourcePolicy: { policy: "cross-origin" } 
+      helmet({
+        crossOriginResourcePolicy: { policy: "cross-origin" }
       })(req, res, next);
     });
     app.use(cors());
@@ -68,7 +70,7 @@ const startServer = async () => {
         },
         servers: [
           { url: "http://localhost:5000" },
-          { url: "http://192.168.1.19:5000", description: "Network" }],
+          { url: "http://192.168.1.13:5000", description: "Network" }],
         components: {
           securitySchemes: {
             bearerAuth: {
@@ -178,7 +180,10 @@ const startServer = async () => {
     app.use(notFound);
     app.use(errorHandler);
 
-    app.listen(PORT, () => {
+    const httpServer = http.createServer(app);
+    initSocket(httpServer);
+
+    httpServer.listen(PORT, () => {
       console.log(`🚀 Serviq server running on port ${PORT}`);
       console.log(`   Admin       → /api/admin`);
       console.log(`   Super Admin → /api/super-admin`);
