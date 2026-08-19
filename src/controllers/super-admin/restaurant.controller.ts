@@ -115,86 +115,110 @@ export const createRestaurant = async (req: Request, res: Response): Promise<voi
         const nextIdNumber = totalCount + 1;
         const restaurantIdStr = `R-${nextIdNumber.toString().padStart(2, "0")}`;
 
-        // 1. Create Restaurant
-        const newRestaurant = new Restaurant({
-            restaurantId: restaurantIdStr,
-            restaurantName,
-            logoUrl,
-            ownerName,
-            email,
-            phoneNumber,
-            websiteDomain,
-            openingTime,
-            closingTime,
-            bannerUrl,
-            address,
-            city,
-            state,
-            country,
-            fssaiLicense,
-            gstinNumber: normalizedGstin || gstinNumber,
-            panNumber,
-            isActive: true,
-            isDelete: false
-        });
-        await newRestaurant.save();
+        let createdRestaurantId = null;
+        let createdSubscriptionId = null;
+        let createdBranchId = null;
+        let createdUserId = null;
 
-        // 2. Create Subscription
-        if (planId && plan) {
-            const cycle = billingCycle || "Monthly";
-
-            let finalStartDate = reqStartDate ? new Date(reqStartDate) : new Date();
-            let finalEndDate = reqEndDate ? new Date(reqEndDate) : new Date(finalStartDate);
-            if (!reqEndDate) {
-                if (cycle === "Monthly") {
-                    finalEndDate.setMonth(finalEndDate.getMonth() + 1);
-                } else {
-                    finalEndDate.setFullYear(finalEndDate.getFullYear() + 1);
-                }
-            }
-            let finalRenewalDate = reqRenewalDate ? new Date(reqRenewalDate) : finalEndDate;
-            let finalStatus = reqSubscriptionStatus || "Active";
-
-            const newSubscription = new Subscription({
-                restaurant: newRestaurant._id,
-                plan: plan._id,
-                billingCycle: cycle,
-                startDate: finalStartDate,
-                endDate: finalEndDate,
-                renewalDate: finalRenewalDate,
-                maxBranches: plan.maxBranches,
-                features: plan.featuresIncluded,
-                status: finalStatus
+        try {
+            // 1. Create Restaurant
+            const newRestaurant = new Restaurant({
+                restaurantId: restaurantIdStr,
+                restaurantName,
+                logoUrl,
+                ownerName,
+                email,
+                phoneNumber,
+                websiteDomain,
+                openingTime,
+                closingTime,
+                bannerUrl,
+                address,
+                city,
+                state,
+                country,
+                fssaiLicense,
+                gstinNumber: normalizedGstin || gstinNumber,
+                panNumber,
+                isActive: true,
+                isDelete: false
             });
-            await newSubscription.save();
+            await newRestaurant.save();
+            createdRestaurantId = newRestaurant._id;
+
+            // 2. Create Subscription
+            if (planId && plan) {
+                const cycle = billingCycle || "Monthly";
+
+                let finalStartDate = reqStartDate ? new Date(reqStartDate) : new Date();
+                let finalEndDate = reqEndDate ? new Date(reqEndDate) : new Date(finalStartDate);
+                if (!reqEndDate) {
+                    if (cycle === "Monthly") {
+                        finalEndDate.setMonth(finalEndDate.getMonth() + 1);
+                    } else {
+                        finalEndDate.setFullYear(finalEndDate.getFullYear() + 1);
+                    }
+                }
+                let finalRenewalDate = reqRenewalDate ? new Date(reqRenewalDate) : finalEndDate;
+                let finalStatus = reqSubscriptionStatus || "Active";
+
+                const newSubscription = new Subscription({
+                    restaurant: newRestaurant._id,
+                    plan: plan._id,
+                    billingCycle: cycle,
+                    startDate: finalStartDate,
+                    endDate: finalEndDate,
+                    renewalDate: finalRenewalDate,
+                    maxBranches: plan.maxBranches,
+                    features: plan.featuresIncluded,
+                    status: finalStatus
+                });
+                await newSubscription.save();
+                createdSubscriptionId = newSubscription._id;
+            }
+
+            // 3. Create Main Branch
+            const mainBranch = new Branch({
+                restaurantId: newRestaurant._id,
+                branchName: "Main Branch",
+                branchCode: `${restaurantIdStr}-B01`,
+                contactNumber: phoneNumber,
+                email: email,
+                address: {
+                    street: address || "Not Provided",
+                    city: city || "Not Provided",
+                    state: state || "Not Provided",
+                    country: country || "Not Provided",
+                    pincode: req.body.pincode || "000000"
+                },
+                isMainBranch: true
+            });
+            await mainBranch.save();
+            createdBranchId = mainBranch._id;
+
+            // 4. Create Owner User
+            const ownerUser = new User({
+                name: ownerName,
+                email: email,
+                phoneNumber: phoneNumber,
+                password: password, // will be hashed by pre-save hook
+                userType: 'RESTAURANT_OWNER',
+                restaurantId: newRestaurant._id,
+                isActive: true,
+                isDelete: false
+            });
+            await ownerUser.save();
+            createdUserId = ownerUser._id;
+
+            sendSuccess(res, "Restaurant created successfully.", { id: newRestaurant._id }, StatusCodes.CREATED);
+        } catch (error) {
+            // Manual Rollback if running on a standalone MongoDB instance that doesn't support transactions
+            if (createdUserId) await User.findByIdAndDelete(createdUserId);
+            if (createdBranchId) await Branch.findByIdAndDelete(createdBranchId);
+            if (createdSubscriptionId) await Subscription.findByIdAndDelete(createdSubscriptionId);
+            if (createdRestaurantId) await Restaurant.findByIdAndDelete(createdRestaurantId);
+            throw error;
         }
-
-        // 3. Create Main Branch
-        const mainBranch = new Branch({
-            restaurantId: newRestaurant._id,
-            branchName: "Main Branch",
-            branchCode: `${restaurantIdStr}-B01`,
-            contactNumber: phoneNumber,
-            email: email,
-            address: address, // Used from UI input
-            isMainBranch: true
-        });
-        await mainBranch.save();
-
-        // 4. Create Owner User
-        const ownerUser = new User({
-            name: ownerName,
-            email: email,
-            phoneNumber: phoneNumber,
-            password: password, // will be hashed by pre-save hook
-            userType: 'RESTAURANT_OWNER',
-            restaurantId: newRestaurant._id,
-            isActive: true,
-            isDelete: false
-        });
-        await ownerUser.save();
-
-        sendSuccess(res, "Restaurant created successfully.", { id: newRestaurant._id }, StatusCodes.CREATED);
     } catch (error) {
         console.error("Create Restaurant Error:", error);
         sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
@@ -284,12 +308,22 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
         }
 
         // Update associated main branch
-        if (phoneNumber || email || address) {
+        if (phoneNumber || email || address || city || state || country || req.body.pincode) {
             const mainBranch = await Branch.findOne({ restaurantId: restaurant._id, isMainBranch: true, isDelete: false });
             if (mainBranch) {
                 if (phoneNumber) mainBranch.contactNumber = phoneNumber;
                 if (email) mainBranch.email = email;
-                if (address) mainBranch.address = address;
+                
+                if (address || city || state || country || req.body.pincode) {
+                    mainBranch.address = {
+                        street: address || mainBranch.address?.street || "Not Provided",
+                        city: city || mainBranch.address?.city || "Not Provided",
+                        state: state || mainBranch.address?.state || "Not Provided",
+                        country: country || mainBranch.address?.country || "Not Provided",
+                        pincode: req.body.pincode || mainBranch.address?.pincode || "000000"
+                    };
+                }
+                
                 await mainBranch.save();
             }
         }

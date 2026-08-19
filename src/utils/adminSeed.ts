@@ -14,7 +14,7 @@ export const seedAdmin = async (): Promise<void> => {
         roleName: "Super Admin",
         type: "SUPER_ADMIN",
         isDefault: true,
-        permissions: [],
+        permissions: {},
         isActive: true,
         isDelete: false,
       });

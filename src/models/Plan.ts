@@ -8,6 +8,7 @@ export interface IPlan extends Document {
     annualPrice: number;
     maxBranches: number;
     featuresIncluded: Record<string, boolean>;
+    status: 'Active' | 'Inactive';
     isActive: boolean;
     isDelete: boolean;
 }
@@ -21,6 +22,7 @@ const PlanSchema = new Schema<IPlan>(
         annualPrice: { type: Number, required: true },
         maxBranches: { type: Number, required: true, default: 1 },
         featuresIncluded: { type: Object, required: true },
+        status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
         isActive: { type: Boolean, default: true },
         isDelete: { type: Boolean, default: false },
     },

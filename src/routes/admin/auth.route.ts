@@ -1,6 +1,8 @@
 import { Router } from "express";
-import { login, getProfile, logout } from "../../controllers/admin/auth.controller";
+import { login, getProfile, logout, updatePassword } from "../../controllers/admin/auth.controller";
 import { protectAdmin } from "../../middleware/authMiddleware";
+import { validate } from "../../middleware/validate";
+import { loginSchema, updatePasswordSchema } from "../../validations/admin/auth.validation";
 
 const router = Router();
 
@@ -53,7 +55,7 @@ const router = Router();
  *       500:
  *         $ref: '#/components/responses/500'
  */
-router.post("/login", login);
+router.post("/login", validate(loginSchema), login);
 
 /**
  * @swagger
@@ -103,5 +105,38 @@ router.post("/logout", protectAdmin, logout);
  *         $ref: '#/components/responses/500'
  */
 router.get("/profile", protectAdmin, getProfile);
+
+/**
+ * @swagger
+ * /api/admin/update-password:
+ *   put:
+ *     summary: Update Admin Password
+ *     tags: [Admin Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 example: "oldpassword123"
+ *               newPassword:
+ *                 type: string
+ *                 example: "newpassword123"
+ *     responses:
+ *       200:
+ *         description: Password updated successfully
+ *       400:
+ *         description: Incorrect current password
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.put("/update-password", protectAdmin, validate(updatePasswordSchema), updatePassword);
 
 export default router;

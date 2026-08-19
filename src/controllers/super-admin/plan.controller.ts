@@ -28,12 +28,12 @@ export const getAllPlans = async (req: Request, res: Response): Promise<void> =>
 
 export const createPlan = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { planName, planDescription, monthlyPrice, monthlyDiscount, annualPrice, featuresIncluded, isActive } = req.body;
-    if (!planName || !planDescription || !monthlyPrice || !monthlyDiscount || !annualPrice || !featuresIncluded) {
+    const { planName, planDescription, monthlyPrice, monthlyDiscount, annualPrice, maxBranches, featuresIncluded, status, isActive } = req.body;
+    if (!planName || !planDescription || monthlyPrice === undefined || monthlyDiscount === undefined || annualPrice === undefined || !featuresIncluded || !status) {
       sendError(res, "All fields are required.", StatusCodes.BAD_REQUEST);
       return;
     }
-    const plan = await Plan.create({ planName, planDescription, monthlyPrice, monthlyDiscount, annualPrice, featuresIncluded, isActive });
+    const plan = await Plan.create({ planName, planDescription, monthlyPrice, monthlyDiscount, annualPrice, maxBranches, featuresIncluded, status, isActive });
     sendSuccess(res, "Plan created.", { id: plan._id }, StatusCodes.CREATED);
   } catch (error) {
     sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
@@ -43,7 +43,7 @@ export const createPlan = async (req: Request, res: Response): Promise<void> => 
 export const updatePlan = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { planName, planDescription, monthlyPrice, monthlyDiscount, annualPrice, featuresIncluded, isActive } = req.body;
+    const { planName, planDescription, monthlyPrice, monthlyDiscount, annualPrice, maxBranches, featuresIncluded, status, isActive } = req.body;
     const plan = await Plan.findById(id);
     if (!plan) {
       sendError(res, "Plan not found.", StatusCodes.NOT_FOUND);
@@ -54,7 +54,9 @@ export const updatePlan = async (req: Request, res: Response): Promise<void> => 
     plan.monthlyPrice = monthlyPrice || plan.monthlyPrice;
     plan.monthlyDiscount = monthlyDiscount || plan.monthlyDiscount;
     plan.annualPrice = annualPrice || plan.annualPrice;
+    plan.maxBranches = maxBranches || plan.maxBranches;
     plan.featuresIncluded = featuresIncluded || plan.featuresIncluded;
+    plan.status = status || plan.status;
     plan.isActive = isActive !== undefined ? isActive : plan.isActive;
     await plan.save();
     sendSuccess(res, "Plan updated.");

@@ -1,6 +1,23 @@
 import { Router } from "express";
-import { createMenuItem, getMenuItems, getMenuItem, updateMenuItem, deleteMenuItem } from "../../controllers/admin/menu.controller";
+import { 
+  getItems, 
+  createItem, 
+  updateItem, 
+  toggleItem, 
+  deleteItem, 
+  getCats, 
+  createCategoryController,
+  updateCategoryController,
+  deleteCategoryController
+} from "../../controllers/admin/menu.controller";
 import { checkBranchAccess, checkSubscriptionFeature, checkPermission } from "../../middleware/rbacMiddleware";
+import { validate } from "../../middleware/validate";
+import { 
+  createMenuItemSchema, 
+  updateMenuItemSchema, 
+  toggleMenuAvailabilitySchema, 
+  createCategorySchema 
+} from "../../validations/admin/menu.validation";
 
 const router = Router();
 
@@ -8,9 +25,107 @@ const router = Router();
  * @swagger
  * tags:
  *   name: Admin Menu
- *   description: Manage restaurant menu items
+ *   description: Manage restaurant menu items and categories
  */
 
+// Categories Routes
+/**
+ * @swagger
+ * /api/admin/menu/categories:
+ *   get:
+ *     summary: Get all unique menu categories
+ *     tags: [Admin Menu]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of categories
+ */
+router.get("/categories", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "view"), getCats);
+
+/**
+ * @swagger
+ * /api/admin/menu/category:
+ *   post:
+ *     summary: Create a menu category
+ *     tags: [Admin Menu]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Category created
+ */
+router.post("/category", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "add"), validate(createCategorySchema), createCategoryController);
+
+/**
+ * @swagger
+ * /api/admin/menu/category/{id}:
+ *   put:
+ *     summary: Update a menu category
+ *     tags: [Admin Menu]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Category updated
+ */
+router.put("/category/:id", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "edit"), updateCategoryController);
+
+/**
+ * @swagger
+ * /api/admin/menu/category/{id}:
+ *   delete:
+ *     summary: Delete a menu category
+ *     tags: [Admin Menu]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Category deleted
+ */
+router.delete("/category/:id", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "delete"), deleteCategoryController);
+
+// Menu Items Routes
 /**
  * @swagger
  * /api/admin/menu:
@@ -21,26 +136,18 @@ const router = Router();
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
- *         name: page
+ *         name: category
  *         schema:
- *           type: integer
- *           default: 1
- *         description: Page number
+ *           type: string
  *       - in: query
- *         name: limit
+ *         name: available
  *         schema:
- *           type: integer
- *           default: 10
- *         description: Items per page
+ *           type: boolean
  *     responses:
  *       200:
  *         description: List of menu items
- *       401:
- *         $ref: '#/components/responses/401'
- *       500:
- *         $ref: '#/components/responses/500'
  */
-router.get("/", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "canView"), getMenuItems);
+router.get("/", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "view"), getItems);
 
 /**
  * @swagger
@@ -55,59 +162,16 @@ router.get("/", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermis
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               name: { type: string, example: "Margherita Pizza" }
- *               desc: { type: string, example: "Classic delight with 100% real mozzarella cheese" }
- *               price: { type: number, example: 299 }
- *               category: { type: string, example: "Pizza" }
- *               image: { type: string, example: "http://example.com/pizza.jpg" }
- *               available: { type: boolean, example: true }
- *               veg: { type: boolean, example: true }
- *               bestseller: { type: boolean, example: true }
+ *             $ref: '#/components/schemas/Menu'
  *     responses:
  *       201:
  *         description: Menu item created
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       409:
- *         description: Menu item already exists
- *       500:
- *         $ref: '#/components/responses/500'
  */
-router.post("/", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "canCreate"), createMenuItem);
+router.post("/", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "add"), validate(createMenuItemSchema), createItem);
 
 /**
  * @swagger
- * /api/admin/menu/{id}:
- *   get:
- *     summary: Get a specific menu item
- *     tags: [Admin Menu]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Menu item details
- *       401:
- *         $ref: '#/components/responses/401'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
- */
-router.get("/:id", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "canView"), getMenuItem);
-
-/**
- * @swagger
- * /api/admin/menu/{id}:
+ * /api/admin/menu/{itemId}:
  *   put:
  *     summary: Update a menu item
  *     tags: [Admin Menu]
@@ -115,7 +179,33 @@ router.get("/:id", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPer
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: itemId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Menu'
+ *     responses:
+ *       200:
+ *         description: Menu item updated
+ */
+router.put("/:itemId", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "edit"), validate(updateMenuItemSchema), updateItem);
+
+/**
+ * @swagger
+ * /api/admin/menu/{itemId}/availability:
+ *   patch:
+ *     summary: Toggle item availability
+ *     tags: [Admin Menu]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: itemId
  *         required: true
  *         schema:
  *           type: string
@@ -126,56 +216,17 @@ router.get("/:id", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPer
  *           schema:
  *             type: object
  *             properties:
- *               name: { type: string, example: "Margherita Pizza Updated" }
- *               desc: { type: string, example: "Extra cheese added" }
- *               price: { type: number, example: 349 }
- *               category: { type: string, example: "Pizza" }
- *               available: { type: boolean, example: false }
+ *               available:
+ *                 type: boolean
  *     responses:
  *       200:
- *         description: Menu item updated
- *       400:
- *         $ref: '#/components/responses/400'
- *       401:
- *         $ref: '#/components/responses/401'
- *       404:
- *         $ref: '#/components/responses/404'
- *       409:
- *         description: Name already exists in category
- *       500:
- *         $ref: '#/components/responses/500'
+ *         description: Menu item availability toggled
  */
-router.put("/:id", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "canEdit"), updateMenuItem);
+router.patch("/:itemId/availability", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "edit"), validate(toggleMenuAvailabilitySchema), toggleItem);
 
 /**
  * @swagger
- * /api/admin/menu/{id}:
- *   patch:
- *     summary: Partially update a menu item
- *     tags: [Admin Menu]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *     responses:
- *       200:
- *         description: Menu item patched
- */
-router.patch("/:id", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "canEdit"), updateMenuItem);
-
-/**
- * @swagger
- * /api/admin/menu/{id}:
+ * /api/admin/menu/{itemId}:
  *   delete:
  *     summary: Delete a menu item
  *     tags: [Admin Menu]
@@ -183,20 +234,14 @@ router.patch("/:id", checkBranchAccess, checkSubscriptionFeature("MENU"), checkP
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: itemId
  *         required: true
  *         schema:
  *           type: string
  *     responses:
  *       200:
  *         description: Menu item deleted
- *       401:
- *         $ref: '#/components/responses/401'
- *       404:
- *         $ref: '#/components/responses/404'
- *       500:
- *         $ref: '#/components/responses/500'
  */
-router.delete("/:id", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "canDelete"), deleteMenuItem);
+router.delete("/:itemId", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "delete"), deleteItem);
 
 export default router;

@@ -4,8 +4,9 @@ export interface IQrCode extends Document {
     restaurantId: mongoose.Types.ObjectId;
     branchId: mongoose.Types.ObjectId;
     qrCodeId: string;
+    qrUrl: string;
     status: "Assigned" | "Unassigned";
-    tableId: string | null;
+    tableId: mongoose.Types.ObjectId | null;
     scansCount: number;
     isDelete: boolean;
     createdAt?: Date;
@@ -17,8 +18,9 @@ const qrCodeSchema = new Schema<IQrCode>(
         restaurantId: { type: Schema.Types.ObjectId, ref: "Restaurant", required: true },
         branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true },
         qrCodeId: { type: String, required: true, unique: true },
+        qrUrl: { type: String, default: "" },
         status: { type: String, enum: ["Assigned", "Unassigned"], default: "Unassigned" },
-        tableId: { type: String, default: null }, // tableNumber mapping (e.g. "T-01")
+        tableId: { type: Schema.Types.ObjectId, ref: "Table", default: null },
         scansCount: { type: Number, default: 0 },
         isDelete: { type: Boolean, default: false }
     },

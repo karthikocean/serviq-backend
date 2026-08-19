@@ -50,7 +50,7 @@ export const uploadFile = async (req: Request, res: Response): Promise<void> => 
         await file.mv(uploadPath);
 
         // Construct the URL to return
-        const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${fileName}`;
+        const fileUrl = `/uploads/${fileName}`;
 
         sendSuccess(res, "File uploaded successfully.", { url: fileUrl }, StatusCodes.CREATED);
     } catch (error) {

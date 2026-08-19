@@ -21,6 +21,10 @@ export interface IRestaurant extends Document {
     isActive: boolean;
     status: 'Active' | 'Suspended' | 'Expired';
     isDelete: boolean;
+    tagline?: string;
+    currency?: string;
+    defaultTaxRate?: number;
+    themeColor?: string;
 }
 
 const RestaurantSchema = new Schema<IRestaurant>(
@@ -45,6 +49,10 @@ const RestaurantSchema = new Schema<IRestaurant>(
         isActive: { type: Boolean, default: true },
         status: { type: String, enum: ['Active', 'Suspended', 'Expired'], default: 'Active' },
         isDelete: { type: Boolean, default: false },
+        tagline: { type: String },
+        currency: { type: String, default: "₹" },
+        defaultTaxRate: { type: Number, default: 5 },
+        themeColor: { type: String },
     },
     { timestamps: true }
 );

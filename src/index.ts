@@ -11,6 +11,8 @@ import fileUpload from "express-fileupload";
 import path from "path";
 import swaggerUi from "swagger-ui-express";
 import swaggerJsDoc from "swagger-jsdoc";
+import http from "http";
+import { initSocket } from "./socket";
 
 import connectDB from "./Config/db";
 import adminRoute from "./routes/admin.route";
@@ -36,14 +38,19 @@ const startServer = async () => {
     await connectDB();
 
     await seedModules();
-    await seedPlans();
+    // await seedPlans();
     await seedAdmin();
     // await seedOrders();
 
     // Start background cron jobs
     startCronJobs();
 
-    app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+    app.use((req, res, next) => {
+      if (req.path.startsWith('/api-docs')) return next();
+      helmet({
+        crossOriginResourcePolicy: { policy: "cross-origin" }
+      })(req, res, next);
+    });
     app.use(cors());
     app.use(morgan("dev"));
     app.use(express.json({ limit: '50mb' }));
@@ -61,7 +68,9 @@ const startServer = async () => {
           version: "1.0.0",
           description: "API Documentation for ServiQ backend",
         },
-        servers: [{ url: "http://localhost:5000" }],
+        servers: [
+          { url: "http://localhost:5000" },
+          { url: "http://192.168.1.13:5000", description: "Network" }],
         components: {
           securitySchemes: {
             bearerAuth: {
@@ -171,7 +180,10 @@ const startServer = async () => {
     app.use(notFound);
     app.use(errorHandler);
 
-    app.listen(PORT, () => {
+    const httpServer = http.createServer(app);
+    initSocket(httpServer);
+
+    httpServer.listen(PORT, () => {
       console.log(`🚀 Serviq server running on port ${PORT}`);
       console.log(`   Admin       → /api/admin`);
       console.log(`   Super Admin → /api/super-admin`);
