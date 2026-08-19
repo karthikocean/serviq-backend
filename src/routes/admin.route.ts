@@ -12,6 +12,7 @@ import userRoutes from "./admin/user.route";
 import roleRoutes from "./admin/role.route";
 import staffRoutes from "./admin/staff.route";
 import uploadRoutes from "./upload.route";
+import ticketRoutes from "./admin/ticket.route";
 import { protectAdmin } from "../middleware/authMiddleware";
 
 const router = Router();
@@ -29,5 +30,6 @@ router.use("/users", protectAdmin, userRoutes);
 router.use("/roles-permissions", protectAdmin, roleRoutes);
 router.use("/staff", protectAdmin, staffRoutes);
 router.use("/upload", protectAdmin, uploadRoutes);
+router.use("/tickets", protectAdmin, ticketRoutes);
 
 export default router;

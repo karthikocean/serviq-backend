@@ -6,6 +6,7 @@ import Plan from "../../models/Plan";
 import Subscription from "../../models/Subscription";
 import Branch from "../../models/Branch";
 import User from "../../models/User";
+import Lead from "../../models/Lead";
 import { sendSuccess, sendError } from "../../utils/response";
 import { pagination } from "../../utils/pagination";
 import { AuthRequest } from "../../middleware/authMiddleware";
@@ -46,7 +47,7 @@ export const createRestaurant = async (req: Request, res: Response): Promise<voi
         const {
             restaurantName, logoUrl, ownerName, email, phoneNumber, planId, password, billingCycle,
             websiteDomain, openingTime, closingTime, taxRate, serviceFee, bannerUrl, startDate: reqStartDate, endDate: reqEndDate, renewalDate: reqRenewalDate, subscriptionStatus: reqSubscriptionStatus,
-            address, city, state, country, fssaiLicense, gstinNumber, panNumber
+            address, city, state, country, fssaiLicense, gstinNumber, panNumber, leadId
         } = req.body;
 
         if (!restaurantName || !ownerName || !email || !phoneNumber || !password) {
@@ -209,6 +210,16 @@ export const createRestaurant = async (req: Request, res: Response): Promise<voi
             });
             await ownerUser.save();
             createdUserId = ownerUser._id;
+
+            // 5. Update Lead if leadId is provided
+            if (leadId) {
+                const leadToUpdate = await Lead.findById(leadId);
+                if (leadToUpdate) {
+                    leadToUpdate.leadStatus = 'Converted';
+                    leadToUpdate.convertedRestaurantId = newRestaurant._id as mongoose.Types.ObjectId;
+                    await leadToUpdate.save();
+                }
+            }
 
             sendSuccess(res, "Restaurant created successfully.", { id: newRestaurant._id }, StatusCodes.CREATED);
         } catch (error) {
