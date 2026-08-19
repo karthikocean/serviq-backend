@@ -5,9 +5,24 @@ import { AuthRequest } from "../../middleware/authMiddleware";
 import {
   getBillDetails,
   applyDiscount,
-  processPayment
+  processPayment,
+  getBillingHistory as getBillingHistoryService
 } from "../../services/admin/billing.service";
 import { getTargetBranchId } from "../../utils/authUtils";
+
+export const getBillingHistory = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.user?.restaurantId;
+    const branchId = getTargetBranchId(req);
+    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    const filters = req.query;
+    const history = await getBillingHistoryService(restaurantId, branchId, filters);
+    sendSuccess(res, "Billing history fetched successfully.", history);
+  } catch (error: any) {
+    sendError(res, "Failed to fetch billing history", StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
 
 export const getBill = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

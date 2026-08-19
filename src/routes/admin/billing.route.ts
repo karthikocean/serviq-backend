@@ -2,7 +2,8 @@ import { Router } from "express";
 import { 
   getBill, 
   applyBillDiscount, 
-  payBill 
+  payBill,
+  getBillingHistory
 } from "../../controllers/admin/billing.controller";
 import { checkBranchAccess, checkSubscriptionFeature, checkPermission } from "../../middleware/rbacMiddleware";
 import { validate } from "../../middleware/validate";
@@ -19,6 +20,20 @@ const router = Router();
  *   name: Admin Billing
  *   description: Manage billing and payments
  */
+
+/**
+ * @swagger
+ * /api/admin/billing/history:
+ *   get:
+ *     summary: Get billing history
+ *     tags: [Admin Billing]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of paid bills/invoices
+ */
+router.get("/history", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "view"), getBillingHistory);
 
 /**
  * @swagger

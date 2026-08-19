@@ -34,7 +34,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     const role = user.roleId as any;
-    if (role.name?.toUpperCase() !== 'WAITER') {
+    if (role.roleName?.toUpperCase() !== 'WAITER') {
       return sendError(res, "You are not authorized as a Waiter.", StatusCodes.FORBIDDEN);
     }
 

@@ -19,8 +19,11 @@ import { getTargetBranchId } from "../../utils/authUtils";
 export const getItems = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const restaurantId = req.user?.restaurantId;
-    const branchId = getTargetBranchId(req);
-    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+    let branchId = getTargetBranchId(req);
+    if (req.query.branchId === 'all') {
+      branchId = undefined;
+    }
+    if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
     const categoryFilter = req.query.category as string | undefined;
     const availableFilter = req.query.available as string | undefined;
@@ -109,8 +112,11 @@ export const deleteItem = async (req: AuthRequest, res: Response): Promise<void>
 export const getCats = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const restaurantId = req.user?.restaurantId;
-    const branchId = getTargetBranchId(req);
-    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+    let branchId = getTargetBranchId(req);
+    if (req.query.branchId === 'all') {
+      branchId = undefined;
+    }
+    if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
     const page = parseInt(req.query.page as string);
     const limit = parseInt(req.query.limit as string);
     const search = req.query.search as string | undefined;
