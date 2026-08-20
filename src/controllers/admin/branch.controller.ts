@@ -85,6 +85,7 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
         country,
         pincode
       },
+      status: status || 'Active',
       isActive: status !== 'Inactive',
       isMainBranch: existingBranchCount === 0 // First branch becomes main automatically
     });
@@ -259,6 +260,7 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
     }
     
     if (status) {
+        branch.status = status;
         branch.isActive = status !== 'Inactive';
     }
 

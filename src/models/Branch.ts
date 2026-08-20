@@ -15,6 +15,7 @@ export interface IBranch extends Document {
     pincode: string;
   };
   isMainBranch: boolean;
+  status: 'Active' | 'Inactive';
   isActive: boolean;
   isDelete: boolean;
 }
@@ -35,6 +36,7 @@ const BranchSchema = new Schema<IBranch>(
       pincode: { type: String, required: true },
     },
     isMainBranch: { type: Boolean, default: false },
+    status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
     isActive: { type: Boolean, default: true },
     isDelete: { type: Boolean, default: false },
   },

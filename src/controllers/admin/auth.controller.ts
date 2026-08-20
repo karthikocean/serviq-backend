@@ -12,7 +12,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   } catch (error: any) {
     if (error.message === "Invalid credentials.") {
       sendError(res, error.message, StatusCodes.UNAUTHORIZED);
-    } else if (error.message.includes("Account is inactive")) {
+    } else if (error.message.includes("Account is inactive") || error.message.includes("Your branch is currently inactive")) {
       sendError(res, error.message, StatusCodes.FORBIDDEN);
     } else {
       sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);

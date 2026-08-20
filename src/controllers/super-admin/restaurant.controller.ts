@@ -9,6 +9,7 @@ import User from "../../models/User";
 import Lead from "../../models/Lead";
 import { sendSuccess, sendError } from "../../utils/response";
 import { pagination } from "../../utils/pagination";
+import { seedDefaultRoles } from "../../services/admin/role.service";
 import { AuthRequest } from "../../middleware/authMiddleware";
 
 // GET all active restaurants (populated with subscription plans)
@@ -220,6 +221,9 @@ export const createRestaurant = async (req: Request, res: Response): Promise<voi
                     await leadToUpdate.save();
                 }
             }
+
+            // 6. Seed Default Roles
+            await seedDefaultRoles(newRestaurant._id.toString());
 
             sendSuccess(res, "Restaurant created successfully.", { id: newRestaurant._id }, StatusCodes.CREATED);
         } catch (error) {
