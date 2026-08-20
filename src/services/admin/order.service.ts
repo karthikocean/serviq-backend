@@ -1,9 +1,13 @@
 import Order from "../../models/Order";
 import Table from "../../models/Table";
 
-export const getOrders = async (restaurantId: string, branchId: string, status?: string) => {
-  const query: any = { restaurantId, branchId, isDelete: false };
+export const getOrders = async (restaurantId: string, branchId: string, status?: string, billingStatus?: string) => {
+  const query: any = { restaurantId, isDelete: false };
+  if (branchId && branchId !== "ALL") {
+    query.branchId = branchId;
+  }
   if (status) query.status = status;
+  if (billingStatus) query.billingStatus = billingStatus;
 
   return await Order.find(query)
     .populate("tableId", "tableNumber section")
@@ -23,15 +27,53 @@ export const getOrderById = async (restaurantId: string, branchId: string, order
 };
 
 export const createOrder = async (restaurantId: string, branchId: string, orderData: any) => {
-  // Generate a unique order ID
-  const orderId = `ORD-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+  // If table is provided, check for existing unpaid order
+  if (orderData.tableId) {
+    const existingOrder = await Order.findOne({
+      tableId: orderData.tableId,
+      restaurantId,
+      branchId,
+      billingStatus: "unpaid",
+      isDelete: false
+    });
+
+    if (existingOrder) {
+      // Append new items
+      if (orderData.items && orderData.items.length > 0) {
+        existingOrder.items.push(...orderData.items);
+      }
+      
+      // Add totals
+      existingOrder.subtotal = (existingOrder.subtotal || 0) + (orderData.subtotal || 0);
+      existingOrder.tax = (existingOrder.tax || 0) + (orderData.tax || 0);
+      existingOrder.charge = (existingOrder.charge || 0) + (orderData.charge || 0);
+      existingOrder.total = (existingOrder.total || 0) + (orderData.total || 0);
+      
+      await existingOrder.save();
+      return existingOrder;
+    }
+  }
+
+  // Generate an auto-incrementing order ID like ORD-0001
+  const lastOrder = await Order.findOne().sort({ _id: -1 });
+  let nextNumber = 1;
+  if (lastOrder && lastOrder.orderId && lastOrder.orderId.startsWith("ORD-")) {
+    const numPart = lastOrder.orderId.split("-")[1];
+    if (numPart) {
+      const parsed = parseInt(numPart, 10);
+      if (!isNaN(parsed)) {
+        nextNumber = parsed + 1;
+      }
+    }
+  }
+  const orderId = `ORD-${nextNumber.toString().padStart(4, "0")}`;
 
   const newOrder = new Order({
     ...orderData,
     restaurantId,
     branchId,
     orderId,
-    time: new Date().toISOString()
+    time: new Date().toLocaleTimeString("en-US", { hour12: true, hour: "numeric", minute: "2-digit", second: "2-digit" })
   });
 
   await newOrder.save();
@@ -68,6 +110,7 @@ export const updateOrderItems = async (restaurantId: string, branchId: string, o
   if (updateData.tax !== undefined) order.tax = updateData.tax;
   if (updateData.charge !== undefined) order.charge = updateData.charge;
   if (updateData.total !== undefined) order.total = updateData.total;
+  if (updateData.waiterId !== undefined) order.waiterId = updateData.waiterId;
 
   await order.save();
   return order;

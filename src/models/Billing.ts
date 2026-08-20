@@ -33,7 +33,7 @@ const billingSchema = new Schema<IBilling>(
     {
         restaurantId: { type: Schema.Types.ObjectId, ref: "Restaurant", required: true },
         branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true },
-        orderId: { type: Schema.Types.ObjectId, ref: "Order", required: true },
+        orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true },
         orderRefId: { type: String, required: true },
         invoiceId: { type: String, required: true, unique: true },
         tableNumber: { type: String, required: true },

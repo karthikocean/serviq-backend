@@ -5,7 +5,7 @@ import crypto from "crypto";
 
 export const getTables = async (restaurantId: string, branchId?: string) => {
   const query: any = { restaurantId, isDelete: false };
-  if (branchId) query.branchId = branchId;
+  if (branchId && branchId !== "ALL") query.branchId = branchId;
   return await Table.find(query)
     .populate("assignedWaiter", "name phoneNumber")
     .populate("coverWaiter", "name phoneNumber");

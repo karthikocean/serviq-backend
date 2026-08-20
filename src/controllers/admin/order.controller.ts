@@ -19,7 +19,8 @@ export const getAllOrders = async (req: AuthRequest, res: Response): Promise<voi
     if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
     const status = req.query.status as string | undefined;
-    const orders = await getOrders(restaurantId, branchId, status);
+    const billingStatus = req.query.billingStatus as string | undefined;
+    const orders = await getOrders(restaurantId, branchId, status, billingStatus);
     sendSuccess(res, "Orders fetched successfully.", orders);
   } catch (error) {
     sendError(res, "Failed to fetch orders", StatusCodes.INTERNAL_SERVER_ERROR);

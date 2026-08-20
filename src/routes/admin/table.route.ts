@@ -1,18 +1,18 @@
 import { Router } from "express";
-import { 
-  getAllTables, 
+import {
+  getAllTables,
   getTable,
-  createNewTable, 
-  updateTableDetails, 
-  deleteTableData, 
+  createNewTable,
+  updateTableDetails,
+  deleteTableData,
   generateQrCodes,
   assignWaiter
 } from "../../controllers/admin/table.controller";
 import { checkBranchAccess, checkSubscriptionFeature, checkPermission } from "../../middleware/rbacMiddleware";
 import { validate } from "../../middleware/validate";
-import { 
-  createTableSchema, 
-  updateTableSchema, 
+import {
+  createTableSchema,
+  updateTableSchema,
   qrGenerationSchema,
   assignWaiterSchema
 } from "../../validations/admin/table.validation";
@@ -122,7 +122,7 @@ router.put("/assign-waiter", checkBranchAccess, checkSubscriptionFeature("TABLE_
  *         description: Table updated
  */
 router.get("/:tableId", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkPermission("TABLE_QR", "view"), getTable);
-router.put("/:tableId", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkPermission("TABLE_QR", "edit"), validate(updateTableSchema), updateTableDetails);
+router.patch("/:tableId", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkPermission("TABLE_QR", "edit"), validate(updateTableSchema), updateTableDetails);
 
 /**
  * @swagger
