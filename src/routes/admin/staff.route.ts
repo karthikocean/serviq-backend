@@ -6,7 +6,7 @@ import {
   deleteStaffMember, 
   updateDutyStatus 
 } from "../../controllers/admin/staff.controller";
-import { checkBranchAccess, checkSubscriptionFeature, checkPermission } from "../../middleware/rbacMiddleware";
+import { checkBranchAccess, checkSubscriptionFeature } from "../../middleware/rbacMiddleware";
 import { validate } from "../../middleware/validate";
 import { 
   createStaffSchema, 
@@ -41,7 +41,7 @@ const router = Router();
  *       200:
  *         description: List of staff members
  */
-router.get("/", checkBranchAccess, checkSubscriptionFeature("STAFF"), checkPermission("STAFF", "view"), getAllStaff);
+router.get("/", checkBranchAccess, checkSubscriptionFeature("STAFF"), getAllStaff);
 
 /**
  * @swagger
@@ -68,7 +68,7 @@ router.get("/", checkBranchAccess, checkSubscriptionFeature("STAFF"), checkPermi
  *       201:
  *         description: Staff created
  */
-router.post("/", checkBranchAccess, checkSubscriptionFeature("STAFF"), checkPermission("STAFF", "add"), validate(createStaffSchema), createNewStaff);
+router.post("/", checkBranchAccess, checkSubscriptionFeature("STAFF"), validate(createStaffSchema), createNewStaff);
 
 /**
  * @swagger
@@ -101,7 +101,7 @@ router.post("/", checkBranchAccess, checkSubscriptionFeature("STAFF"), checkPerm
  *       200:
  *         description: Staff updated
  */
-router.put("/:staffId", checkBranchAccess, checkSubscriptionFeature("STAFF"), checkPermission("STAFF", "edit"), validate(updateStaffSchema), updateStaffDetails);
+router.put("/:staffId", checkBranchAccess, checkSubscriptionFeature("STAFF"), validate(updateStaffSchema), updateStaffDetails);
 
 /**
  * @swagger
@@ -121,7 +121,7 @@ router.put("/:staffId", checkBranchAccess, checkSubscriptionFeature("STAFF"), ch
  *       200:
  *         description: Staff deleted
  */
-router.delete("/:staffId", checkBranchAccess, checkSubscriptionFeature("STAFF"), checkPermission("STAFF", "delete"), deleteStaffMember);
+router.delete("/:staffId", checkBranchAccess, checkSubscriptionFeature("STAFF"), deleteStaffMember);
 
 /**
  * @swagger
@@ -151,6 +151,6 @@ router.delete("/:staffId", checkBranchAccess, checkSubscriptionFeature("STAFF"),
  *       200:
  *         description: Duty status updated
  */
-router.put("/:staffId/status", checkBranchAccess, checkSubscriptionFeature("STAFF"), checkPermission("STAFF", "edit"), validate(updateDutyStatusSchema), updateDutyStatus);
+router.put("/:staffId/status", checkBranchAccess, checkSubscriptionFeature("STAFF"), validate(updateDutyStatusSchema), updateDutyStatus);
 
 export default router;

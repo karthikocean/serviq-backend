@@ -6,7 +6,7 @@ import {
   getBillingHistory,
   getActiveTables
 } from "../../controllers/admin/billing.controller";
-import { checkBranchAccess, checkSubscriptionFeature, checkPermission } from "../../middleware/rbacMiddleware";
+import { checkBranchAccess, checkSubscriptionFeature } from "../../middleware/rbacMiddleware";
 import { validate } from "../../middleware/validate";
 import { 
   applyDiscountSchema, 
@@ -15,10 +15,10 @@ import {
 
 const router = Router();
 
-router.get("/history", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "view"), getBillingHistory);
-router.get("/active-tables", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "view"), getActiveTables);
-router.get("/:orderId", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "view"), getBill);
-router.post("/:orderId/discount", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "edit"), validate(applyDiscountSchema), applyBillDiscount);
-router.post("/process-table", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "edit"), payBill);
+router.get("/history", checkBranchAccess, checkSubscriptionFeature("ORDER"), getBillingHistory);
+router.get("/active-tables", checkBranchAccess, checkSubscriptionFeature("ORDER"), getActiveTables);
+router.get("/:orderId", checkBranchAccess, checkSubscriptionFeature("ORDER"), getBill);
+router.post("/:orderId/discount", checkBranchAccess, checkSubscriptionFeature("ORDER"), validate(applyDiscountSchema), applyBillDiscount);
+router.post("/process-table", checkBranchAccess, checkSubscriptionFeature("ORDER"), payBill);
 
 export default router;

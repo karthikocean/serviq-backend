@@ -4,7 +4,7 @@ import {
   updateItemStatus, 
   updateOrderStatus 
 } from "../../controllers/admin/kds.controller";
-import { checkBranchAccess, checkSubscriptionFeature, checkPermission } from "../../middleware/rbacMiddleware";
+import { checkBranchAccess, checkSubscriptionFeature } from "../../middleware/rbacMiddleware";
 import { validate } from "../../middleware/validate";
 import { 
   updateKdsItemStatusSchema, 
@@ -32,7 +32,7 @@ const router = Router();
  *       200:
  *         description: Active orders for kitchen
  */
-router.get("/", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "view"), getKdsOrders);
+router.get("/", checkBranchAccess, checkSubscriptionFeature("ORDER"), getKdsOrders);
 
 /**
  * @swagger
@@ -67,7 +67,7 @@ router.get("/", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermi
  *       200:
  *         description: Item status updated
  */
-router.put("/:orderId/items/:itemId", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "edit"), validate(updateKdsItemStatusSchema), updateItemStatus);
+router.put("/:orderId/items/:itemId", checkBranchAccess, checkSubscriptionFeature("ORDER"), validate(updateKdsItemStatusSchema), updateItemStatus);
 
 /**
  * @swagger
@@ -97,6 +97,6 @@ router.put("/:orderId/items/:itemId", checkBranchAccess, checkSubscriptionFeatur
  *       200:
  *         description: Order marked ready
  */
-router.put("/:orderId/status", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "edit"), validate(updateKdsOrderStatusSchema), updateOrderStatus);
+router.put("/:orderId/status", checkBranchAccess, checkSubscriptionFeature("ORDER"), validate(updateKdsOrderStatusSchema), updateOrderStatus);
 
 export default router;

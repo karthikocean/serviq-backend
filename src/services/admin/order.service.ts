@@ -60,19 +60,7 @@ export const createOrder = async (restaurantId: string, branchId: string, orderD
     });
 
     if (existingOrder) {
-      // Append new items
-      if (orderData.items && orderData.items.length > 0) {
-        existingOrder.items.push(...orderData.items);
-      }
-      
-      // Add totals
-      existingOrder.subtotal = (existingOrder.subtotal || 0) + (orderData.subtotal || 0);
-      existingOrder.tax = (existingOrder.tax || 0) + (orderData.tax || 0);
-      existingOrder.charge = (existingOrder.charge || 0) + (orderData.charge || 0);
-      existingOrder.total = (existingOrder.total || 0) + (orderData.total || 0);
-      
-      await existingOrder.save();
-      return existingOrder;
+      throw new Error("Table is already occupied with an active order. Please edit the existing order to add items.");
     }
   }
 
@@ -138,11 +126,45 @@ export const updateOrderItems = async (restaurantId: string, branchId: string, o
   if (!order) throw new Error("Order not found");
 
   if (updateData.items) order.items = updateData.items;
+  
   if (updateData.subtotal !== undefined) order.subtotal = updateData.subtotal;
   if (updateData.tax !== undefined) order.tax = updateData.tax;
   if (updateData.charge !== undefined) order.charge = updateData.charge;
   if (updateData.total !== undefined) order.total = updateData.total;
+  if (updateData.status) order.status = updateData.status;
   if (updateData.waiterId !== undefined) order.waiterId = updateData.waiterId;
+
+  await order.save();
+  return order;
+};
+
+export const appendOrderItems = async (restaurantId: string, branchId: string, orderId: string, newItems: any[], additionalTotals: any) => {
+  const order = await Order.findOne({ _id: orderId, restaurantId, branchId, isDelete: false });
+  if (!order) throw new Error("Order not found");
+
+  if (newItems && newItems.length > 0) {
+    for (const newItem of newItems) {
+      const existingItemIndex = order.items.findIndex((item: any) => {
+        if (item.menuId && newItem.menuId) return String(item.menuId) === String(newItem.menuId);
+        return item.name.toLowerCase() === newItem.name.toLowerCase();
+      });
+
+      if (existingItemIndex > -1) {
+        order.items[existingItemIndex].qty = (order.items[existingItemIndex].qty || 1) + (newItem.qty || 1);
+      } else {
+        order.items.push(newItem);
+      }
+    }
+    order.markModified('items');
+  }
+
+  // Add the totals
+  if (additionalTotals) {
+    order.subtotal = (order.subtotal || 0) + (additionalTotals.subtotal || 0);
+    order.tax = (order.tax || 0) + (additionalTotals.tax || 0);
+    order.charge = (order.charge || 0) + (additionalTotals.charge || 0);
+    order.total = (order.total || 0) + (additionalTotals.total || 0);
+  }
 
   await order.save();
   return order;
