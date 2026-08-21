@@ -66,11 +66,10 @@ export const updateRolePermissions = async (roleId: string, restaurantId: string
     throw new Error("Role not found");
   }
 
-  if (role.isDefault) {
-    throw new Error("Cannot edit default system roles directly");
-  }
-
   if (roleName && roleName !== role.roleName) {
+    if (role.isDefault) {
+      throw new Error("Cannot edit default system roles directly");
+    }
     const existingRole = await Role.findOne({ roleName: new RegExp(`^${roleName}$`, 'i'), restaurantId, isDelete: false });
     if (existingRole) {
       throw new Error("Role name already exists");

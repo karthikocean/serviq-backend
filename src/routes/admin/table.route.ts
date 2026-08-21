@@ -6,7 +6,8 @@ import {
   updateTableDetails,
   deleteTableData,
   generateQrCodes,
-  assignWaiter
+  assignWaiter,
+  getNextTableId
 } from "../../controllers/admin/table.controller";
 import { checkBranchAccess, checkSubscriptionFeature, checkPermission } from "../../middleware/rbacMiddleware";
 import { validate } from "../../middleware/validate";
@@ -39,6 +40,25 @@ const router = Router();
  *         description: List of tables
  */
 router.get("/", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkPermission("TABLE_QR", "view"), getAllTables);
+
+/**
+ * @swagger
+ * /api/admin/tables/next-id:
+ *   get:
+ *     summary: Get the next auto-generated table ID
+ *     tags: [Admin Tables & QR]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: branchId
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Next table ID
+ */
+router.get("/next-id", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkPermission("TABLE_QR", "view"), getNextTableId);
 
 /**
  * @swagger

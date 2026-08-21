@@ -28,7 +28,7 @@ export const getActiveOrders = async (req: AuthRequest, res: Response): Promise<
     const totalCount = await Order.countDocuments(query);
     const orders = await Order.find(query)
       .populate("tableId", "tableNumber section")
-      .populate("items.menuItem", "name veg")
+      .populate("items.menuId", "name veg")
       .sort({ createdAt: 1 }) // Oldest first for kitchen
       .skip(skip)
       .limit(limit);

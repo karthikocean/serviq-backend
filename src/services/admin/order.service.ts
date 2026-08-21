@@ -1,19 +1,41 @@
 import Order from "../../models/Order";
 import Table from "../../models/Table";
+import Branch from "../../models/Branch";
 
-export const getOrders = async (restaurantId: string, branchId: string, status?: string, billingStatus?: string) => {
+export const getOrders = async (
+  restaurantId: string,
+  branchId: string,
+  status?: string,
+  billingStatus?: string,
+  waiterId?: string,
+  page: number = 0,
+  limit: number = 10
+) => {
   const query: any = { restaurantId, isDelete: false };
   if (branchId && branchId !== "ALL") {
     query.branchId = branchId;
   }
   if (status) query.status = status;
   if (billingStatus) query.billingStatus = billingStatus;
+  
+  if (waiterId) {
+    if (waiterId === "unassigned") {
+      query.$or = [{ waiterId: { $exists: false } }, { waiterId: null }];
+    } else {
+      query.waiterId = waiterId;
+    }
+  }
 
-  return await Order.find(query)
+  const totalCount = await Order.countDocuments(query);
+  const orders = await Order.find(query)
     .populate("tableId", "tableNumber section")
     .populate("waiterId", "name phoneNumber")
     .populate("items.menuId", "name image veg category")
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .skip(page * limit)
+    .limit(limit);
+    
+  return { orders, totalCount };
 };
 
 export const getOrderById = async (restaurantId: string, branchId: string, orderId: string) => {
@@ -54,19 +76,29 @@ export const createOrder = async (restaurantId: string, branchId: string, orderD
     }
   }
 
-  // Generate an auto-incrementing order ID like ORD-0001
-  const lastOrder = await Order.findOne().sort({ _id: -1 });
+  let prefix = "ORD";
+  if (branchId && branchId !== "ALL") {
+    const branch = await Branch.findById(branchId);
+    if (branch && branch.branchName) {
+      const initials = branch.branchName.trim().split(/\s+/).map(word => word.charAt(0)).join('').toUpperCase();
+      prefix = `ORD-${initials}`;
+    }
+  }
+
+  const query: any = { restaurantId, isDelete: false };
+  if (branchId && branchId !== "ALL") query.branchId = branchId;
+  const lastOrder = await Order.findOne(query).sort({ _id: -1 });
   let nextNumber = 1;
-  if (lastOrder && lastOrder.orderId && lastOrder.orderId.startsWith("ORD-")) {
-    const numPart = lastOrder.orderId.split("-")[1];
-    if (numPart) {
-      const parsed = parseInt(numPart, 10);
+  if (lastOrder && lastOrder.orderId) {
+    const match = lastOrder.orderId.match(/\d+$/);
+    if (match) {
+      const parsed = parseInt(match[0], 10);
       if (!isNaN(parsed)) {
         nextNumber = parsed + 1;
       }
     }
   }
-  const orderId = `ORD-${nextNumber.toString().padStart(4, "0")}`;
+  const orderId = `${prefix}-${nextNumber.toString().padStart(4, "0")}`;
 
   const newOrder = new Order({
     ...orderData,

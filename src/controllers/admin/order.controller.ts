@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { sendSuccess, sendError } from "../../utils/response";
+import { pagination } from "../../utils/pagination";
 import { AuthRequest } from "../../middleware/authMiddleware";
 import {
   getOrders,
@@ -20,8 +21,12 @@ export const getAllOrders = async (req: AuthRequest, res: Response): Promise<voi
 
     const status = req.query.status as string | undefined;
     const billingStatus = req.query.billingStatus as string | undefined;
-    const orders = await getOrders(restaurantId, branchId, status, billingStatus);
-    sendSuccess(res, "Orders fetched successfully.", orders);
+    const waiterId = req.query.waiterId as string | undefined;
+    const page = parseInt(req.query.page as string) || 0;
+    const limit = parseInt(req.query.limit as string) || 10;
+    
+    const { orders, totalCount } = await getOrders(restaurantId, branchId, status, billingStatus, waiterId, page, limit);
+    pagination(totalCount, orders, limit, page, res, "Orders fetched successfully.");
   } catch (error) {
     sendError(res, "Failed to fetch orders", StatusCodes.INTERNAL_SERVER_ERROR);
   }

@@ -70,7 +70,7 @@ const startServer = async () => {
         },
         servers: [
           { url: "http://localhost:5000" },
-          { url: "http://192.168.1.17:5000", description: "Network" }],
+          { url: "http://192.168.1.13:5000", description: "Network" }],
         components: {
           securitySchemes: {
             bearerAuth: {
