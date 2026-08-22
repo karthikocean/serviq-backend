@@ -3,7 +3,7 @@ import User from "../../models/User";
 
 export const getStaffByRestaurantId = async (restaurantId: string, branchId?: string, dutyStatus?: string) => {
   const query: any = { restaurantId, userType: 'STAFF', isDelete: false };
-  if (branchId) {
+  if (branchId && branchId !== "ALL") {
     query.branchId = branchId;
   }
   if (dutyStatus) {

@@ -5,6 +5,34 @@ export const getRolesByRestaurant = async (restaurantId: string) => {
   return await Role.find({ restaurantId, isDelete: false });
 };
 
+export const seedDefaultRoles = async (restaurantId: string) => {
+  const defaultRoles = [
+    { code: "WAITER", roleName: "Waiter" },
+    { code: "KITCHEN", roleName: "Kitchen" },
+    { code: "BRANCH_MANAGER", roleName: "Branch Manager" }
+  ];
+
+  for (const dr of defaultRoles) {
+    await Role.updateOne(
+      { restaurantId, code: dr.code },
+      {
+        $setOnInsert: {
+          restaurantId,
+          type: "RESTAURANT",
+          roleName: dr.roleName,
+          code: dr.code,
+          permissions: {}, // Define default permissions later if needed
+          isDefault: true,
+          isDeletable: false,
+          isActive: true,
+          isDelete: false
+        }
+      },
+      { upsert: true }
+    );
+  }
+};
+
 export const getRoleById = async (roleId: string, restaurantId: string) => {
   return await Role.findOne({ _id: roleId, restaurantId, isDelete: false });
 };
@@ -22,6 +50,7 @@ export const createRole = async (restaurantId: string, roleName: string, permiss
     roleName,
     permissions: new Map(Object.entries(permissions || {})),
     isDefault: false,
+    isDeletable: true,
     isActive: true,
     isDelete: false
   });
@@ -37,11 +66,10 @@ export const updateRolePermissions = async (roleId: string, restaurantId: string
     throw new Error("Role not found");
   }
 
-  if (role.isDefault) {
-    throw new Error("Cannot edit default system roles directly");
-  }
-
   if (roleName && roleName !== role.roleName) {
+    if (role.isDefault) {
+      throw new Error("Cannot edit default system roles directly");
+    }
     const existingRole = await Role.findOne({ roleName: new RegExp(`^${roleName}$`, 'i'), restaurantId, isDelete: false });
     if (existingRole) {
       throw new Error("Role name already exists");
@@ -64,7 +92,7 @@ export const deleteRole = async (roleId: string, restaurantId: string) => {
     throw new Error("Role not found");
   }
 
-  if (role.isDefault) {
+  if (role.isDefault || !role.isDeletable) {
     throw new Error("Cannot delete default system roles");
   }
 

@@ -36,7 +36,7 @@ export const getItems = async (req: AuthRequest, res: Response): Promise<void> =
   try {
     const { restaurantId, activeBranchId } = req.user!;
     const { categoryId } = req.query;
-    
+
     const page = parseInt(req.query.page as string) || 0;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = page * limit;

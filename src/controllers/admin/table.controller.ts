@@ -9,7 +9,8 @@ import {
   deleteTable,
   generateQRsForTables,
   assignWaiterToTables,
-  getTableById
+  getTableById,
+  getNextTableIdStr
 } from "../../services/admin/table.service";
 import { getTargetBranchId } from "../../utils/authUtils";
 
@@ -49,6 +50,24 @@ export const getAllTables = async (req: AuthRequest, res: Response): Promise<voi
     sendSuccess(res, "Tables fetched successfully.", tables);
   } catch (error) {
     sendError(res, "Failed to fetch tables", StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const getNextTableId = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.user?.restaurantId;
+    let branchId = getTargetBranchId(req);
+    
+    if (!branchId && req.query.branchId === '' && (req.user?.userType === "RESTAURANT_OWNER" || req.user?.userType === "SUPER_ADMIN")) {
+      branchId = undefined;
+    }
+
+    if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    const nextId = await getNextTableIdStr(restaurantId, branchId);
+    sendSuccess(res, "Next table ID fetched successfully.", { nextId });
+  } catch (error) {
+    sendError(res, "Failed to fetch next table ID", StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 

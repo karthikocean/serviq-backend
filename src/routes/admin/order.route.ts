@@ -5,9 +5,10 @@ import {
   createNewOrder, 
   updateStatus, 
   updateItems, 
+  appendItems,
   deleteOrderRecord 
 } from "../../controllers/admin/order.controller";
-import { checkBranchAccess, checkSubscriptionFeature, checkPermission } from "../../middleware/rbacMiddleware";
+import { checkBranchAccess, checkSubscriptionFeature } from "../../middleware/rbacMiddleware";
 import { validate } from "../../middleware/validate";
 import { 
   createOrderSchema, 
@@ -42,7 +43,7 @@ const router = Router();
  *       200:
  *         description: List of orders
  */
-router.get("/", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "view"), getAllOrders);
+router.get("/", checkBranchAccess, checkSubscriptionFeature("ORDER"), getAllOrders);
 
 /**
  * @swagger
@@ -62,7 +63,7 @@ router.get("/", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermi
  *       200:
  *         description: Order details
  */
-router.get("/:orderId", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "view"), getSingleOrder);
+router.get("/:orderId", checkBranchAccess, checkSubscriptionFeature("ORDER"), getSingleOrder);
 
 /**
  * @swagger
@@ -97,7 +98,7 @@ router.get("/:orderId", checkBranchAccess, checkSubscriptionFeature("ORDER"), ch
  *       201:
  *         description: Order created
  */
-router.post("/", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "add"), validate(createOrderSchema), createNewOrder);
+router.post("/", checkBranchAccess, checkSubscriptionFeature("ORDER"), validate(createOrderSchema), createNewOrder);
 
 /**
  * @swagger
@@ -127,7 +128,7 @@ router.post("/", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPerm
  *       200:
  *         description: Order status updated
  */
-router.patch("/:orderId/status", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "edit"), validate(updateOrderStatusSchema), updateStatus);
+router.patch("/:orderId/status", checkBranchAccess, checkSubscriptionFeature("ORDER"), validate(updateOrderStatusSchema), updateStatus);
 
 /**
  * @swagger
@@ -152,8 +153,15 @@ router.patch("/:orderId/status", checkBranchAccess, checkSubscriptionFeature("OR
  *     responses:
  *       200:
  *         description: Order items updated
+ *       400:
+ *         description: Invalid input or validation error
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Order not found
  */
-router.put("/:orderId/items", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "edit"), validate(updateOrderItemsSchema), updateItems);
+router.put("/:orderId/items", checkBranchAccess, checkSubscriptionFeature("ORDER"), validate(updateOrderItemsSchema), updateItems);
+router.put("/:orderId/items/append", checkBranchAccess, checkSubscriptionFeature("ORDER"), validate(updateOrderItemsSchema), appendItems);
 
 /**
  * @swagger
@@ -173,6 +181,6 @@ router.put("/:orderId/items", checkBranchAccess, checkSubscriptionFeature("ORDER
  *       200:
  *         description: Order deleted
  */
-router.delete("/:orderId", checkBranchAccess, checkSubscriptionFeature("ORDER"), checkPermission("ORDER", "delete"), deleteOrderRecord);
+router.delete("/:orderId", checkBranchAccess, checkSubscriptionFeature("ORDER"), deleteOrderRecord);
 
 export default router;

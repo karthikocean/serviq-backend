@@ -1,18 +1,19 @@
 import { Router } from "express";
-import { 
-  getAllTables, 
+import {
+  getAllTables,
   getTable,
-  createNewTable, 
-  updateTableDetails, 
-  deleteTableData, 
+  createNewTable,
+  updateTableDetails,
+  deleteTableData,
   generateQrCodes,
-  assignWaiter
+  assignWaiter,
+  getNextTableId
 } from "../../controllers/admin/table.controller";
-import { checkBranchAccess, checkSubscriptionFeature, checkPermission } from "../../middleware/rbacMiddleware";
+import { checkBranchAccess, checkSubscriptionFeature } from "../../middleware/rbacMiddleware";
 import { validate } from "../../middleware/validate";
-import { 
-  createTableSchema, 
-  updateTableSchema, 
+import {
+  createTableSchema,
+  updateTableSchema,
   qrGenerationSchema,
   assignWaiterSchema
 } from "../../validations/admin/table.validation";
@@ -38,7 +39,26 @@ const router = Router();
  *       200:
  *         description: List of tables
  */
-router.get("/", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkPermission("TABLE_QR", "view"), getAllTables);
+router.get("/", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), getAllTables);
+
+/**
+ * @swagger
+ * /api/admin/tables/next-id:
+ *   get:
+ *     summary: Get the next auto-generated table ID
+ *     tags: [Admin Tables & QR]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: branchId
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Next table ID
+ */
+router.get("/next-id", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), getNextTableId);
 
 /**
  * @swagger
@@ -63,7 +83,7 @@ router.get("/", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkPe
  *       201:
  *         description: Table created
  */
-router.post("/", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkPermission("TABLE_QR", "add"), validate(createTableSchema), createNewTable);
+router.post("/", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), validate(createTableSchema), createNewTable);
 
 /**
  * @swagger
@@ -89,7 +109,7 @@ router.post("/", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkP
  *       400:
  *         description: Bad request / validation error
  */
-router.put("/assign-waiter", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkPermission("TABLE_QR", "edit"), validate(assignWaiterSchema), assignWaiter);
+router.put("/assign-waiter", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), validate(assignWaiterSchema), assignWaiter);
 
 /**
  * @swagger
@@ -121,8 +141,8 @@ router.put("/assign-waiter", checkBranchAccess, checkSubscriptionFeature("TABLE_
  *       200:
  *         description: Table updated
  */
-router.get("/:tableId", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkPermission("TABLE_QR", "view"), getTable);
-router.put("/:tableId", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkPermission("TABLE_QR", "edit"), validate(updateTableSchema), updateTableDetails);
+router.get("/:tableId", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), getTable);
+router.patch("/:tableId", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), validate(updateTableSchema), updateTableDetails);
 
 /**
  * @swagger
@@ -142,7 +162,7 @@ router.put("/:tableId", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"),
  *       200:
  *         description: Table deleted
  */
-router.delete("/:tableId", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkPermission("TABLE_QR", "delete"), deleteTableData);
+router.delete("/:tableId", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), deleteTableData);
 
 /**
  * @swagger
@@ -168,6 +188,6 @@ router.delete("/:tableId", checkBranchAccess, checkSubscriptionFeature("TABLE_QR
  *       200:
  *         description: QR codes generated successfully
  */
-router.post("/generate-qr", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), checkPermission("TABLE_QR", "edit"), validate(qrGenerationSchema), generateQrCodes);
+router.post("/generate-qr", checkBranchAccess, checkSubscriptionFeature("TABLE_QR"), validate(qrGenerationSchema), generateQrCodes);
 
 export default router;

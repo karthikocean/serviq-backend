@@ -1,19 +1,49 @@
 import Table from "../../models/Table";
 import QrCode from "../../models/QrCode";
 import User from "../../models/User";
+import Branch from "../../models/Branch";
 import crypto from "crypto";
 
 export const getTables = async (restaurantId: string, branchId?: string) => {
   const query: any = { restaurantId, isDelete: false };
-  if (branchId) query.branchId = branchId;
+  if (branchId && branchId !== "ALL") query.branchId = branchId;
   return await Table.find(query)
     .populate("assignedWaiter", "name phoneNumber")
     .populate("coverWaiter", "name phoneNumber");
 };
 
+export const getNextTableIdStr = async (restaurantId: string, branchId?: string) => {
+  const query: any = { restaurantId, isDelete: false };
+  if (branchId && branchId !== "ALL") query.branchId = branchId;
+  
+  const tables = await Table.find(query);
+  
+  let prefix = "TBL";
+  if (branchId && branchId !== "ALL") {
+    const branch = await Branch.findById(branchId);
+    if (branch && branch.branchName) {
+      const initials = branch.branchName.trim().split(/\s+/).map(word => word.charAt(0)).join('').toUpperCase();
+      prefix = `TBL-${initials}`;
+    }
+  }
+  
+  let maxId = 0;
+  for (const table of tables) {
+    if (table.tableNumber) {
+      const match = table.tableNumber.match(/\d+$/);
+      if (match) {
+        const num = parseInt(match[0], 10);
+        if (num > maxId) maxId = num;
+      }
+    }
+  }
+  
+  maxId += 1;
+  return `${prefix}-${maxId.toString().padStart(3, '0')}`;
+};
+
 export const getTableById = async (restaurantId: string, branchId: string | undefined, tableId: string) => {
   const query: any = { _id: tableId, restaurantId, isDelete: false };
-  if (branchId) query.branchId = branchId;
   const table = await Table.findOne(query)
     .populate("assignedWaiter", "name phoneNumber")
     .populate("coverWaiter", "name phoneNumber");

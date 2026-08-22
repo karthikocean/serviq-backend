@@ -10,15 +10,15 @@ import { sendSuccess, sendError } from "../../../utils/response";
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { phoneNumber, password } = req.body;
+    const { email, password } = req.body;
 
-    if (!phoneNumber || !password) {
-      return sendError(res, "Phone number and password are required.", StatusCodes.BAD_REQUEST);
+    if (!email || !password) {
+      return sendError(res, "Email and password are required.", StatusCodes.BAD_REQUEST);
     }
 
-    const user = await User.findOne({ phoneNumber, isDelete: false }).populate("roleId");
+    const user = await User.findOne({ email, isDelete: false }).populate("roleId");
     if (!user) {
-      return sendError(res, "Invalid phone number or password.", StatusCodes.UNAUTHORIZED);
+      return sendError(res, "Invalid email or password.", StatusCodes.UNAUTHORIZED);
     }
 
     if (!user.isActive) {
@@ -34,7 +34,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     const role = user.roleId as any;
-    if (role.name?.toUpperCase() !== 'WAITER') {
+    if (role.roleName?.toUpperCase() !== 'WAITER') {
       return sendError(res, "You are not authorized as a Waiter.", StatusCodes.FORBIDDEN);
     }
 
@@ -44,7 +44,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     const isMatch = await bcrypt.compare(password, user.password as string);
     if (!isMatch) {
-      return sendError(res, "Invalid phone number or password.", StatusCodes.UNAUTHORIZED);
+      return sendError(res, "Invalid email or password.", StatusCodes.UNAUTHORIZED);
     }
 
     const token = jwt.sign(

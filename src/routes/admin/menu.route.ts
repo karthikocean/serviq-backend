@@ -10,7 +10,7 @@ import {
   updateCategoryController,
   deleteCategoryController
 } from "../../controllers/admin/menu.controller";
-import { checkBranchAccess, checkSubscriptionFeature, checkPermission } from "../../middleware/rbacMiddleware";
+import { checkBranchAccess, checkSubscriptionFeature } from "../../middleware/rbacMiddleware";
 import { validate } from "../../middleware/validate";
 import { 
   createMenuItemSchema, 
@@ -41,7 +41,7 @@ const router = Router();
  *       200:
  *         description: List of categories
  */
-router.get("/categories", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "view"), getCats);
+router.get("/categories", checkBranchAccess, checkSubscriptionFeature("MENU"), getCats);
 
 /**
  * @swagger
@@ -70,7 +70,7 @@ router.get("/categories", checkBranchAccess, checkSubscriptionFeature("MENU"), c
  *       200:
  *         description: Category created
  */
-router.post("/category", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "add"), validate(createCategorySchema), createCategoryController);
+router.post("/category", checkBranchAccess, checkSubscriptionFeature("MENU"), validate(createCategorySchema), createCategoryController);
 
 /**
  * @swagger
@@ -103,7 +103,7 @@ router.post("/category", checkBranchAccess, checkSubscriptionFeature("MENU"), ch
  *       200:
  *         description: Category updated
  */
-router.put("/category/:id", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "edit"), updateCategoryController);
+router.put("/category/:id", checkBranchAccess, checkSubscriptionFeature("MENU"), updateCategoryController);
 
 /**
  * @swagger
@@ -123,7 +123,7 @@ router.put("/category/:id", checkBranchAccess, checkSubscriptionFeature("MENU"),
  *       200:
  *         description: Category deleted
  */
-router.delete("/category/:id", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "delete"), deleteCategoryController);
+router.delete("/category/:id", checkBranchAccess, checkSubscriptionFeature("MENU"), deleteCategoryController);
 
 // Menu Items Routes
 /**
@@ -147,7 +147,7 @@ router.delete("/category/:id", checkBranchAccess, checkSubscriptionFeature("MENU
  *       200:
  *         description: List of menu items
  */
-router.get("/", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "view"), getItems);
+router.get("/", checkBranchAccess, checkSubscriptionFeature("MENU"), getItems);
 
 /**
  * @swagger
@@ -167,7 +167,7 @@ router.get("/", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermis
  *       201:
  *         description: Menu item created
  */
-router.post("/", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "add"), validate(createMenuItemSchema), createItem);
+router.post("/", checkBranchAccess, checkSubscriptionFeature("MENU"), validate(createMenuItemSchema), createItem);
 
 /**
  * @swagger
@@ -193,7 +193,7 @@ router.post("/", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermi
  *       200:
  *         description: Menu item updated
  */
-router.put("/:itemId", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "edit"), validate(updateMenuItemSchema), updateItem);
+router.put("/:itemId", checkBranchAccess, checkSubscriptionFeature("MENU"), validate(updateMenuItemSchema), updateItem);
 
 /**
  * @swagger
@@ -222,7 +222,7 @@ router.put("/:itemId", checkBranchAccess, checkSubscriptionFeature("MENU"), chec
  *       200:
  *         description: Menu item availability toggled
  */
-router.patch("/:itemId/availability", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "edit"), validate(toggleMenuAvailabilitySchema), toggleItem);
+router.patch("/:itemId/availability", checkBranchAccess, checkSubscriptionFeature("MENU"), validate(toggleMenuAvailabilitySchema), toggleItem);
 
 /**
  * @swagger
@@ -242,6 +242,6 @@ router.patch("/:itemId/availability", checkBranchAccess, checkSubscriptionFeatur
  *       200:
  *         description: Menu item deleted
  */
-router.delete("/:itemId", checkBranchAccess, checkSubscriptionFeature("MENU"), checkPermission("MENU", "delete"), deleteItem);
+router.delete("/:itemId", checkBranchAccess, checkSubscriptionFeature("MENU"), deleteItem);
 
 export default router;

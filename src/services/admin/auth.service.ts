@@ -20,46 +20,55 @@ export const loginAdmin = async (email: string, password: string) => {
 
   let activeBranchId = user.branchId;
 
-  if (user.userType === 'RESTAURANT_OWNER') {
-      const mainBranch = await Branch.findOne({ restaurantId: user.restaurantId, isMainBranch: true });
-      if (mainBranch) {
-          activeBranchId = mainBranch._id as any;
+  if (user.userType !== 'RESTAURANT_OWNER') {
+    if (user.branchId) {
+      const branch = await Branch.findById(user.branchId);
+      if (branch && !branch.isActive && branch.status !== 'Active') {
+        throw new Error("Your branch is currently inactive. Please contact your restaurant owner.");
       }
+    }
+  }
+
+  if (user.userType === 'RESTAURANT_OWNER') {
+    const mainBranch = await Branch.findOne({ restaurantId: user.restaurantId, isMainBranch: true });
+    if (mainBranch) {
+      activeBranchId = mainBranch._id as any;
+    }
   }
 
   let finalToken: string;
   const existingToken = await UserToken.findOne({ userId: user._id });
 
   if (existingToken) {
-      try {
-          jwt.verify(existingToken.token, process.env.JWT_SECRET as string);
-          finalToken = existingToken.token;
-      } catch (err) {
-          finalToken = jwt.sign(
-            { 
-              userId: user._id, 
-              userType: user.userType, 
-              restaurantId: user.restaurantId,
-              activeBranchId: activeBranchId
-            },
-            process.env.JWT_SECRET as string,
-            { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
-          );
-          existingToken.token = finalToken;
-          await existingToken.save();
-      }
-  } else {
+    try {
+      jwt.verify(existingToken.token, process.env.JWT_SECRET as string);
+      finalToken = existingToken.token;
+    } catch (err) {
       finalToken = jwt.sign(
-        { 
-          userId: user._id, 
-          userType: user.userType, 
+        {
+          userId: user._id,
+          userType: user.userType,
           restaurantId: user.restaurantId,
           activeBranchId: activeBranchId
         },
         process.env.JWT_SECRET as string,
         { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
       );
-      await UserToken.create({ userId: user._id, token: finalToken });
+      existingToken.token = finalToken;
+      await existingToken.save();
+    }
+  } else {
+    finalToken = jwt.sign(
+      {
+        userId: user._id,
+        userType: user.userType,
+        restaurantId: user.restaurantId,
+        activeBranchId: activeBranchId
+      },
+      process.env.JWT_SECRET as string,
+      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
+    );
+    await UserToken.create({ userId: user._id, token: finalToken });
   }
 
   return {

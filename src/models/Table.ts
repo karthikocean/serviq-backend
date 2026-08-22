@@ -38,5 +38,5 @@ const tableSchema = new Schema<Itable>(
 
 
 
-const table = mongoose.model<Itable>("table", tableSchema);
-export default table;
+const Table = mongoose.model<Itable>("Table", tableSchema);
+export default Table;

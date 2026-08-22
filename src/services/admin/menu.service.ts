@@ -3,14 +3,15 @@ import Category from "../../models/Category";
 
 export const getMenuItems = async (
   restaurantId: string,
-  branchId: string,
+  branchId: string | undefined,
   categoryFilter?: string,
   availableFilter?: string,
   skip: number = 0,
   limit: number = 10,
   search?: string
 ) => {
-  const query: any = { restaurantId, branchId, isDelete: false };
+  const query: any = { restaurantId, isDelete: false };
+  if (branchId) query.branchId = branchId;
   if (categoryFilter && categoryFilter !== 'All Items') query.category = categoryFilter;
   if (availableFilter !== undefined) query.available = availableFilter === 'true';
   if (search) {
@@ -77,8 +78,10 @@ export const deleteMenuItem = async (restaurantId: string, branchId: string, ite
   return true;
 };
 
-export const getCategories = async (restaurantId: string, branchId: string, skip: number = 0, limit: number = 0, search: string = "") => {
-  const query: any = { restaurantId, branchId };
+export const getCategories = async (restaurantId: string, branchId: string | undefined, skip: number = 0, limit: number = 0, search: string = "") => {
+  const query: any = { restaurantId };
+  if (branchId) query.branchId = branchId;
+  
   if (search) {
     query.name = { $regex: search, $options: "i" };
   }
@@ -95,7 +98,7 @@ export const getCategories = async (restaurantId: string, branchId: string, skip
 
 export const updateCategory = async (restaurantId: string, branchId: string, categoryId: string, updateData: any) => {
   const cat = await Category.findOneAndUpdate(
-    { _id: categoryId, restaurantId, branchId },
+    { _id: categoryId, restaurantId },
     { $set: updateData },
     { new: true }
   );
@@ -104,7 +107,7 @@ export const updateCategory = async (restaurantId: string, branchId: string, cat
 };
 
 export const deleteCategory = async (restaurantId: string, branchId: string, categoryId: string) => {
-  const cat = await Category.findOneAndDelete({ _id: categoryId, restaurantId, branchId });
+  const cat = await Category.findOneAndDelete({ _id: categoryId, restaurantId });
   if (!cat) throw new Error("Category not found");
   return true;
 };

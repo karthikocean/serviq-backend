@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { sendSuccess, sendError } from "../../utils/response";
+import { pagination } from "../../utils/pagination";
 import { AuthRequest } from "../../middleware/authMiddleware";
 import {
   getOrders,
@@ -8,6 +9,7 @@ import {
   createOrder,
   updateOrderStatus,
   updateOrderItems,
+  appendOrderItems,
   deleteOrder
 } from "../../services/admin/order.service";
 import { getTargetBranchId } from "../../utils/authUtils";
@@ -19,8 +21,13 @@ export const getAllOrders = async (req: AuthRequest, res: Response): Promise<voi
     if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
     const status = req.query.status as string | undefined;
-    const orders = await getOrders(restaurantId, branchId, status);
-    sendSuccess(res, "Orders fetched successfully.", orders);
+    const billingStatus = req.query.billingStatus as string | undefined;
+    const waiterId = req.query.waiterId as string | undefined;
+    const page = parseInt(req.query.page as string) || 0;
+    const limit = parseInt(req.query.limit as string) || 10;
+    
+    const { orders, totalCount } = await getOrders(restaurantId, branchId, status, billingStatus, waiterId, page, limit);
+    pagination(totalCount, orders, limit, page, res, "Orders fetched successfully.");
   } catch (error) {
     sendError(res, "Failed to fetch orders", StatusCodes.INTERNAL_SERVER_ERROR);
   }
@@ -53,7 +60,11 @@ export const createNewOrder = async (req: AuthRequest, res: Response): Promise<v
     const newOrder = await createOrder(restaurantId, branchId, req.body);
     sendSuccess(res, "Order created successfully.", { id: newOrder._id, orderId: newOrder.orderId });
   } catch (error: any) {
-    sendError(res, "Failed to create order", StatusCodes.INTERNAL_SERVER_ERROR);
+    if (error.message.includes("Table is already occupied")) {
+      sendError(res, error.message, StatusCodes.BAD_REQUEST);
+    } else {
+      sendError(res, "Failed to create order", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
   }
 };
 
@@ -90,6 +101,26 @@ export const updateItems = async (req: AuthRequest, res: Response): Promise<void
       sendError(res, error.message, StatusCodes.NOT_FOUND);
     } else {
       sendError(res, "Failed to update order items", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+  }
+};
+
+export const appendItems = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.user?.restaurantId;
+    const branchId = getTargetBranchId(req);
+    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    const orderId = req.params.orderId as string;
+    const { items, subtotal, tax, charge, total } = req.body;
+    
+    await appendOrderItems(restaurantId, branchId, orderId, items, { subtotal, tax, charge, total });
+    sendSuccess(res, "Order items appended successfully.");
+  } catch (error: any) {
+    if (error.message === "Order not found") {
+      sendError(res, error.message, StatusCodes.NOT_FOUND);
+    } else {
+      sendError(res, "Failed to append order items", StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
 };

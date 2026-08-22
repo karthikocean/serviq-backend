@@ -9,13 +9,13 @@ import { sendSuccess, sendError } from "../../../utils/response";
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { phoneNumber, password } = req.body;
+    const { email, password } = req.body;
 
-    if (!phoneNumber || !password) {
-      return sendError(res, "Phone number and password are required.", StatusCodes.BAD_REQUEST);
+    if (!email || !password) {
+      return sendError(res, "Email and password are required.", StatusCodes.BAD_REQUEST);
     }
 
-    const user = await User.findOne({ phoneNumber, isDelete: false }).populate("roleId");
+    const user = await User.findOne({ email, isDelete: false }).populate("roleId");
 
     if (!user) {
       return sendError(res, "Invalid credentials.", StatusCodes.UNAUTHORIZED);

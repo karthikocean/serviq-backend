@@ -1,15 +1,41 @@
 import Order from "../../models/Order";
 import Table from "../../models/Table";
+import Branch from "../../models/Branch";
 
-export const getOrders = async (restaurantId: string, branchId: string, status?: string) => {
-  const query: any = { restaurantId, branchId, isDelete: false };
+export const getOrders = async (
+  restaurantId: string,
+  branchId: string,
+  status?: string,
+  billingStatus?: string,
+  waiterId?: string,
+  page: number = 0,
+  limit: number = 10
+) => {
+  const query: any = { restaurantId, isDelete: false };
+  if (branchId && branchId !== "ALL") {
+    query.branchId = branchId;
+  }
   if (status) query.status = status;
+  if (billingStatus) query.billingStatus = billingStatus;
+  
+  if (waiterId) {
+    if (waiterId === "unassigned") {
+      query.$or = [{ waiterId: { $exists: false } }, { waiterId: null }];
+    } else {
+      query.waiterId = waiterId;
+    }
+  }
 
-  return await Order.find(query)
+  const totalCount = await Order.countDocuments(query);
+  const orders = await Order.find(query)
     .populate("tableId", "tableNumber section")
     .populate("waiterId", "name phoneNumber")
     .populate("items.menuId", "name image veg category")
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .skip(page * limit)
+    .limit(limit);
+    
+  return { orders, totalCount };
 };
 
 export const getOrderById = async (restaurantId: string, branchId: string, orderId: string) => {
@@ -23,15 +49,51 @@ export const getOrderById = async (restaurantId: string, branchId: string, order
 };
 
 export const createOrder = async (restaurantId: string, branchId: string, orderData: any) => {
-  // Generate a unique order ID
-  const orderId = `ORD-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+  // If table is provided, check for existing unpaid order
+  if (orderData.tableId) {
+    const existingOrder = await Order.findOne({
+      tableId: orderData.tableId,
+      restaurantId,
+      branchId,
+      billingStatus: "unpaid",
+      isDelete: false
+    });
+
+    if (existingOrder) {
+      throw new Error("Table is already occupied with an active order. Please edit the existing order to add items.");
+    }
+  }
+
+  let prefix = "ORD";
+  if (branchId && branchId !== "ALL") {
+    const branch = await Branch.findById(branchId);
+    if (branch && branch.branchName) {
+      const initials = branch.branchName.trim().split(/\s+/).map(word => word.charAt(0)).join('').toUpperCase();
+      prefix = `ORD-${initials}`;
+    }
+  }
+
+  const query: any = { restaurantId, isDelete: false };
+  if (branchId && branchId !== "ALL") query.branchId = branchId;
+  const lastOrder = await Order.findOne(query).sort({ _id: -1 });
+  let nextNumber = 1;
+  if (lastOrder && lastOrder.orderId) {
+    const match = lastOrder.orderId.match(/\d+$/);
+    if (match) {
+      const parsed = parseInt(match[0], 10);
+      if (!isNaN(parsed)) {
+        nextNumber = parsed + 1;
+      }
+    }
+  }
+  const orderId = `${prefix}-${nextNumber.toString().padStart(4, "0")}`;
 
   const newOrder = new Order({
     ...orderData,
     restaurantId,
     branchId,
     orderId,
-    time: new Date().toISOString()
+    time: new Date().toLocaleTimeString("en-US", { hour12: true, hour: "numeric", minute: "2-digit", second: "2-digit" })
   });
 
   await newOrder.save();
@@ -64,10 +126,45 @@ export const updateOrderItems = async (restaurantId: string, branchId: string, o
   if (!order) throw new Error("Order not found");
 
   if (updateData.items) order.items = updateData.items;
+  
   if (updateData.subtotal !== undefined) order.subtotal = updateData.subtotal;
   if (updateData.tax !== undefined) order.tax = updateData.tax;
   if (updateData.charge !== undefined) order.charge = updateData.charge;
   if (updateData.total !== undefined) order.total = updateData.total;
+  if (updateData.status) order.status = updateData.status;
+  if (updateData.waiterId !== undefined) order.waiterId = updateData.waiterId;
+
+  await order.save();
+  return order;
+};
+
+export const appendOrderItems = async (restaurantId: string, branchId: string, orderId: string, newItems: any[], additionalTotals: any) => {
+  const order = await Order.findOne({ _id: orderId, restaurantId, branchId, isDelete: false });
+  if (!order) throw new Error("Order not found");
+
+  if (newItems && newItems.length > 0) {
+    for (const newItem of newItems) {
+      const existingItemIndex = order.items.findIndex((item: any) => {
+        if (item.menuId && newItem.menuId) return String(item.menuId) === String(newItem.menuId);
+        return item.name.toLowerCase() === newItem.name.toLowerCase();
+      });
+
+      if (existingItemIndex > -1) {
+        order.items[existingItemIndex].qty = (order.items[existingItemIndex].qty || 1) + (newItem.qty || 1);
+      } else {
+        order.items.push(newItem);
+      }
+    }
+    order.markModified('items');
+  }
+
+  // Add the totals
+  if (additionalTotals) {
+    order.subtotal = (order.subtotal || 0) + (additionalTotals.subtotal || 0);
+    order.tax = (order.tax || 0) + (additionalTotals.tax || 0);
+    order.charge = (order.charge || 0) + (additionalTotals.charge || 0);
+    order.total = (order.total || 0) + (additionalTotals.total || 0);
+  }
 
   await order.save();
   return order;
