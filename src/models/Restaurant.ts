@@ -25,6 +25,7 @@ export interface IRestaurant extends Document {
     currency?: string;
     defaultTaxRate?: number;
     themeColor?: string;
+    subscriptionCredit: number;
 }
 
 const RestaurantSchema = new Schema<IRestaurant>(
@@ -50,13 +51,13 @@ const RestaurantSchema = new Schema<IRestaurant>(
         status: { type: String, enum: ['Active', 'Suspended', 'Expired'], default: 'Active' },
         isDelete: { type: Boolean, default: false },
         tagline: { type: String },
-        currency: { type: String, default: "₹" },
+        currency: { type: String, default: "INR" },
         defaultTaxRate: { type: Number, default: 5 },
-        themeColor: { type: String },
+        themeColor: { type: String, default: "#E45A04" },
+        subscriptionCredit: { type: Number, default: 0 }
     },
     { timestamps: true }
 );
 
 const Restaurant = mongoose.model<IRestaurant>("Restaurant", RestaurantSchema);
 export default Restaurant;
-

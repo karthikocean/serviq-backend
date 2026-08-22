@@ -45,9 +45,10 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
     }
 
     const existingBranchCount = await Branch.countDocuments({ restaurantId, isDelete: false });
+    const totalAllowedBranches = subscription.maxBranches + (subscription.extraBranches || 0);
 
-    if (existingBranchCount >= subscription.maxBranches) {
-      sendError(res, "Maximum branch limit reached based on your active plan.", StatusCodes.FORBIDDEN);
+    if (existingBranchCount >= totalAllowedBranches) {
+      sendError(res, "Plan limit exceeded. Please purchase an extra branch add-on or upgrade your plan.", StatusCodes.FORBIDDEN);
       return;
     }
 
