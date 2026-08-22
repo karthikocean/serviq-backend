@@ -176,7 +176,7 @@ router.get("/:id/bill", generateBill);
  * @swagger
  * /api/mobile/waiter/orders/{id}/checkout:
  *   post:
- *     summary: Checkout order
+ *     summary: Checkout and bill order
  *     tags: [Waiter Orders]
  *     security:
  *       - bearerAuth: []
@@ -193,10 +193,17 @@ router.get("/:id/bill", generateBill);
  *           schema:
  *             type: object
  *             properties:
- *               paymentMethod: { type: string, example: "CASH" }
+ *               paymentMethod: 
+ *                 type: string
+ *                 enum: [cash, card, upi]
+ *                 example: "cash"
  *     responses:
  *       200:
- *         description: Order checked out
+ *         description: Order checked out and billed successfully
+ *       400:
+ *         description: Invalid payment method or order not served
+ *       404:
+ *         description: Order not found or already paid
  *       500:
  *         description: Server error
  */

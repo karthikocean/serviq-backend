@@ -9,7 +9,7 @@ export const createOrderSchema = z.object({
       name: z.string(),
       qty: z.number().min(1),
       price: z.number().min(0),
-      status: z.enum(["new", "preparing", "ready", "done"]).optional(),
+      status: z.enum(["new", "preparing", "ready", "served", "completed"]).optional(),
     })).min(1, "Order must have at least one item"),
     notes: z.string().optional(),
     subtotal: z.number().min(0),
@@ -21,7 +21,7 @@ export const createOrderSchema = z.object({
 
 export const updateOrderStatusSchema = z.object({
   body: z.object({
-    status: z.enum(["new", "preparing", "ready", "done"]),
+    status: z.enum(["new", "preparing", "ready", "served", "completed"]),
   }),
 });
 
@@ -32,7 +32,7 @@ export const updateOrderItemsSchema = z.object({
       name: z.string(),
       qty: z.number().min(1),
       price: z.number().min(0),
-      status: z.enum(["new", "preparing", "ready", "done"]).optional(),
+      status: z.enum(["new", "preparing", "ready", "served", "completed"]).optional(),
     })).min(1),
     subtotal: z.number().min(0),
     tax: z.number().min(0),

@@ -92,7 +92,7 @@ router.put("/:orderId/items/:itemId", checkBranchAccess, checkSubscriptionFeatur
  *             properties:
  *               status:
  *                 type: string
- *                 enum: [ready, done]
+ *                 enum: [ready, served, completed]
  *     responses:
  *       200:
  *         description: Order marked ready

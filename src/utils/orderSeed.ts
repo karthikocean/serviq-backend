@@ -90,7 +90,7 @@ export const seedOrders = async (): Promise<void> => {
                     tax: 18,
                     charge: 0,
                     total: 378,
-                    status: "done",
+                    status: "completed",
                     billingStatus: "paid",
                     waiter: "Ravi M."
                 },

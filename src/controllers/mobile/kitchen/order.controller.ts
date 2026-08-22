@@ -17,7 +17,7 @@ export const getActiveOrders = async (req: AuthRequest, res: Response): Promise<
     const query: any = {
       restaurantId,
       branchId: activeBranchId,
-      status: { $nin: ["done", "cancelled"] },
+      status: { $nin: ["completed", "cancelled"] },
       isDelete: false
     };
 

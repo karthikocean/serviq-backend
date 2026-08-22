@@ -32,7 +32,7 @@ export const getAnalytics = async (req: AuthRequest, res: Response): Promise<voi
     let pendingOrders = 0;
 
     stats.forEach(stat => {
-      if (stat._id === "done") completedOrders += stat.count;
+      if (stat._id === "completed") completedOrders += stat.count;
       else if (stat._id !== "cancelled") pendingOrders += stat.count;
     });
 

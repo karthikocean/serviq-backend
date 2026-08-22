@@ -38,7 +38,7 @@ const router = Router();
  *         name: status
  *         schema:
  *           type: string
- *           enum: [new, preparing, ready, done]
+ *           enum: [new, preparing, ready, served, completed]
  *     responses:
  *       200:
  *         description: List of orders
@@ -123,7 +123,7 @@ router.post("/", checkBranchAccess, checkSubscriptionFeature("ORDER"), validate(
  *             properties:
  *               status:
  *                 type: string
- *                 enum: [new, preparing, ready, done]
+ *                 enum: [new, preparing, ready, served, completed]
  *     responses:
  *       200:
  *         description: Order status updated
