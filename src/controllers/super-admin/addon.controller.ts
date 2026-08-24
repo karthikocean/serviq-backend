@@ -5,15 +5,14 @@ import { sendSuccess, sendError } from "../../utils/response";
 
 export const createAddon = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { addonName, description, monthlyPrice, annualPrice, billingType, status } = req.body;
+        const { addonName, addonType, monthlyPrice, annualPrice, isActive } = req.body;
 
         const newAddon = await Addon.create({
             addonName,
-            description,
+            addonType: addonType || "BRANCH",
             monthlyPrice,
             annualPrice,
-            billingType,
-            status
+            isActive
         });
 
         sendSuccess(res, "Addon created successfully", newAddon, StatusCodes.CREATED);

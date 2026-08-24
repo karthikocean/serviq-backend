@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllSubscriptions, assignSubscription, updateSubscription, deleteSubscription, changePlan, purchaseAddon } from "../../controllers/super-admin/subscription.controller";
+import { getAllSubscriptions, getSubscriptionHistory, getSubscriptionById, assignSubscription, updateSubscription, deleteSubscription, changePlan, purchaseAddon, renewSubscription, cancelSubscription, getAddons, createAddon, updateAddon, deleteAddon, calculateChangePlanProration } from "../../controllers/super-admin/subscription.controller";
 
 
 const router = Router();
@@ -42,6 +42,58 @@ const router = Router();
  */
 router.get("/", getAllSubscriptions);
 
+/**
+ * @swagger
+ * /api/super-admin/subscriptions/history:
+ *   get:
+ *     summary: Get subscription history
+ *     tags: [Super Admin Subscriptions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
+ *     responses:
+ *       200:
+ *         description: Subscription history fetched successfully
+ *       500:
+ *         $ref: '#/components/responses/500'
+ */
+router.get("/history", getSubscriptionHistory);
+
+/**
+ * @swagger
+ * /api/super-admin/subscriptions/{id}:
+ *   get:
+ *     summary: Get subscription details by ID
+ *     tags: [Super Admin Subscriptions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Subscription details fetched successfully
+ *       404:
+ *         $ref: '#/components/responses/404'
+ *       500:
+ *         $ref: '#/components/responses/500'
+ */
+router.get("/:id", getSubscriptionById);
 /**
  * @swagger
  * /api/super-admin/subscriptions:
@@ -100,6 +152,7 @@ router.post("/", assignSubscription);
  *         description: Plan changed successfully
  */
 router.post("/change-plan", changePlan);
+router.post("/prorate-change-plan", calculateChangePlanProration);
 
 /**
  * @swagger
@@ -168,6 +221,58 @@ router.put("/:id", updateSubscription);
 
 /**
  * @swagger
+ * /api/super-admin/subscriptions/{id}/renew:
+ *   post:
+ *     summary: Renew a subscription
+ *     tags: [Super Admin Subscriptions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               totalAmount: { type: number }
+ *     responses:
+ *       200:
+ *         description: Subscription renewed successfully
+ *       500:
+ *         $ref: '#/components/responses/500'
+ */
+router.post("/:id/renew", renewSubscription);
+
+/**
+ * @swagger
+ * /api/super-admin/subscriptions/{id}/cancel:
+ *   post:
+ *     summary: Cancel a subscription
+ *     tags: [Super Admin Subscriptions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Subscription cancelled successfully
+ *       500:
+ *         $ref: '#/components/responses/500'
+ */
+router.post("/:id/cancel", cancelSubscription);
+
+/**
+ * @swagger
  * /api/super-admin/subscriptions/{id}:
  *   delete:
  *     summary: Delete a subscription
@@ -191,5 +296,9 @@ router.put("/:id", updateSubscription);
  *         $ref: '#/components/responses/500'
  */
 router.delete("/:id", deleteSubscription);
+router.get("/addons/all", getAddons);
+router.post("/addons", createAddon);
+router.put("/addons/:id", updateAddon);
+router.delete("/addons/:id", deleteAddon);
 
 export default router;
