@@ -9,6 +9,9 @@ export interface ISubscription extends Document {
     renewalDate: Date;
     maxBranches: number;
     features: Record<string, boolean>;
+    extraBranches: number;
+    amountPaid: number;
+    upgradedFrom?: mongoose.Types.ObjectId; // Reference to old subscription if this was an upgrade/downgrade
     status: "Active" | "Expiring Soon" | "Expired" | "Cancelled";
     isActive: boolean;
     isDelete: boolean;
@@ -24,6 +27,9 @@ const SubscriptionSchema = new Schema<ISubscription>(
         renewalDate: { type: Date, required: true },
         maxBranches: { type: Number, required: true },
         features: { type: Object, required: true },
+        extraBranches: { type: Number, default: 0 },
+        amountPaid: { type: Number, default: 0 },
+        upgradedFrom: { type: Schema.Types.ObjectId, ref: "Subscription", default: null },
         status: {
             type: String,
             enum: ["Active", "Expiring Soon", "Expired", "Cancelled"],

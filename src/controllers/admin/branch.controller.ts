@@ -7,6 +7,7 @@ import Branch from "../../models/Branch";
 import User from "../../models/User";
 import Subscription from "../../models/Subscription";
 import Role from "../../models/Role";
+import Table from "../../models/Table";
 
 export const createBranch = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -22,7 +23,7 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
         branchName, branchCode, branchOpeningDate, contactNumber, email, 
         street, city, state, country, pincode, 
         managerName, managerMobile, managerEmail, managerPassword,
-        status 
+        status, isMainBranch
     } = req.body;
 
     // Validate Required Fields
@@ -44,9 +45,10 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
     }
 
     const existingBranchCount = await Branch.countDocuments({ restaurantId, isDelete: false });
+    const totalAllowedBranches = subscription.maxBranches + (subscription.extraBranches || 0);
 
-    if (existingBranchCount >= subscription.maxBranches) {
-      sendError(res, "Maximum branch limit reached based on your active plan.", StatusCodes.FORBIDDEN);
+    if (existingBranchCount >= totalAllowedBranches) {
+      sendError(res, "Plan limit exceeded. Please purchase an extra branch add-on or upgrade your plan.", StatusCodes.FORBIDDEN);
       return;
     }
 
@@ -70,6 +72,11 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
+    // Handle isMainBranch logic
+    if (isMainBranch === true) {
+      await Branch.updateMany({ restaurantId }, { $set: { isMainBranch: false } });
+    }
+
     // Create Branch
     const newBranch = new Branch({
       restaurantId,
@@ -87,7 +94,7 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
       },
       status: status || 'Active',
       isActive: status !== 'Inactive',
-      isMainBranch: existingBranchCount === 0 // First branch becomes main automatically
+      isMainBranch: isMainBranch === true
     });
     
     await newBranch.save();
@@ -169,14 +176,17 @@ export const getAllBranches = async (req: AuthRequest, res: Response): Promise<v
     
     const branches = await Branch.find(query).lean();
     
-    // Attach manager details for each branch
+    // Attach manager details and table count for each branch
     const branchesWithManagers = await Promise.all(branches.map(async (branch) => {
         const manager = await User.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false }).select("name email phoneNumber");
+        const totalTables = await Table.countDocuments({ branchId: branch._id, isDelete: false });
+        
         return {
             ...branch,
             managerName: manager?.name || '',
             managerEmail: manager?.email || '',
-            managerMobile: manager?.phoneNumber || ''
+            managerMobile: manager?.phoneNumber || '',
+            totalTables
         };
     }));
 
@@ -201,12 +211,14 @@ export const getBranchById = async (req: AuthRequest, res: Response): Promise<vo
     }
     
     const manager = await User.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false }).select("name email phoneNumber");
+    const totalTables = await Table.countDocuments({ branchId: branch._id, isDelete: false });
     
     const branchWithManager = {
         ...branch,
         managerName: manager?.name || '',
         managerEmail: manager?.email || '',
-        managerMobile: manager?.phoneNumber || ''
+        managerMobile: manager?.phoneNumber || '',
+        totalTables
     };
 
     sendSuccess(res, "Branch details retrieved successfully.", branchWithManager, StatusCodes.OK);
@@ -227,7 +239,7 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
     const { 
         branchName, branchCode, branchOpeningDate, contactNumber, email, 
         street, city, state, country, pincode, 
-        status,
+        status, isMainBranch,
         managerName, managerMobile, managerEmail
     } = req.body;
 
@@ -262,6 +274,13 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
     if (status) {
         branch.status = status;
         branch.isActive = status !== 'Inactive';
+    }
+
+    if (isMainBranch !== undefined) {
+        if (isMainBranch === true) {
+            await Branch.updateMany({ restaurantId: user.restaurantId }, { $set: { isMainBranch: false } });
+        }
+        branch.isMainBranch = isMainBranch;
     }
 
     await branch.save();

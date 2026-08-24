@@ -41,7 +41,7 @@ export const getWaiterReport = async (
   // 2. Base match for Orders
   const orderMatch: any = {
     restaurantId: new mongoose.Types.ObjectId(restaurantId),
-    status: "done",
+    status: "completed",
     isDelete: false,
     ...dateMatch
   };
@@ -121,7 +121,7 @@ export const getKitchenReport = async (
   const pipeline: any[] = [
     { $match: orderMatch },
     { $unwind: "$items" },
-    { $match: { "items.status": "done" } } // Only consider completed items
+    { $match: { "items.status": "completed" } } // Only consider completed items
   ];
 
   pipeline.push(
@@ -182,7 +182,7 @@ export const getKitchenReport = async (
     quantityPrepared: stat.quantityPrepared,
     revenueGenerated: stat.revenueGenerated,
     avgPrepTime: "N/A",
-    kitchenStatus: "Completed" // Since we filtered by "done"
+    kitchenStatus: "Completed" // Since we filtered by "completed"
   }));
 
   if (search) {

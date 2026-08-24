@@ -9,6 +9,8 @@ export const startCronJobs = () => {
         console.log('Running Cron Job to check expired plans...');
         try {
             const currentDate = new Date();
+            const next7Days = new Date();
+            next7Days.setDate(currentDate.getDate() + 7);
 
             // Find Subscriptions where endDate is less than currentDate and status is not already Expired or Cancelled
             const expiredSubscriptions = await Subscription.find({
@@ -26,17 +28,29 @@ export const startCronJobs = () => {
                 const restaurant = await Restaurant.findById(sub.restaurant);
                 if (restaurant) {
                     restaurant.status = 'Expired';
-                    // restaurant.isActive = false; // Prevent login/activity
                     await restaurant.save();
-
                 }
             }
+
+            // Find Subscriptions expiring soon (within 7 days)
+            const expiringSoonUpdate = await Subscription.updateMany(
+                { 
+                    endDate: { $gte: currentDate, $lte: next7Days }, 
+                    status: "Active",
+                    isDelete: false 
+                },
+                { $set: { status: "Expiring Soon" } }
+            );
 
             if (expiredSubscriptions.length > 0) {
                 console.log(`Successfully updated ${expiredSubscriptions.length} expired subscriptions and related restaurants.`);
             } else {
                 console.log('No expired subscriptions found.');
             }
+            if (expiringSoonUpdate.modifiedCount > 0) {
+                console.log(`Marked ${expiringSoonUpdate.modifiedCount} subscriptions as Expiring Soon.`);
+            }
+
         } catch (error) {
             console.error('Error in Expired Plan Cron Job:', error);
         }

@@ -22,7 +22,7 @@ export const updateKdsItemStatus = async (restaurantId: string, branchId: string
   item.status = status as any;
   
   // If all items are ready, automatically update order status
-  const allReady = order.items.every(i => i.status === "ready" || i.status === "done");
+  const allReady = order.items.every(i => i.status === "ready" || i.status === "served" || i.status === "completed");
   if (allReady) {
     order.status = "ready";
   } else if (order.status === "new" && status === "preparing") {

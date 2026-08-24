@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllSubscriptions, assignSubscription, updateSubscription, deleteSubscription } from "../../controllers/super-admin/subscription.controller";
+import { getAllSubscriptions, assignSubscription, updateSubscription, deleteSubscription, changePlan, purchaseAddon } from "../../controllers/super-admin/subscription.controller";
 
 
 const router = Router();
@@ -76,6 +76,54 @@ router.get("/", getAllSubscriptions);
  *         $ref: '#/components/responses/500'
  */
 router.post("/", assignSubscription);
+
+/**
+ * @swagger
+ * /api/super-admin/subscriptions/change-plan:
+ *   post:
+ *     summary: Change plan with prorated credit
+ *     tags: [Super Admin Subscriptions]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               restaurantId: { type: string }
+ *               newPlanId: { type: string }
+ *               billingCycle: { type: string, example: "Monthly" }
+ *     responses:
+ *       200:
+ *         description: Plan changed successfully
+ */
+router.post("/change-plan", changePlan);
+
+/**
+ * @swagger
+ * /api/super-admin/subscriptions/purchase-addon:
+ *   post:
+ *     summary: Purchase branch addon with prorated price
+ *     tags: [Super Admin Subscriptions]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               restaurantId: { type: string }
+ *               addonId: { type: string }
+ *               quantity: { type: number }
+ *     responses:
+ *       200:
+ *         description: Addon purchased successfully
+ */
+router.post("/purchase-addon", purchaseAddon);
 
 /**
  * @swagger

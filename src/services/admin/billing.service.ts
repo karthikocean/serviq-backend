@@ -115,6 +115,7 @@ export const processTablePayment = async (restaurantId: string, branchId: string
     for (const order of orders) {
       order.billingStatus = "paid";
       order.paymentMethod = paymentMethod;
+      order.status = "completed"; // Automatically complete the order when table is closed and paid
       await order.save();
     }
 

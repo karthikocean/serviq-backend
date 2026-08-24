@@ -3,6 +3,8 @@ import { StatusCodes } from "http-status-codes";
 import Order from "../../../models/Order";
 import Table from "../../../models/Table";
 import Menu from "../../../models/Menu";
+import Billing from "../../../models/Billing";
+import User from "../../../models/User";
 import { AuthRequest } from "../../../middleware/authMiddleware";
 import { sendSuccess, sendError } from "../../../utils/response";
 import { pagination } from "../../../utils/pagination";
@@ -18,7 +20,7 @@ export const getActiveOrders = async (req: AuthRequest, res: Response): Promise<
     const query: any = {
       restaurantId,
       branchId: activeBranchId,
-      status: { $nin: ["done", "cancelled"] },
+      status: { $nin: ["completed", "cancelled"] },
       isDelete: false
     };
 
@@ -47,7 +49,7 @@ export const getOrderHistory = async (req: AuthRequest, res: Response): Promise<
     const query: any = {
       restaurantId,
       branchId: activeBranchId,
-      status: { $in: ["done", "cancelled"] },
+      status: { $in: ["completed", "cancelled"] },
       isDelete: false
     };
 
@@ -222,6 +224,18 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response): Promis
     const order = await Order.findOne({ _id: id, branchId: activeBranchId, isDelete: false });
     if (!order) return sendError(res, "Order not found", StatusCodes.NOT_FOUND);
 
+    if (status === "cancelled") {
+      if (order.status === "ready" || order.status === "served" || order.status === "completed") {
+        return sendError(res, "Order cannot be cancelled at this stage", StatusCodes.BAD_REQUEST);
+      }
+    }
+
+    if (status === "completed") {
+      if (order.billingStatus !== "paid") {
+        return sendError(res, "Order cannot be marked completed until it is paid", StatusCodes.BAD_REQUEST);
+      }
+    }
+
     order.status = status;
     await order.save();
 
@@ -253,7 +267,7 @@ export const generateBill = async (req: AuthRequest, res: Response): Promise<voi
     const { id } = req.params;
 
     const order = await Order.findOne({ _id: id, branchId: activeBranchId, isDelete: false })
-      .populate("items.menuItem");
+      .populate("items.menuId");
       
     if (!order) return sendError(res, "Order not found", StatusCodes.NOT_FOUND);
 
@@ -280,19 +294,95 @@ export const checkoutOrder = async (req: AuthRequest, res: Response): Promise<vo
     const { id } = req.params;
     const { paymentMethod } = req.body;
 
-    const order = await Order.findOne({ _id: id, branchId: activeBranchId, isDelete: false });
-    if (!order) return sendError(res, "Order not found", StatusCodes.NOT_FOUND);
+    if (!["cash", "card", "upi"].includes(paymentMethod)) {
+      return sendError(res, "Invalid payment method", StatusCodes.BAD_REQUEST);
+    }
 
-    order.status = "done";
-    // Also update payment method in real app
+    // Double Checkout Protection via strict query
+    const order = await Order.findOne({ 
+      _id: id, 
+      branchId: activeBranchId, 
+      restaurantId,
+      isDelete: false,
+      billingStatus: "unpaid"
+    });
+
+    if (!order) {
+      return sendError(res, "Order not found or already paid", StatusCodes.NOT_FOUND);
+    }
+
+    if (order.status !== "served") {
+      return sendError(res, "Only served orders can be checked out", StatusCodes.BAD_REQUEST);
+    }
+
+    // Generate Invoice Number
+    const lastBilling = await Billing.findOne({ restaurantId }).sort({ createdAt: -1 });
+    let nextInvoiceNumber = 10001;
+    if (lastBilling && lastBilling.invoiceId && lastBilling.invoiceId.startsWith("INV-")) {
+      const lastNumber = parseInt(lastBilling.invoiceId.replace("INV-", ""), 10);
+      if (!isNaN(lastNumber)) {
+        nextInvoiceNumber = lastNumber + 1;
+      }
+    }
+    const invoiceId = `INV-${nextInvoiceNumber}`;
+
+    // Get Waiter details
+    let staffName = "Waiter";
+    if (order.waiterId) {
+      const waiter = await User.findById(order.waiterId);
+      if (waiter) staffName = waiter.name;
+    }
+
+    // Get Table details
+    let tableNumber = "N/A";
+    const tableDoc = await Table.findById(order.tableId);
+    if (tableDoc) tableNumber = tableDoc.tableNumber;
+
+    // Create Items Array for Billing
+    const items = order.items.map(item => ({
+      name: item.name,
+      qty: item.qty,
+      price: item.price,
+      total: (item.qty || 1) * (item.price || 0)
+    }));
+
+    // Double check totals
+    const totalAmount = Math.max(0, (order.subtotal || 0) + (order.tax || 0) + (order.charge || 0) - (order.discount || 0));
+
+    // Create Billing Record
+    const billingRecord = new Billing({
+      restaurantId,
+      branchId: activeBranchId,
+      orderId: order._id,
+      orderRefId: order.orderId,
+      invoiceId,
+      tableNumber,
+      subtotal: order.subtotal || 0,
+      tax: order.tax || 0,
+      discount: order.discount || 0,
+      charge: order.charge || 0,
+      totalAmount,
+      paymentMethod,
+      paymentStatus: "Paid",
+      staffName,
+      items
+    });
+
+    await billingRecord.save();
+
+    // Update Order
+    order.billingStatus = "paid";
+    order.paymentMethod = paymentMethod;
+    order.status = "completed";
     await order.save();
 
     // Free up table
-    if (order.tableId) {
-      await Table.findByIdAndUpdate(order.tableId, { status: "Available" });
+    if (tableDoc) {
+      tableDoc.status = "Available";
+      await tableDoc.save();
     }
 
-    sendSuccess(res, "Order checked out", { orderId: order._id, paymentMethod });
+    sendSuccess(res, "Order checked out and billed successfully", { invoiceId: billingRecord.invoiceId, paymentMethod });
   } catch (error) {
     console.error("Waiter Checkout Error:", error);
     sendError(res, "Failed to checkout", StatusCodes.INTERNAL_SERVER_ERROR);

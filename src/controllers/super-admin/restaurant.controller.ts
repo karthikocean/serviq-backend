@@ -179,25 +179,6 @@ export const createRestaurant = async (req: Request, res: Response): Promise<voi
                 createdSubscriptionId = newSubscription._id;
             }
 
-            // 3. Create Main Branch
-            const mainBranch = new Branch({
-                restaurantId: newRestaurant._id,
-                branchName: "Main Branch",
-                branchCode: `${restaurantIdStr}-B01`,
-                contactNumber: phoneNumber,
-                email: email,
-                address: {
-                    street: address || "Not Provided",
-                    city: city || "Not Provided",
-                    state: state || "Not Provided",
-                    country: country || "Not Provided",
-                    pincode: req.body.pincode || "000000"
-                },
-                isMainBranch: true
-            });
-            await mainBranch.save();
-            createdBranchId = mainBranch._id;
-
             // 4. Create Owner User
             const ownerUser = new User({
                 name: ownerName,
@@ -229,7 +210,6 @@ export const createRestaurant = async (req: Request, res: Response): Promise<voi
         } catch (error) {
             // Manual Rollback if running on a standalone MongoDB instance that doesn't support transactions
             if (createdUserId) await User.findByIdAndDelete(createdUserId);
-            if (createdBranchId) await Branch.findByIdAndDelete(createdBranchId);
             if (createdSubscriptionId) await Subscription.findByIdAndDelete(createdSubscriptionId);
             if (createdRestaurantId) await Restaurant.findByIdAndDelete(createdRestaurantId);
             throw error;

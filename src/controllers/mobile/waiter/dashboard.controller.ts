@@ -34,8 +34,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
     let pendingBills = 0;
 
     stats.forEach(stat => {
-      if (stat._id === "done") todaySales += stat.total;
-      if (stat._id !== "done" && stat._id !== "cancelled") pendingBills += stat.count;
+      if (stat._id === "completed") todaySales += stat.total;
+      if (stat._id !== "completed" && stat._id !== "cancelled") pendingBills += stat.count;
     });
 
     sendSuccess(res, "Dashboard stats fetched", {

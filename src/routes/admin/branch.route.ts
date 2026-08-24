@@ -40,6 +40,8 @@ const router = Router();
  *             properties:
  *               branchName:
  *                 type: string
+ *               isMainBranch:
+ *                 type: boolean
  *               branchCode:
  *                 type: string
  *               branchOpeningDate:
@@ -151,6 +153,8 @@ router.get("/:id", protectAdmin, getBranchById);
  *             properties:
  *               branchName:
  *                 type: string
+ *               isMainBranch:
+ *                 type: boolean
  *               branchCode:
  *                 type: string
  *               branchOpeningDate:

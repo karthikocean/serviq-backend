@@ -5,7 +5,7 @@ export interface IOrderItem {
     name: string;
     qty: number;
     price: number;
-    status: "new" | "preparing" | "ready" | "done" | "cancelled";
+    status: "new" | "preparing" | "ready" | "served" | "completed" | "cancelled";
 }
 
 export interface IOrder extends Document {
@@ -21,7 +21,7 @@ export interface IOrder extends Document {
     charge: number;
     total: number;
     discount: number;
-    status: "new" | "preparing" | "ready" | "done" | "cancelled";
+    status: "new" | "preparing" | "ready" | "served" | "completed" | "cancelled";
     billingStatus: "unpaid" | "paid";
     paymentMethod?: "cash" | "card" | "upi" | null;
     waiterId?: mongoose.Types.ObjectId;
@@ -43,7 +43,7 @@ const orderSchema = new Schema<IOrder>(
                 name: { type: String, required: true },
                 qty: { type: Number, required: true },
                 price: { type: Number, required: true },
-                status: { type: String, enum: ["new", "preparing", "ready", "done", "cancelled"], default: "new" }
+                status: { type: String, enum: ["new", "preparing", "ready", "served", "completed", "cancelled"], default: "new" }
             }
         ],
         notes: { type: String, default: "" },
@@ -52,7 +52,7 @@ const orderSchema = new Schema<IOrder>(
         charge: { type: Number, default: 0 },
         total: { type: Number, required: true },
         discount: { type: Number, default: 0 },
-        status: { type: String, enum: ["new", "preparing", "ready", "done", "cancelled"], default: "new" },
+        status: { type: String, enum: ["new", "preparing", "ready", "served", "completed", "cancelled"], default: "new" },
         billingStatus: { type: String, enum: ["unpaid", "paid"], default: "unpaid" },
         paymentMethod: { type: String, enum: ["cash", "card", "upi"], default: null },
         waiterId: { type: Schema.Types.ObjectId, ref: "User", default: null },

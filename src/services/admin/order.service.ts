@@ -115,7 +115,7 @@ export const updateOrderStatus = async (restaurantId: string, branchId: string, 
 
   order.status = status as any;
   
-  // If order is done, we don't automatically free table since they might still need to pay.
+  // If order is completed, we don't automatically free table since they might still need to pay.
   // The table freeing will happen during billing process.
   await order.save();
   return order;

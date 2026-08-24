@@ -8,6 +8,6 @@ export const updateKdsItemStatusSchema = z.object({
 
 export const updateKdsOrderStatusSchema = z.object({
   body: z.object({
-    status: z.enum(["ready", "done"]),
+    status: z.enum(["ready", "served", "completed"]),
   }),
 });
