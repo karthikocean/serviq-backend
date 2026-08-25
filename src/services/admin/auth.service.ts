@@ -33,6 +33,13 @@ export const loginAdmin = async (email: string, password: string) => {
     const mainBranch = await Branch.findOne({ restaurantId: user.restaurantId, isMainBranch: true });
     if (mainBranch) {
       activeBranchId = mainBranch._id as any;
+    } else {
+      const firstBranch = await Branch.findOne({ restaurantId: user.restaurantId });
+      if (firstBranch) {
+        activeBranchId = firstBranch._id as any;
+      } else {
+        activeBranchId = "ALL" as any;
+      }
     }
   }
 

@@ -7,6 +7,7 @@ import Admin from "../models/Admin";
 import UserToken from "../models/UserToken";
 import Role from "../models/Role";
 import Subscription from "../models/Subscription";
+import Branch from "../models/Branch";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -61,8 +62,16 @@ export const protectAdmin = async (req: AuthRequest, res: Response, next: NextFu
     // Allow RESTAURANT_OWNER to override branch via request payload (Stateless branch switching)
     if (user.userType === 'RESTAURANT_OWNER') {
         const requestedBranchId = req.query.branchId || req.body?.branchId;
-        if (requestedBranchId) {
+        if (requestedBranchId && requestedBranchId !== 'ALL') {
             branchId = requestedBranchId as string;
+        } else if (!branchId || branchId === 'ALL') {
+            // Dynamic fallback: If token still says ALL but they created a branch, fetch the first branch
+            const firstBranch = await Branch.findOne({ restaurantId: user.restaurantId, isDelete: false });
+            if (firstBranch) {
+                branchId = firstBranch._id.toString();
+            } else {
+                branchId = "ALL";
+            }
         }
     }
 

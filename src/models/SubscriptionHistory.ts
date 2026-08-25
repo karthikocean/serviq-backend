@@ -3,10 +3,27 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface ISubscriptionHistory extends Document {
     restaurant: mongoose.Types.ObjectId;
     subscription: mongoose.Types.ObjectId; // Reference to the new active subscription
-    action: "New Plan" | "Upgrade" | "Downgrade" | "Renew" | "Addon Purchase" | "Cancel" | "Plan Change";
+    action: "Assigned" | "Renewed" | "Plan Changed" | "Addon Added" | "Addon Updated" | "Cancelled" | "Expired";
     details: string;
+    
+    // Plan History
+    previousPlan?: mongoose.Types.ObjectId;
+    previousPlanName?: string;
+    newPlan?: mongoose.Types.ObjectId;
+    newPlanName?: string;
+    
+    // Addon History
+    addon?: mongoose.Types.ObjectId;
+    addonName?: string;
+    addonQuantity?: number;
+
+    // Financial
     amountPaid: number;
-    creditsUsed: number;
+
+    // Audit
+    performedBy?: mongoose.Types.ObjectId;
+    performedByRole?: string;
+
     isDelete: boolean;
 }
 
@@ -16,12 +33,25 @@ const SubscriptionHistorySchema = new Schema<ISubscriptionHistory>(
         subscription: { type: Schema.Types.ObjectId, ref: "Subscription", required: true },
         action: { 
             type: String, 
-            enum: ["New Plan", "Upgrade", "Downgrade", "Renew", "Addon Purchase", "Cancel", "Plan Change"], 
+            enum: ["Assigned", "Renewed", "Plan Changed", "Addon Added", "Addon Updated", "Cancelled", "Expired"], 
             required: true 
         },
         details: { type: String, required: true },
+        
+        previousPlan: { type: Schema.Types.ObjectId, ref: "Plan" },
+        previousPlanName: { type: String },
+        newPlan: { type: Schema.Types.ObjectId, ref: "Plan" },
+        newPlanName: { type: String },
+        
+        addon: { type: Schema.Types.ObjectId, ref: "Addon" },
+        addonName: { type: String },
+        addonQuantity: { type: Number },
+
         amountPaid: { type: Number, required: true },
-        creditsUsed: { type: Number, default: 0 },
+
+        performedBy: { type: Schema.Types.ObjectId, ref: "User" },
+        performedByRole: { type: String },
+
         isDelete: { type: Boolean, default: false },
     },
     { timestamps: true }

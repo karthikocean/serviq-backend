@@ -35,7 +35,7 @@ const UserSchema = new Schema<IUser>(
     isActive: { type: Boolean, default: true },
     status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
     isDelete: { type: Boolean, default: false },
-    dutyStatus: { type: String, enum: ['ON_DUTY', 'OFF_DUTY'], default: 'OFF_DUTY' },
+    dutyStatus: { type: String, enum: ['ON_DUTY', 'OFF_DUTY'], default: 'ON_DUTY' },
     kitchenPin: { type: String },
     autoAccept: { type: Boolean, default: false },
   },
