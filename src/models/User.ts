@@ -7,7 +7,7 @@ export interface IUser extends Document {
   phoneNumber: string;
   password?: string;
   profileImage?: string;
-  userType: 'RESTAURANT_OWNER' | 'BRANCH_ADMIN' | 'STAFF' | 'STATION';
+  userType: 'STAFF' | 'STATION' | 'BRANCH_ADMIN' | 'RESTAURANT_OWNER';
   restaurantId: mongoose.Types.ObjectId;
   branchId?: mongoose.Types.ObjectId;
   roleId?: mongoose.Types.ObjectId;
@@ -28,10 +28,10 @@ const UserSchema = new Schema<IUser>(
     phoneNumber: { type: String, unique: true, sparse: true },
     password: { type: String },
     profileImage: { type: String, default: null },
-    userType: { type: String, enum: ['RESTAURANT_OWNER', 'BRANCH_ADMIN', 'STAFF', 'STATION'], required: true },
+    userType: { type: String, enum: ['STAFF', 'STATION', 'BRANCH_ADMIN', 'RESTAURANT_OWNER'], default: 'STAFF', required: true },
     restaurantId: { type: Schema.Types.ObjectId, ref: "Restaurant", required: true },
     branchId: { type: Schema.Types.ObjectId, ref: "Branch" },
-    roleId: { type: Schema.Types.ObjectId, ref: "Role" },
+    roleId: { type: Schema.Types.ObjectId, ref: "UserRole" },
     isActive: { type: Boolean, default: true },
     status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
     isDelete: { type: Boolean, default: false },
@@ -42,7 +42,7 @@ const UserSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
-UserSchema.pre("save", async function (next) {
+UserSchema.pre("save", async function () {
   if (!this.isModified("password") || !this.password) return;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);

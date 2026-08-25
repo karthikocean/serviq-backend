@@ -3,7 +3,7 @@ import { StatusCodes } from "http-status-codes";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../../../models/User";
-import Role from "../../../models/Role";
+import UserRole from "../../../models/UserRole";
 import UserToken from "../../../models/UserToken";
 import { AuthRequest } from "../../../middleware/authMiddleware";
 import { sendSuccess, sendError } from "../../../utils/response";

@@ -5,8 +5,9 @@ import { StatusCodes } from "http-status-codes";
 import { sendSuccess, sendError } from "../../utils/response";
 import Branch from "../../models/Branch";
 import User from "../../models/User";
+import Admin from "../../models/Admin";
 import Subscription from "../../models/Subscription";
-import Role from "../../models/Role";
+import AdminRole from "../../models/AdminRole";
 import Table from "../../models/Table";
 
 export const createBranch = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -59,8 +60,9 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
     }
 
     const existingUser = await User.findOne({ $or: existingUserQuery });
+    const existingAdmin = await Admin.findOne({ $or: existingUserQuery });
 
-    if (existingUser) {
+    if (existingUser || existingAdmin) {
       sendError(res, "A user with this email or mobile number already exists.", StatusCodes.CONFLICT);
       return;
     }
@@ -102,7 +104,7 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
     let newManager;
     try {
       // Find or Create 'Branch Manager' Role
-      let branchManagerRole = await Role.findOne({ restaurantId, roleName: 'Branch Manager', isDelete: false });
+      let branchManagerRole = await AdminRole.findOne({ restaurantId, roleName: 'Branch Manager', isDelete: false });
       
       if (!branchManagerRole) {
         const defaultManagerPermissions = {
@@ -117,12 +119,10 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
           'waiter-list': { view: true, add: true, edit: true, delete: true },
           'kitchen-list': { view: true, add: true, edit: true, delete: true },
           'qr-code-config': { view: true, add: true, edit: true, delete: true },
-          // NO access to: branch_management, plans_subscription, billing_payments, roles_permissions
         };
 
-        branchManagerRole = new Role({
+        branchManagerRole = new AdminRole({
           restaurantId,
-          type: "RESTAURANT",
           roleName: 'Branch Manager',
           roleType: 'BRANCH_MANAGER',
           permissions: defaultManagerPermissions,
@@ -132,8 +132,8 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
         await branchManagerRole.save();
       }
 
-      // Create User (Branch Manager)
-      newManager = new User({
+      // Create Admin (Branch Manager)
+      newManager = new Admin({
         name: managerName,
         email: managerEmail,
         phoneNumber: managerMobile,
@@ -178,7 +178,7 @@ export const getAllBranches = async (req: AuthRequest, res: Response): Promise<v
     
     // Attach manager details and table count for each branch
     const branchesWithManagers = await Promise.all(branches.map(async (branch) => {
-        const manager = await User.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false }).select("name email phoneNumber");
+        const manager = await Admin.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false }).select("name email phoneNumber");
         const totalTables = await Table.countDocuments({ branchId: branch._id, isDelete: false });
         
         return {
@@ -210,7 +210,7 @@ export const getBranchById = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
     
-    const manager = await User.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false }).select("name email phoneNumber");
+    const manager = await Admin.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false }).select("name email phoneNumber");
     const totalTables = await Table.countDocuments({ branchId: branch._id, isDelete: false });
     
     const branchWithManager = {
@@ -287,7 +287,7 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
 
     // Update Manager Details
     if (managerName || managerMobile || managerEmail) {
-        const manager = await User.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false });
+        const manager = await Admin.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false });
         if (manager) {
             if (managerName) manager.name = managerName;
             if (managerMobile) manager.phoneNumber = managerMobile;
@@ -328,8 +328,13 @@ export const deleteBranch = async (req: AuthRequest, res: Response): Promise<voi
     branch.isActive = false;
     await branch.save({ session });
 
-    // Deactivate associated users
+    // Deactivate associated users and admins
     await User.updateMany(
+        { branchId: branch._id, isDelete: false },
+        { $set: { isDelete: true, isActive: false } },
+        { session }
+    );
+    await Admin.updateMany(
         { branchId: branch._id, isDelete: false },
         { $set: { isDelete: true, isActive: false } },
         { session }

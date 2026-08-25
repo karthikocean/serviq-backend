@@ -16,13 +16,9 @@ export const createStaff = async (restaurantId: string, branchId: string, staffD
   const existingUser = await User.findOne({ email: staffData.email, isDelete: false });
   if (existingUser) throw new Error("Email already registered");
 
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(staffData.password, salt);
-
   const newUser = new User({
     ...staffData,
-    password: hashedPassword,
-    userType: 'STAFF',
+    userType: staffData.userType || 'STAFF',
     restaurantId,
     branchId
   });

@@ -15,6 +15,8 @@ export interface IPayment extends Document {
     notes?: string;
     metadata?: Record<string, any>;
     isDelete: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 
 const PaymentSchema = new Schema<IPayment>(

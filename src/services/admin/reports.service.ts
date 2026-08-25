@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import Order from "../../models/Order";
 import User from "../../models/User";
-import Role from "../../models/Role";
+import UserRole from "../../models/UserRole";
 
 interface DateFilter {
   startDate?: string;
@@ -33,7 +33,7 @@ export const getWaiterReport = async (
   const dateMatch = buildDateMatch(dates || {});
   
   // 1. Find the WAITER role for this restaurant
-  const waiterRole = await Role.findOne({ restaurantId, code: "WAITER" });
+  const waiterRole = await UserRole.findOne({ restaurantId, code: "WAITER" });
   if (!waiterRole) {
     return []; // No waiter role seeded yet
   }

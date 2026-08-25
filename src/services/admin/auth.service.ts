@@ -1,11 +1,26 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import Admin from "../../models/Admin";
 import User from "../../models/User";
 import Branch from "../../models/Branch";
 import UserToken from "../../models/UserToken";
 
 export const loginAdmin = async (email: string, password: string) => {
-  const user = await User.findOne({ email, isDelete: false }).populate("roleId");
+  const cleanIdentifier = email ? email.trim() : "";
+  const normalizedEmail = cleanIdentifier.toLowerCase();
+
+  let user = await Admin.findOne({
+    $or: [{ email: normalizedEmail }, { phoneNumber: cleanIdentifier }],
+    isDelete: false
+  }).populate("roleId");
+
+  if (!user) {
+    user = await User.findOne({
+      $or: [{ email: normalizedEmail }, { phoneNumber: cleanIdentifier }],
+      isDelete: false
+    }).populate("roleId") as any;
+  }
+
   if (!user) {
     throw new Error("Invalid credentials.");
   }
@@ -13,7 +28,20 @@ export const loginAdmin = async (email: string, password: string) => {
     throw new Error("Account is inactive. Contact support.");
   }
 
-  const isMatch = await bcrypt.compare(password, user.password!);
+  let isMatch = false;
+  if (user.password) {
+    if (user.password.startsWith("$2a$") || user.password.startsWith("$2b$")) {
+      isMatch = await bcrypt.compare(password, user.password);
+    } else {
+      // Handle legacy/unhashed password and upgrade to bcrypt
+      isMatch = (password === user.password);
+      if (isMatch) {
+        user.password = password;
+        await user.save();
+      }
+    }
+  }
+
   if (!isMatch) {
     throw new Error("Invalid credentials.");
   }
@@ -43,38 +71,24 @@ export const loginAdmin = async (email: string, password: string) => {
     }
   }
 
-  let finalToken: string;
-  const existingToken = await UserToken.findOne({ userId: user._id });
+  // Always generate a fresh token with up-to-date payload
+  const finalToken = jwt.sign(
+    {
+      userId: user._id,
+      userType: user.userType,
+      restaurantId: user.restaurantId,
+      activeBranchId: activeBranchId,
+      roleId: user.roleId
+    },
+    process.env.JWT_SECRET as string,
+    { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
+  );
 
+  const existingToken = await UserToken.findOne({ userId: user._id });
   if (existingToken) {
-    try {
-      jwt.verify(existingToken.token, process.env.JWT_SECRET as string);
-      finalToken = existingToken.token;
-    } catch (err) {
-      finalToken = jwt.sign(
-        {
-          userId: user._id,
-          userType: user.userType,
-          restaurantId: user.restaurantId,
-          activeBranchId: activeBranchId
-        },
-        process.env.JWT_SECRET as string,
-        { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
-      );
-      existingToken.token = finalToken;
-      await existingToken.save();
-    }
+    existingToken.token = finalToken;
+    await existingToken.save();
   } else {
-    finalToken = jwt.sign(
-      {
-        userId: user._id,
-        userType: user.userType,
-        restaurantId: user.restaurantId,
-        activeBranchId: activeBranchId
-      },
-      process.env.JWT_SECRET as string,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
-    );
     await UserToken.create({ userId: user._id, token: finalToken });
   }
 
@@ -94,7 +108,10 @@ export const loginAdmin = async (email: string, password: string) => {
 };
 
 export const getAdminProfile = async (userId: string) => {
-  const user = await User.findById(userId).select("-password").populate("roleId");
+  let user = await Admin.findById(userId).select("-password").populate("roleId");
+  if (!user) {
+    user = await User.findById(userId).select("-password").populate("roleId") as any;
+  }
   if (!user) {
     throw new Error("User not found.");
   }
@@ -107,7 +124,10 @@ export const logoutAdmin = async (userId: string, token: string) => {
 };
 
 export const updateAdminPassword = async (userId: string, currentPassword: string, newPassword: string) => {
-  const user = await User.findById(userId);
+  let user = await Admin.findById(userId);
+  if (!user) {
+    user = await User.findById(userId) as any;
+  }
   if (!user) throw new Error("User not found.");
 
   const isMatch = await bcrypt.compare(currentPassword, user.password!);

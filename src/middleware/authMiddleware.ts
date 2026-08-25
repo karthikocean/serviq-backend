@@ -4,8 +4,11 @@ import { StatusCodes } from "http-status-codes";
 
 import User from "../models/User";
 import Admin from "../models/Admin";
+import SuperAdmin from "../models/SuperAdmin";
+import SuperAdminUser from "../models/SuperAdminUser";
+import AdminRole from "../models/AdminRole";
+import UserRole from "../models/UserRole";
 import UserToken from "../models/UserToken";
-import Role from "../models/Role";
 import Subscription from "../models/Subscription";
 import Branch from "../models/Branch";
 
@@ -41,12 +44,18 @@ export const protectAdmin = async (req: AuthRequest, res: Response, next: NextFu
         return;
     }
     
-    const user = await User.findById(decodedId);
+    let user = await Admin.findById(decodedId);
+    if (!user) {
+        user = await User.findById(decodedId);
+    }
+
     if (!user || user.isDelete) {
+        console.log(`[protectAdmin] 401: User not found or deleted. decodedId=${decodedId}, decodedType=${decoded.userType}`);
         res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: "User not found or deleted." });
         return;
     }
     if (!user.isActive) {
+        console.log(`[protectAdmin] 403: User is deactivated. decodedId=${decodedId}`);
         res.status(StatusCodes.FORBIDDEN).json({ success: false, message: "Account is deactivated." });
         return;
     }
@@ -81,7 +90,7 @@ export const protectAdmin = async (req: AuthRequest, res: Response, next: NextFu
        restaurantId: user.restaurantId.toString(),
        activeBranchId: branchId,
        roleId: user.roleId?.toString()
-    };
+     };
     next();
   } catch (error: any) {
     console.error("protectAdmin Error:", error);
@@ -109,7 +118,10 @@ export const protectSuperAdmin = async (req: AuthRequest, res: Response, next: N
         res.status(StatusCodes.FORBIDDEN).json({ success: false, message: "Super Admin access required." });
         return;
     }
-    const admin = await Admin.findById(decodedId);
+    let admin = await SuperAdmin.findById(decodedId);
+    if (!admin) {
+        admin = await SuperAdminUser.findById(decodedId) as any;
+    }
     if (!admin || admin.isDelete) {
         res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: "Admin not found or deleted." });
         return;
@@ -239,7 +251,13 @@ export const checkPermission = (moduleKey: string, action: 'view' | 'add' | 'edi
         return;
       }
 
-      const role = await Role.findById(user.roleId);
+      let role;
+      if (user.userType === 'BRANCH_ADMIN') {
+        role = await AdminRole.findById(user.roleId);
+      } else {
+        role = await UserRole.findById(user.roleId);
+      }
+
       if (!role || role.isDelete || !role.isActive) {
         res.status(StatusCodes.FORBIDDEN).json({ success: false, message: "Role is inactive or deleted. Access denied." });
         return;

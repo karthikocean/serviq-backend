@@ -6,9 +6,13 @@ export interface IAdmin extends Document {
   email: string;
   phoneNumber: string;
   password?: string;
-  role?: mongoose.Types.ObjectId;
-  canLoginAdmin: boolean;
+  profileImage?: string;
+  userType: 'RESTAURANT_OWNER' | 'BRANCH_ADMIN';
+  restaurantId: mongoose.Types.ObjectId;
+  branchId?: mongoose.Types.ObjectId;
+  roleId?: mongoose.Types.ObjectId;
   isActive: boolean;
+  status: 'Active' | 'Inactive';
   isDelete: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -20,15 +24,18 @@ const AdminSchema = new Schema<IAdmin>(
     email: { type: String, required: true, unique: true, lowercase: true },
     phoneNumber: { type: String, required: true, unique: true },
     password: { type: String },
-    role: { type: Schema.Types.ObjectId, ref: "Role" },
-    canLoginAdmin: { type: Boolean, default: false },
+    profileImage: { type: String, default: null },
+    userType: { type: String, enum: ['RESTAURANT_OWNER', 'BRANCH_ADMIN'], required: true },
+    restaurantId: { type: Schema.Types.ObjectId, ref: "Restaurant", required: true },
+    branchId: { type: Schema.Types.ObjectId, ref: "Branch" },
+    roleId: { type: Schema.Types.ObjectId, ref: "AdminRole" },
     isActive: { type: Boolean, default: true },
+    status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
     isDelete: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
 
-// Hash password before save
 AdminSchema.pre("save", async function () {
   if (!this.isModified("password") || !this.password) return;
   const salt = await bcrypt.genSalt(10);

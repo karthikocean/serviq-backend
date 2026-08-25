@@ -1,27 +1,52 @@
-import Role from "../../models/Role";
+import AdminRole from "../../models/AdminRole";
+import UserRole from "../../models/UserRole";
 import User from "../../models/User";
+import Admin from "../../models/Admin";
 
 export const getRolesByRestaurant = async (restaurantId: string) => {
-  return await Role.find({ restaurantId, isDelete: false });
+  const adminRoles = await AdminRole.find({ restaurantId, isDelete: false });
+  const userRoles = await UserRole.find({ restaurantId, isDelete: false });
+  return [...adminRoles, ...userRoles];
 };
 
 export const seedDefaultRoles = async (restaurantId: string) => {
-  const defaultRoles = [
+  const defaultUserRoles = [
     { code: "WAITER", roleName: "Waiter" },
-    { code: "KITCHEN", roleName: "Kitchen" },
+    { code: "KITCHEN", roleName: "Kitchen" }
+  ];
+
+  const defaultAdminRoles = [
     { code: "BRANCH_MANAGER", roleName: "Branch Manager" }
   ];
 
-  for (const dr of defaultRoles) {
-    await Role.updateOne(
+  for (const dr of defaultUserRoles) {
+    await UserRole.updateOne(
       { restaurantId, code: dr.code },
       {
         $setOnInsert: {
           restaurantId,
-          type: "RESTAURANT",
           roleName: dr.roleName,
           code: dr.code,
-          permissions: {}, // Define default permissions later if needed
+          permissions: {},
+          isDefault: true,
+          isDeletable: false,
+          isActive: true,
+          isDelete: false
+        }
+      },
+      { upsert: true }
+    );
+  }
+
+  for (const dr of defaultAdminRoles) {
+    await AdminRole.updateOne(
+      { restaurantId, code: dr.code },
+      {
+        $setOnInsert: {
+          restaurantId,
+          roleName: dr.roleName,
+          code: dr.code,
+          permissions: {},
           isDefault: true,
           isDeletable: false,
           isActive: true,
@@ -34,19 +59,22 @@ export const seedDefaultRoles = async (restaurantId: string) => {
 };
 
 export const getRoleById = async (roleId: string, restaurantId: string) => {
-  return await Role.findOne({ _id: roleId, restaurantId, isDelete: false });
+  const adminRole = await AdminRole.findOne({ _id: roleId, restaurantId, isDelete: false });
+  if (adminRole) return adminRole;
+  return await UserRole.findOne({ _id: roleId, restaurantId, isDelete: false });
 };
 
 export const createRole = async (restaurantId: string, roleName: string, permissions: any) => {
-  // Check if role name already exists for this restaurant
-  const existingRole = await Role.findOne({ roleName: new RegExp(`^${roleName}$`, 'i'), restaurantId, isDelete: false });
-  if (existingRole) {
+  // Check if role name already exists in either collection
+  const existingAdminRole = await AdminRole.findOne({ roleName: new RegExp(`^${roleName}$`, 'i'), restaurantId, isDelete: false });
+  const existingUserRole = await UserRole.findOne({ roleName: new RegExp(`^${roleName}$`, 'i'), restaurantId, isDelete: false });
+  if (existingAdminRole || existingUserRole) {
     throw new Error("Role name already exists");
   }
 
-  const role = new Role({
+  // By default, custom roles created via UI are UserRoles (staff roles)
+  const role = new UserRole({
     restaurantId,
-    type: "RESTAURANT", // Standard roles created via UI are RESTAURANT type
     roleName,
     permissions: new Map(Object.entries(permissions || {})),
     isDefault: false,
@@ -60,7 +88,10 @@ export const createRole = async (restaurantId: string, roleName: string, permiss
 };
 
 export const updateRolePermissions = async (roleId: string, restaurantId: string, roleName: string, permissions: any) => {
-  const role = await Role.findOne({ _id: roleId, restaurantId, isDelete: false });
+  let role = await AdminRole.findOne({ _id: roleId, restaurantId, isDelete: false }) as any;
+  if (!role) {
+    role = await UserRole.findOne({ _id: roleId, restaurantId, isDelete: false });
+  }
   
   if (!role) {
     throw new Error("Role not found");
@@ -70,8 +101,9 @@ export const updateRolePermissions = async (roleId: string, restaurantId: string
     if (role.isDefault) {
       throw new Error("Cannot edit default system roles directly");
     }
-    const existingRole = await Role.findOne({ roleName: new RegExp(`^${roleName}$`, 'i'), restaurantId, isDelete: false });
-    if (existingRole) {
+    const existingAdminRole = await AdminRole.findOne({ roleName: new RegExp(`^${roleName}$`, 'i'), restaurantId, isDelete: false });
+    const existingUserRole = await UserRole.findOne({ roleName: new RegExp(`^${roleName}$`, 'i'), restaurantId, isDelete: false });
+    if (existingAdminRole || existingUserRole) {
       throw new Error("Role name already exists");
     }
     role.roleName = roleName;
@@ -86,7 +118,10 @@ export const updateRolePermissions = async (roleId: string, restaurantId: string
 };
 
 export const deleteRole = async (roleId: string, restaurantId: string) => {
-  const role = await Role.findOne({ _id: roleId, restaurantId, isDelete: false });
+  let role = await AdminRole.findOne({ _id: roleId, restaurantId, isDelete: false }) as any;
+  if (!role) {
+    role = await UserRole.findOne({ _id: roleId, restaurantId, isDelete: false });
+  }
   
   if (!role) {
     throw new Error("Role not found");
@@ -96,10 +131,12 @@ export const deleteRole = async (roleId: string, restaurantId: string) => {
     throw new Error("Cannot delete default system roles");
   }
 
-  // VALIDATION: Check if role is assigned to any active user
+  // VALIDATION: Check if role is assigned to any active user (staff or admin)
   const assignedUsersCount = await User.countDocuments({ roleId: role._id, restaurantId, isDelete: false });
-  if (assignedUsersCount > 0) {
-    throw new Error(`This role is assigned to ${assignedUsersCount} user(s). Reassign users before deleting the role.`);
+  const assignedAdminsCount = await Admin.countDocuments({ roleId: role._id, restaurantId, isDelete: false });
+  
+  if (assignedUsersCount + assignedAdminsCount > 0) {
+    throw new Error(`This role is assigned to ${assignedUsersCount + assignedAdminsCount} user(s). Reassign users before deleting the role.`);
   }
 
   // Soft delete
