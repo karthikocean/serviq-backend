@@ -9,11 +9,12 @@ import { AuthRequest } from "../../middleware/authMiddleware";
 // GET all managers
 export const getAllManagers = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
+    const page = parseInt(req.query.page as string) || 0;
     const limit = parseInt(req.query.limit as string) || 10;
+    const search = req.query.search as string;
     
     // Convert 1-based page to 0-based for internal calculation
-    const pageIndex = Math.max(0, page - 1);
+    const pageIndex = Math.max(0, page);
     const skip = pageIndex * limit;
 
     const total = await SuperAdminUser.countDocuments({ isDelete: false });

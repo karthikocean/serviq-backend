@@ -18,7 +18,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const user = await User.findOne({ email, isDelete: false }).populate("roleId");
 
     if (!user) {
-      return sendError(res, "Invalid credentials.", StatusCodes.UNAUTHORIZED);
+      return sendError(res, "Invalid mail.", StatusCodes.UNAUTHORIZED);
     }
 
     if (!user.isActive) {
@@ -45,7 +45,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     const isMatch = await bcrypt.compare(password, user.password as string);
     if (!isMatch) {
-      return sendError(res, "Invalid credentials.", StatusCodes.UNAUTHORIZED);
+      return sendError(res, "Invalid password.", StatusCodes.UNAUTHORIZED);
     }
 
     const token = jwt.sign(

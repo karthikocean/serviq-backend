@@ -8,9 +8,9 @@ import { pagination } from "../../utils/pagination";
 // GET all roles
 export const getAllRoles = async (req: Request, res: Response): Promise<void> => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
+    const page = parseInt(req.query.page as string) || 0;
     const limit = parseInt(req.query.limit as string) || 10;
-    const pageIndex = Math.max(0, page - 1);
+    const pageIndex = Math.max(0, page);
     const skip = pageIndex * limit;
 
     const total = await SuperAdminRole.countDocuments({ isDelete: false });
@@ -129,9 +129,9 @@ export const deleteRole = async (req: Request, res: Response): Promise<void> => 
 // GET all modules (for role permission setup)
 export const getAllModules = async (req: Request, res: Response): Promise<void> => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
+    const page = parseInt(req.query.page as string) || 0;
     const limit = parseInt(req.query.limit as string) || 100;
-    const pageIndex = Math.max(0, page - 1);
+    const pageIndex = Math.max(0, page);
     const skip = pageIndex * limit;
 
     const total = await Module.countDocuments();

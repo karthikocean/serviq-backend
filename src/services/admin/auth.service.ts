@@ -22,7 +22,7 @@ export const loginAdmin = async (email: string, password: string) => {
   }
 
   if (!user) {
-    throw new Error("Invalid credentials.");
+    throw new Error("Invalid mail");
   }
   if (!user.isActive) {
     throw new Error("Account is inactive. Contact support.");
@@ -43,7 +43,7 @@ export const loginAdmin = async (email: string, password: string) => {
   }
 
   if (!isMatch) {
-    throw new Error("Invalid credentials.");
+    throw new Error("Invalid password");
   }
 
   let activeBranchId = user.branchId;

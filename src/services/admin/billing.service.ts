@@ -198,9 +198,9 @@ export const getBillingHistory = async (restaurantId: string, branchId: string, 
   // Handle Export case (limit = 0 or no pagination)
   const isExport = filters.limit === '0' || filters.isExport === 'true';
 
-  const page = parseInt(filters.page as string) || 1;
+  const page = parseInt(filters.page as string) || 0;
   const limit = parseInt(filters.limit as string) || 10;
-  const skip = (page - 1) * limit;
+  const skip = page * limit;
 
   // Perform parallel queries for data and summary
   const [data, totalItems, summaryData] = await Promise.all([
@@ -247,8 +247,13 @@ export const getBillingHistory = async (restaurantId: string, branchId: string, 
 };
 
 export const getActiveTablesBilling = async (restaurantId: string, branchId: string) => {
-  const orders = await Order.find({ restaurantId, branchId, isDelete: false, billingStatus: "unpaid" })
-    .populate("tableId", "tableNumber section");
+  const query: any = { restaurantId, isDelete: false, billingStatus: "unpaid" };
+  
+  if (branchId && branchId !== "ALL") {
+    query.branchId = branchId;
+  }
+
+  const orders = await Order.find(query).populate("tableId", "tableNumber section");
 
   return orders.map(order => {
     const table: any = order.tableId;

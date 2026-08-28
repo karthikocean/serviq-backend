@@ -14,9 +14,9 @@ import { AuthRequest } from "../../middleware/authMiddleware";
 // GET all active subscriptions
 export const getAllSubscriptions = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const page = parseInt(req.query.page as string) || 1;
+        const page = parseInt(req.query.page as string) || 0;
         const limit = parseInt(req.query.limit as string) || 10;
-        const pageIndex = Math.max(0, page - 1);
+        const pageIndex = Math.max(0, page);
         const skip = pageIndex * limit;
 
         const total = await Subscription.countDocuments({ isDelete: false });
@@ -51,9 +51,9 @@ export const getAllSubscriptions = async (req: AuthRequest, res: Response): Prom
 // GET subscription history
 export const getSubscriptionHistory = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const page = parseInt(req.query.page as string) || 1;
+        const page = parseInt(req.query.page as string) || 0;
         const limit = parseInt(req.query.limit as string) || 10;
-        const pageIndex = Math.max(0, page - 1);
+        const pageIndex = Math.max(0, page);
         const skip = pageIndex * limit;
 
         const total = await SubscriptionHistory.countDocuments();

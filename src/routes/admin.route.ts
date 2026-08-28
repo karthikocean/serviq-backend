@@ -15,6 +15,7 @@ import uploadRoutes from "./upload.route";
 import ticketRoutes from "./admin/ticket.route";
 import reportsRoutes from "./admin/reports.route";
 import inventoryRoutes from "./admin/inventory.route";
+import subscriptionRoutes from "./admin/subscription.route";
 import { protectAdmin } from "../middleware/authMiddleware";
 
 const router = Router();
@@ -35,5 +36,6 @@ router.use("/upload", protectAdmin, uploadRoutes);
 router.use("/tickets", protectAdmin, ticketRoutes);
 router.use("/reports", protectAdmin, reportsRoutes);
 router.use("/inventory", protectAdmin, inventoryRoutes);
+router.use("/subscription", protectAdmin, subscriptionRoutes);
 
 export default router;

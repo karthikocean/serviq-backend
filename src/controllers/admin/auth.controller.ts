@@ -10,7 +10,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const result = await loginAdmin(email, password);
     sendSuccess(res, "Login successful.", result);
   } catch (error: any) {
-    if (error.message === "Invalid credentials.") {
+    if (error.message === "Invalid mail" || error.message === "Invalid password") {
       sendError(res, error.message, StatusCodes.UNAUTHORIZED);
     } else if (error.message.includes("Account is inactive") || error.message.includes("Your branch is currently inactive")) {
       sendError(res, error.message, StatusCodes.FORBIDDEN);

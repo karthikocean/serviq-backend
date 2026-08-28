@@ -27,11 +27,12 @@ export const getItems = async (req: AuthRequest, res: Response): Promise<void> =
 
     const categoryFilter = req.query.category as string | undefined;
     const availableFilter = req.query.available as string | undefined;
-    const page = parseInt(req.query.page as string) || 1;
+    const page = parseInt(req.query.page as string) || 0;
     const limit = parseInt(req.query.limit as string) || 10;
     const search = req.query.search as string | undefined;
 
-    const pageIndex = Math.max(0, page - 1);
+    // Convert 1-based page to 0-based for internal calculation
+    const pageIndex = Math.max(0, page);
     const skip = pageIndex * limit;
 
     const { total, items } = await getMenuItems(restaurantId, branchId, categoryFilter, availableFilter, skip, limit, search);
@@ -118,11 +119,12 @@ export const getCats = async (req: AuthRequest, res: Response): Promise<void> =>
     }
     if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
     const page = parseInt(req.query.page as string);
-    const limit = parseInt(req.query.limit as string);
+    const limit = parseInt(req.query.limit as string) || 10;
     const search = req.query.search as string | undefined;
 
-    if (page && limit) {
-      const pageIndex = Math.max(0, page - 1);
+    if (!isNaN(page)) {
+      // Pagination flow
+      const pageIndex = Math.max(0, page);
       const skip = pageIndex * limit;
       const { total, items } = await getCategories(restaurantId, branchId, skip, limit, search);
       pagination(total, items, limit, pageIndex, res, "Categories fetched.");

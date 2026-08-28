@@ -35,7 +35,7 @@ export const superAdminLogin = async (req: Request, res: Response): Promise<void
     }
 
     if (!admin || !admin.canLoginAdmin) {
-      sendError(res, "Invalid credentials.", StatusCodes.UNAUTHORIZED);
+      sendError(res, "Invalid mail.", StatusCodes.UNAUTHORIZED);
       return;
     }
 
@@ -67,7 +67,7 @@ export const superAdminLogin = async (req: Request, res: Response): Promise<void
     }
 
     if (!isMatch) {
-      sendError(res, "Invalid credentials.", StatusCodes.UNAUTHORIZED);
+      sendError(res, "Invalid password.", StatusCodes.UNAUTHORIZED);
       return;
     }
 
