@@ -12,11 +12,13 @@ import leadRoutes from "./super-admin/lead.route";
 import ticketRoutes from "./super-admin/ticket.route";
 import notificationRoutes from "./super-admin/system-notification.route";
 import settingRoutes from "./super-admin/setting.route";
+import dashboardRoutes from "./super-admin/dashboard.route";
 import { protectSuperAdmin } from "../middleware/authMiddleware";
 
 const router = Router();
 
 router.use("/auth", authRoutes);
+router.use("/dashboard", protectSuperAdmin, dashboardRoutes);
 router.use("/managers", protectSuperAdmin, managerRoutes);
 router.use("/roles", protectSuperAdmin, roleRoutes);
 router.use("/plans", protectSuperAdmin, planRoutes);

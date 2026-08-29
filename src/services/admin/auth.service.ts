@@ -143,3 +143,73 @@ export const updateAdminPassword = async (userId: string, currentPassword: strin
   await UserToken.deleteMany({ userId: user._id });
   return true;
 };
+
+export const forgotAdminPassword = async (email: string) => {
+  const normalizedEmail = email.trim().toLowerCase();
+  let user = await Admin.findOne({ email: normalizedEmail, isDelete: false });
+  if (!user) {
+    user = await User.findOne({ email: normalizedEmail, isDelete: false }) as any;
+  }
+  if (!user) throw new Error("User not found.");
+
+  // Dummy OTP logic
+  const dummyOtp = "1234";
+  return { otp: dummyOtp, message: `Your OTP for password reset is ${dummyOtp} (Dummy for testing)` };
+};
+
+export const verifyOtp = async (email: string, otp: string) => {
+  if (otp !== "1234") throw new Error("Invalid OTP.");
+  
+  const normalizedEmail = email.trim().toLowerCase();
+  let user = await Admin.findOne({ email: normalizedEmail, isDelete: false });
+  if (!user) {
+    user = await User.findOne({ email: normalizedEmail, isDelete: false }) as any;
+  }
+  if (!user) throw new Error("User not found.");
+
+  return true;
+};
+
+export const resetAdminPassword = async (email: string, otp: string, newPassword: string) => {
+  if (otp !== "1234") throw new Error("Invalid OTP.");
+
+  const normalizedEmail = email.trim().toLowerCase();
+  let user = await Admin.findOne({ email: normalizedEmail, isDelete: false });
+  if (!user) {
+    user = await User.findOne({ email: normalizedEmail, isDelete: false }) as any;
+  }
+  if (!user) throw new Error("User not found.");
+
+  const salt = await bcrypt.genSalt(10);
+  user.password = await bcrypt.hash(newPassword, salt);
+  await user.save();
+
+  await UserToken.deleteMany({ userId: user._id });
+  return true;
+};
+
+export const forgotAdminPin = async (email: string) => {
+  const normalizedEmail = email.trim().toLowerCase();
+  let user = await User.findOne({ email: normalizedEmail, isDelete: false }) as any;
+  
+  if (!user) {
+    throw new Error("User with PIN not found.");
+  }
+
+  // Dummy OTP logic
+  const dummyOtp = "1234";
+  return { otp: dummyOtp, message: `Your OTP for PIN reset is ${dummyOtp} (Dummy for testing)` };
+};
+
+export const resetAdminPin = async (email: string, otp: string, newPin: string) => {
+  if (otp !== "1234") throw new Error("Invalid OTP.");
+
+  const normalizedEmail = email.trim().toLowerCase();
+  let user = await User.findOne({ email: normalizedEmail, isDelete: false }) as any;
+  if (!user) throw new Error("User not found.");
+
+  user.kitchenPin = newPin;
+  await user.save();
+
+  return true;
+};

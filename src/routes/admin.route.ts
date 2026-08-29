@@ -16,6 +16,7 @@ import ticketRoutes from "./admin/ticket.route";
 import reportsRoutes from "./admin/reports.route";
 import inventoryRoutes from "./admin/inventory.route";
 import subscriptionRoutes from "./admin/subscription.route";
+import notificationRoutes from "./admin/system-notification.route";
 import { protectAdmin } from "../middleware/authMiddleware";
 
 const router = Router();
@@ -37,5 +38,6 @@ router.use("/tickets", protectAdmin, ticketRoutes);
 router.use("/reports", protectAdmin, reportsRoutes);
 router.use("/inventory", protectAdmin, inventoryRoutes);
 router.use("/subscription", protectAdmin, subscriptionRoutes);
+router.use("/notifications", protectAdmin, notificationRoutes);
 
 export default router;
