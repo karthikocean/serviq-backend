@@ -12,3 +12,14 @@ export const getMetrics = async (req: Request, res: Response): Promise<void> => 
         sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
+
+export const getReportsAnalytics = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { getReportsAnalyticsData } = await import("../../services/super-admin/dashboard.service");
+        const analytics = await getReportsAnalyticsData();
+        sendSuccess(res, "Reports analytics fetched successfully.", analytics);
+    } catch (error: any) {
+        console.error("Error in getReportsAnalytics:", error);
+        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
