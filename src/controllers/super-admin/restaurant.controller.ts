@@ -6,18 +6,18 @@ import Plan from "../../models/Plan";
 import Subscription from "../../models/Subscription";
 import Branch from "../../models/Branch";
 import User from "../../models/User";
+import Admin from "../../models/Admin";
 import Lead from "../../models/Lead";
 import { sendSuccess, sendError } from "../../utils/response";
 import { pagination } from "../../utils/pagination";
 import { seedDefaultRoles } from "../../services/admin/role.service";
 import { AuthRequest } from "../../middleware/authMiddleware";
 
-// GET all active restaurants (populated with subscription plans)
 export const getAllRestaurants = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const page = parseInt(req.query.page as string) || 1;
+        const page = parseInt(req.query.page as string) || 0;
         const limit = parseInt(req.query.limit as string) || 10;
-        const pageIndex = Math.max(0, page - 1);
+        const pageIndex = Math.max(0, page);
         const skip = pageIndex * limit;
 
         const total = await Restaurant.countDocuments({ isDelete: false });
@@ -96,10 +96,11 @@ export const createRestaurant = async (req: Request, res: Response): Promise<voi
             return;
         }
 
-        // Check for existing active phone in User
+        // Check for existing active phone in User or Admin
         const existingUser = await User.findOne({ phoneNumber, isDelete: false });
-        if (existingUser) {
-            sendError(res, "Phone number already registered for a user.", StatusCodes.CONFLICT);
+        const existingAdmin = await Admin.findOne({ phoneNumber, isDelete: false });
+        if (existingUser || existingAdmin) {
+            sendError(res, "Phone number already registered for a user/admin.", StatusCodes.CONFLICT);
             return;
         }
 
@@ -180,7 +181,7 @@ export const createRestaurant = async (req: Request, res: Response): Promise<voi
             }
 
             // 4. Create Owner User
-            const ownerUser = new User({
+            const ownerUser = new Admin({
                 name: ownerName,
                 email: email,
                 phoneNumber: phoneNumber,
@@ -209,7 +210,7 @@ export const createRestaurant = async (req: Request, res: Response): Promise<voi
             sendSuccess(res, "Restaurant created successfully.", { id: newRestaurant._id }, StatusCodes.CREATED);
         } catch (error) {
             // Manual Rollback if running on a standalone MongoDB instance that doesn't support transactions
-            if (createdUserId) await User.findByIdAndDelete(createdUserId);
+            if (createdUserId) await Admin.findByIdAndDelete(createdUserId);
             if (createdSubscriptionId) await Subscription.findByIdAndDelete(createdSubscriptionId);
             if (createdRestaurantId) await Restaurant.findByIdAndDelete(createdRestaurantId);
             throw error;
@@ -292,7 +293,7 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
 
         // Update associated owner user
         if (ownerName || email || phoneNumber || isActive !== undefined) {
-            const ownerUser = await User.findOne({ restaurantId: restaurant._id, userType: 'RESTAURANT_OWNER', isDelete: false });
+            const ownerUser = await Admin.findOne({ restaurantId: restaurant._id, userType: 'RESTAURANT_OWNER', isDelete: false });
             if (ownerUser) {
                 if (ownerName) ownerUser.name = ownerName;
                 if (email) ownerUser.email = email;

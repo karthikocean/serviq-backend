@@ -3,7 +3,7 @@ import { StatusCodes } from "http-status-codes";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../../../models/User";
-import Role from "../../../models/Role";
+import UserRole from "../../../models/UserRole";
 import UserToken from "../../../models/UserToken";
 import { AuthRequest } from "../../../middleware/authMiddleware";
 import { sendSuccess, sendError } from "../../../utils/response";
@@ -18,7 +18,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     const user = await User.findOne({ email, isDelete: false }).populate("roleId");
     if (!user) {
-      return sendError(res, "Invalid email or password.", StatusCodes.UNAUTHORIZED);
+      return sendError(res, "Invalid mail.", StatusCodes.UNAUTHORIZED);
     }
 
     if (!user.isActive) {
@@ -44,7 +44,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     const isMatch = await bcrypt.compare(password, user.password as string);
     if (!isMatch) {
-      return sendError(res, "Invalid email or password.", StatusCodes.UNAUTHORIZED);
+      return sendError(res, "Invalid password.", StatusCodes.UNAUTHORIZED);
     }
 
     const token = jwt.sign(

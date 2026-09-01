@@ -2,7 +2,7 @@ import { Response, NextFunction } from "express";
 import { AuthRequest } from "./authMiddleware";
 import Subscription from "../models/Subscription";
 import User from "../models/User";
-import Role from "../models/Role";
+import UserRole from "../models/UserRole";
 
 const FEATURE_MAP: Record<string, string> = {
     'MENU': 'menu',

@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { login, getProfile, logout, updatePassword } from "../../controllers/admin/auth.controller";
+import { login, getProfile, logout, updatePassword, forgotPassword, resetPassword, forgotPin, resetPin, verifyOtpController } from "../../controllers/admin/auth.controller";
 import { protectAdmin } from "../../middleware/authMiddleware";
 import { validate } from "../../middleware/validate";
-import { loginSchema, updatePasswordSchema } from "../../validations/admin/auth.validation";
+import { loginSchema, updatePasswordSchema, forgotPasswordSchema, resetPasswordSchema, forgotPinSchema, resetPinSchema, verifyOtpSchema } from "../../validations/admin/auth.validation";
 
 const router = Router();
 
@@ -138,5 +138,146 @@ router.get("/profile", protectAdmin, getProfile);
  *         description: Internal server error
  */
 router.put("/update-password", protectAdmin, validate(updatePasswordSchema), updatePassword);
+
+/**
+ * @swagger
+ * /api/admin/forgot-password:
+ *   post:
+ *     summary: Forgot Admin Password
+ *     tags: [Admin Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: OTP generated successfully
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post("/forgot-password", validate(forgotPasswordSchema), forgotPassword);
+
+/**
+ * @swagger
+ * /api/admin/verify-otp:
+ *   post:
+ *     summary: Verify OTP
+ *     tags: [Admin Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               otp:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: OTP verified successfully
+ *       400:
+ *         description: Invalid OTP
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post("/verify-otp", validate(verifyOtpSchema), verifyOtpController);
+
+/**
+ * @swagger
+ * /api/admin/reset-password:
+ *   post:
+ *     summary: Reset Admin Password
+ *     tags: [Admin Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               otp:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ *       400:
+ *         description: Invalid OTP
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post("/reset-password", validate(resetPasswordSchema), resetPassword);
+
+/**
+ * @swagger
+ * /api/admin/forgot-pin:
+ *   post:
+ *     summary: Forgot Admin PIN
+ *     tags: [Admin Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: OTP generated successfully
+ *       404:
+ *         description: User with PIN not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post("/forgot-pin", validate(forgotPinSchema), forgotPin);
+
+/**
+ * @swagger
+ * /api/admin/reset-pin:
+ *   post:
+ *     summary: Reset Admin PIN
+ *     tags: [Admin Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               otp:
+ *                 type: string
+ *               newPin:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: PIN reset successfully
+ *       400:
+ *         description: Invalid OTP
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post("/reset-pin", validate(resetPinSchema), resetPin);
 
 export default router;

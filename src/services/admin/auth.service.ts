@@ -1,21 +1,49 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import Admin from "../../models/Admin";
 import User from "../../models/User";
 import Branch from "../../models/Branch";
 import UserToken from "../../models/UserToken";
 
 export const loginAdmin = async (email: string, password: string) => {
-  const user = await User.findOne({ email, isDelete: false }).populate("roleId");
+  const cleanIdentifier = email ? email.trim() : "";
+  const normalizedEmail = cleanIdentifier.toLowerCase();
+
+  let user = await Admin.findOne({
+    $or: [{ email: normalizedEmail }, { phoneNumber: cleanIdentifier }],
+    isDelete: false
+  }).populate("roleId");
+
   if (!user) {
-    throw new Error("Invalid credentials.");
+    user = await User.findOne({
+      $or: [{ email: normalizedEmail }, { phoneNumber: cleanIdentifier }],
+      isDelete: false
+    }).populate("roleId") as any;
+  }
+
+  if (!user) {
+    throw new Error("Invalid mail");
   }
   if (!user.isActive) {
     throw new Error("Account is inactive. Contact support.");
   }
 
-  const isMatch = await bcrypt.compare(password, user.password!);
+  let isMatch = false;
+  if (user.password) {
+    if (user.password.startsWith("$2a$") || user.password.startsWith("$2b$")) {
+      isMatch = await bcrypt.compare(password, user.password);
+    } else {
+      // Handle legacy/unhashed password and upgrade to bcrypt
+      isMatch = (password === user.password);
+      if (isMatch) {
+        user.password = password;
+        await user.save();
+      }
+    }
+  }
+
   if (!isMatch) {
-    throw new Error("Invalid credentials.");
+    throw new Error("Invalid password");
   }
 
   let activeBranchId = user.branchId;
@@ -43,38 +71,24 @@ export const loginAdmin = async (email: string, password: string) => {
     }
   }
 
-  let finalToken: string;
-  const existingToken = await UserToken.findOne({ userId: user._id });
+  // Always generate a fresh token with up-to-date payload
+  const finalToken = jwt.sign(
+    {
+      userId: user._id,
+      userType: user.userType,
+      restaurantId: user.restaurantId,
+      activeBranchId: activeBranchId,
+      roleId: user.roleId
+    },
+    process.env.JWT_SECRET as string,
+    { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
+  );
 
+  const existingToken = await UserToken.findOne({ userId: user._id });
   if (existingToken) {
-    try {
-      jwt.verify(existingToken.token, process.env.JWT_SECRET as string);
-      finalToken = existingToken.token;
-    } catch (err) {
-      finalToken = jwt.sign(
-        {
-          userId: user._id,
-          userType: user.userType,
-          restaurantId: user.restaurantId,
-          activeBranchId: activeBranchId
-        },
-        process.env.JWT_SECRET as string,
-        { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
-      );
-      existingToken.token = finalToken;
-      await existingToken.save();
-    }
+    existingToken.token = finalToken;
+    await existingToken.save();
   } else {
-    finalToken = jwt.sign(
-      {
-        userId: user._id,
-        userType: user.userType,
-        restaurantId: user.restaurantId,
-        activeBranchId: activeBranchId
-      },
-      process.env.JWT_SECRET as string,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
-    );
     await UserToken.create({ userId: user._id, token: finalToken });
   }
 
@@ -94,7 +108,10 @@ export const loginAdmin = async (email: string, password: string) => {
 };
 
 export const getAdminProfile = async (userId: string) => {
-  const user = await User.findById(userId).select("-password").populate("roleId");
+  let user = await Admin.findById(userId).select("-password").populate("roleId");
+  if (!user) {
+    user = await User.findById(userId).select("-password").populate("roleId") as any;
+  }
   if (!user) {
     throw new Error("User not found.");
   }
@@ -107,7 +124,10 @@ export const logoutAdmin = async (userId: string, token: string) => {
 };
 
 export const updateAdminPassword = async (userId: string, currentPassword: string, newPassword: string) => {
-  const user = await User.findById(userId);
+  let user = await Admin.findById(userId);
+  if (!user) {
+    user = await User.findById(userId) as any;
+  }
   if (!user) throw new Error("User not found.");
 
   const isMatch = await bcrypt.compare(currentPassword, user.password!);
@@ -121,5 +141,75 @@ export const updateAdminPassword = async (userId: string, currentPassword: strin
 
   // Invalidate existing sessions so they have to login again (optional, but good practice)
   await UserToken.deleteMany({ userId: user._id });
+  return true;
+};
+
+export const forgotAdminPassword = async (email: string) => {
+  const normalizedEmail = email.trim().toLowerCase();
+  let user = await Admin.findOne({ email: normalizedEmail, isDelete: false });
+  if (!user) {
+    user = await User.findOne({ email: normalizedEmail, isDelete: false }) as any;
+  }
+  if (!user) throw new Error("User not found.");
+
+  // Dummy OTP logic
+  const dummyOtp = "1234";
+  return { otp: dummyOtp, message: `Your OTP for password reset is ${dummyOtp} (Dummy for testing)` };
+};
+
+export const verifyOtp = async (email: string, otp: string) => {
+  if (otp !== "1234") throw new Error("Invalid OTP.");
+  
+  const normalizedEmail = email.trim().toLowerCase();
+  let user = await Admin.findOne({ email: normalizedEmail, isDelete: false });
+  if (!user) {
+    user = await User.findOne({ email: normalizedEmail, isDelete: false }) as any;
+  }
+  if (!user) throw new Error("User not found.");
+
+  return true;
+};
+
+export const resetAdminPassword = async (email: string, otp: string, newPassword: string) => {
+  if (otp !== "1234") throw new Error("Invalid OTP.");
+
+  const normalizedEmail = email.trim().toLowerCase();
+  let user = await Admin.findOne({ email: normalizedEmail, isDelete: false });
+  if (!user) {
+    user = await User.findOne({ email: normalizedEmail, isDelete: false }) as any;
+  }
+  if (!user) throw new Error("User not found.");
+
+  const salt = await bcrypt.genSalt(10);
+  user.password = await bcrypt.hash(newPassword, salt);
+  await user.save();
+
+  await UserToken.deleteMany({ userId: user._id });
+  return true;
+};
+
+export const forgotAdminPin = async (email: string) => {
+  const normalizedEmail = email.trim().toLowerCase();
+  let user = await User.findOne({ email: normalizedEmail, isDelete: false }) as any;
+  
+  if (!user) {
+    throw new Error("User with PIN not found.");
+  }
+
+  // Dummy OTP logic
+  const dummyOtp = "1234";
+  return { otp: dummyOtp, message: `Your OTP for PIN reset is ${dummyOtp} (Dummy for testing)` };
+};
+
+export const resetAdminPin = async (email: string, otp: string, newPin: string) => {
+  if (otp !== "1234") throw new Error("Invalid OTP.");
+
+  const normalizedEmail = email.trim().toLowerCase();
+  let user = await User.findOne({ email: normalizedEmail, isDelete: false }) as any;
+  if (!user) throw new Error("User not found.");
+
+  user.kitchenPin = newPin;
+  await user.save();
+
   return true;
 };

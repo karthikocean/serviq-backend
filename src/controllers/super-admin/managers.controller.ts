@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
-import Admin from "../../models/Admin";
-import Role from "../../models/Role";
+import SuperAdminUser from "../../models/SuperAdminUser";
+import SuperAdminRole from "../../models/SuperAdminRole";
 import { sendSuccess, sendError } from "../../utils/response";
 import { pagination } from "../../utils/pagination";
 import { AuthRequest } from "../../middleware/authMiddleware";
@@ -9,16 +9,17 @@ import { AuthRequest } from "../../middleware/authMiddleware";
 // GET all managers
 export const getAllManagers = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
+    const page = parseInt(req.query.page as string) || 0;
     const limit = parseInt(req.query.limit as string) || 10;
+    const search = req.query.search as string;
     
     // Convert 1-based page to 0-based for internal calculation
-    const pageIndex = Math.max(0, page - 1);
+    const pageIndex = Math.max(0, page);
     const skip = pageIndex * limit;
 
-    const total = await Admin.countDocuments({ isDelete: false });
+    const total = await SuperAdminUser.countDocuments({ isDelete: false });
 
-    const managers = await Admin.find({ isDelete: false })
+    const managers = await SuperAdminUser.find({ isDelete: false })
       .select("-password")
       .populate("role")
       .sort({ createdAt: -1 })
@@ -41,19 +42,19 @@ export const createManager = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const existing = await Admin.findOne({ $or: [{ email }, { phoneNumber }], isDelete: false });
+    const existing = await SuperAdminUser.findOne({ $or: [{ email }, { phoneNumber }], isDelete: false });
     if (existing) {
       sendError(res, "Email or phone already exists.", StatusCodes.CONFLICT);
       return;
     }
 
-    const role = await Role.findById(roleId);
+    const role = await SuperAdminRole.findById(roleId);
     if (!role) {
       sendError(res, "Role not found.", StatusCodes.NOT_FOUND);
       return;
     }
 
-    const manager = await Admin.create({
+    const manager = await SuperAdminUser.create({
       name,
       email,
       phoneNumber,
@@ -74,9 +75,9 @@ export const createManager = async (req: Request, res: Response): Promise<void> 
 export const updateManager = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { name, email, phoneNumber, roleId, canLoginAdmin, isActive } = req.body;
+    const { name, email, phoneNumber, roleId, canLoginAdmin, isActive, password } = req.body;
 
-    const manager = await Admin.findOne({ _id: id, isDelete: false });
+    const manager = await SuperAdminUser.findOne({ _id: id, isDelete: false });
     if (!manager) {
       sendError(res, "Manager not found.", StatusCodes.NOT_FOUND);
       return;
@@ -88,6 +89,7 @@ export const updateManager = async (req: Request, res: Response): Promise<void> 
     if (roleId) manager.role = roleId;
     if (canLoginAdmin !== undefined) manager.canLoginAdmin = canLoginAdmin;
     if (isActive !== undefined) manager.isActive = isActive;
+    if (password) manager.password = password;
 
     await manager.save();
     sendSuccess(res, "Manager updated successfully.");
@@ -100,7 +102,7 @@ export const updateManager = async (req: Request, res: Response): Promise<void> 
 export const deleteManager = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const manager = await Admin.findOne({ _id: id, isDelete: false });
+    const manager = await SuperAdminUser.findOne({ _id: id, isDelete: false });
     if (!manager) {
       sendError(res, "Manager not found.", StatusCodes.NOT_FOUND);
       return;

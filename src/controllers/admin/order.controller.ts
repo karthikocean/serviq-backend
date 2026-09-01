@@ -10,7 +10,8 @@ import {
   updateOrderStatus,
   updateOrderItems,
   appendOrderItems,
-  deleteOrder
+  deleteOrder,
+  assignWaiterToOrder
 } from "../../services/admin/order.service";
 import { getTargetBranchId } from "../../utils/authUtils";
 
@@ -139,6 +140,28 @@ export const deleteOrderRecord = async (req: AuthRequest, res: Response): Promis
       sendError(res, error.message, StatusCodes.NOT_FOUND);
     } else {
       sendError(res, "Failed to delete order", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+  }
+};
+
+export const assignWaiter = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.user?.restaurantId;
+    const branchId = getTargetBranchId(req);
+    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    const orderId = req.params.orderId as string;
+    const { waiterId } = req.body;
+
+    if (!waiterId) return sendError(res, "waiterId is required", StatusCodes.BAD_REQUEST);
+
+    const order = await assignWaiterToOrder(restaurantId, branchId, orderId, waiterId);
+    sendSuccess(res, "Waiter assigned successfully.", order);
+  } catch (error: any) {
+    if (error.message === "Order not found") {
+      sendError(res, error.message, StatusCodes.NOT_FOUND);
+    } else {
+      sendError(res, "Failed to assign waiter", StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
 };

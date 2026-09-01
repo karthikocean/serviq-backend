@@ -16,9 +16,9 @@ export const getUsers = async (req: AuthRequest, res: Response): Promise<void> =
     const roleFilter = req.query.roleFilter as string;
     const statusFilter = req.query.statusFilter as string;
     
-    const page = parseInt(req.query.page as string) || 1;
+    const page = parseInt(req.query.page as string) || 0;
     const limit = parseInt(req.query.limit as string) || 10;
-    const pageIndex = Math.max(0, page - 1);
+    const pageIndex = Math.max(0, page);
     const skip = pageIndex * limit;
 
     const { total, users } = await getUsersByRestaurantId(restaurantId, branchId, search, roleFilter, statusFilter, skip, limit);

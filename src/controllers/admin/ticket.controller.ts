@@ -13,9 +13,9 @@ export const getMyTickets = async (req: Request, res: Response): Promise<void> =
             return;
         }
 
-        const page = parseInt(req.query.page as string) || 1;
+        const page = parseInt(req.query.page as string) || 0;
         const limit = parseInt(req.query.limit as string) || 10;
-        const pageIndex = Math.max(0, page - 1);
+        const pageIndex = Math.max(0, page);
         const skip = pageIndex * limit;
 
         const query: any = { restaurantId: admin.restaurantId };

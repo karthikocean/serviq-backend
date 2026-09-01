@@ -125,7 +125,15 @@ export const updateOrderItems = async (restaurantId: string, branchId: string, o
   const order = await Order.findOne({ _id: orderId, restaurantId, branchId, isDelete: false });
   if (!order) throw new Error("Order not found");
 
-  if (updateData.items) order.items = updateData.items;
+  if (updateData.items) {
+    // Sanitize menuId in case frontend sends populated objects
+    order.items = updateData.items.map((item: any) => {
+      if (item.menuId && typeof item.menuId === 'object' && item.menuId._id) {
+        item.menuId = item.menuId._id;
+      }
+      return item;
+    });
+  }
   
   if (updateData.subtotal !== undefined) order.subtotal = updateData.subtotal;
   if (updateData.tax !== undefined) order.tax = updateData.tax;
@@ -184,4 +192,24 @@ export const deleteOrder = async (restaurantId: string, branchId: string, orderI
   );
 
   return true;
+};
+
+export const assignWaiterToOrder = async (
+  restaurantId: string,
+  branchId: string,
+  orderId: string,
+  waiterId: string
+) => {
+  const order = await Order.findOne({ _id: orderId, restaurantId, branchId, isDelete: false });
+  if (!order) throw new Error("Order not found");
+
+  order.waiterId = waiterId as any;
+  await order.save();
+
+  const updated = await Order.findById(order._id)
+    .populate("tableId", "tableNumber section")
+    .populate("waiterId", "name phoneNumber")
+    .populate("items.menuId", "name image veg category");
+
+  return updated;
 };

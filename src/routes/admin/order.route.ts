@@ -6,7 +6,8 @@ import {
   updateStatus, 
   updateItems, 
   appendItems,
-  deleteOrderRecord 
+  deleteOrderRecord,
+  assignWaiter
 } from "../../controllers/admin/order.controller";
 import { checkBranchAccess, checkSubscriptionFeature } from "../../middleware/rbacMiddleware";
 import { validate } from "../../middleware/validate";
@@ -166,6 +167,32 @@ router.put("/:orderId/items/append", checkBranchAccess, checkSubscriptionFeature
 /**
  * @swagger
  * /api/admin/orders/{orderId}:
+ *   put:
+ *     summary: Update an entire order
+ *     tags: [Admin Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Order updated
+ */
+router.put("/:orderId", checkBranchAccess, checkSubscriptionFeature("ORDER"), validate(updateOrderItemsSchema), updateItems);
+
+/**
+ * @swagger
+ * /api/admin/orders/{orderId}:
  *   delete:
  *     summary: Delete an order
  *     tags: [Admin Orders]
@@ -182,5 +209,42 @@ router.put("/:orderId/items/append", checkBranchAccess, checkSubscriptionFeature
  *         description: Order deleted
  */
 router.delete("/:orderId", checkBranchAccess, checkSubscriptionFeature("ORDER"), deleteOrderRecord);
+
+/**
+ * @swagger
+ * /api/admin/orders/{orderId}/assign-waiter:
+ *   put:
+ *     summary: Assign a waiter to an order
+ *     tags: [Admin Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - waiterId
+ *             properties:
+ *               waiterId:
+ *                 type: string
+ *                 description: The ID of the waiter to assign
+ *     responses:
+ *       200:
+ *         description: Waiter assigned successfully
+ *       400:
+ *         description: waiterId is required
+ *       404:
+ *         description: Order not found
+ */
+router.put("/:orderId/assign-waiter", checkBranchAccess, checkSubscriptionFeature("ORDER"), assignWaiter);
+
 
 export default router;

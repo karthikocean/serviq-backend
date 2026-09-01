@@ -1,6 +1,8 @@
 import bcrypt from "bcryptjs";
 import User from "../../models/User";
-import Role from "../../models/Role";
+import Admin from "../../models/Admin";
+import AdminRole from "../../models/AdminRole";
+import UserRole from "../../models/UserRole";
 import Table from "../../models/Table";
 
 export const getUsersByRestaurantId = async (
@@ -12,48 +14,65 @@ export const getUsersByRestaurantId = async (
   skip: number = 0,
   limit: number = 10
 ) => {
-  const query: any = { restaurantId, isDelete: false, userType: { $nin: ['RESTAURANT_OWNER', 'STATION'] } };
+  const adminQuery: any = { restaurantId, isDelete: false, userType: 'BRANCH_ADMIN' };
+  const userQuery: any = { restaurantId, isDelete: false, userType: 'STAFF' };
 
-  if (statusFilter === 'Active') {
-    query.status = 'Active';
-  } else if (statusFilter === 'Inactive') {
-    query.status = 'Inactive';
-  }
+  const applyFilters = async (query: any, isUser: boolean) => {
+    if (statusFilter === 'Active') {
+      query.status = 'Active';
+    } else if (statusFilter === 'Inactive') {
+      query.status = 'Inactive';
+    }
 
-  if (branchId && branchId !== 'ALL') {
-    query.branchId = branchId;
-  }
+    if (branchId && branchId !== 'ALL') {
+      query.branchId = branchId;
+    }
 
-  if (roleFilter && roleFilter !== 'All') {
-    query.roleId = roleFilter;
-  }
+    if (roleFilter && roleFilter !== 'All') {
+      query.roleId = roleFilter;
+    }
 
-  if (search) {
-    const searchRegex = new Date().getTime(); // Dummy, we will replace below
-    const searchQuery = { $regex: search, $options: 'i' };
+    if (search) {
+      const searchQuery = { $regex: search, $options: 'i' };
+      const matchingRoles = isUser 
+        ? await UserRole.find({ restaurantId, roleName: searchQuery, isDelete: false }).select('_id')
+        : await AdminRole.find({ restaurantId, roleName: searchQuery, isDelete: false }).select('_id');
 
-    // We also want to search by role name
-    const matchingRoles = await Role.find({ restaurantId, roleName: searchQuery, isDelete: false }).select('_id');
+      query.$or = [
+        { name: searchQuery },
+        { email: searchQuery },
+        { phoneNumber: searchQuery },
+        { roleId: { $in: matchingRoles.map(r => r._id) } }
+      ];
+    }
+  };
 
-    query.$or = [
-      { name: searchQuery },
-      { email: searchQuery },
-      { phoneNumber: searchQuery },
-      { roleId: { $in: matchingRoles.map(r => r._id) } }
-    ];
-  }
+  await applyFilters(adminQuery, false);
+  await applyFilters(userQuery, true);
 
-  const total = await User.countDocuments(query);
-  const users = await User.find(query)
+  const totalAdmins = await Admin.countDocuments(adminQuery);
+  const totalUsers = await User.countDocuments(userQuery);
+  const total = totalAdmins + totalUsers;
+
+  const admins = await Admin.find(adminQuery)
     .select("-password")
     .populate("roleId branchId")
-    .skip(skip)
-    .limit(limit)
-    .sort({ createdAt: -1 })
     .lean();
 
+  const users = await User.find(userQuery)
+    .select("-password")
+    .populate("roleId branchId")
+    .lean();
 
-  const userIds = users.map(u => u._id);
+  const combined = [...admins, ...users].sort((a: any, b: any) => {
+    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return timeB - timeA;
+  });
+
+  const paginated = combined.slice(skip, skip + limit);
+
+  const userIds = paginated.map(u => u._id);
   const userTables = await Table.find({
     restaurantId,
     $or: [
@@ -63,7 +82,7 @@ export const getUsersByRestaurantId = async (
     isDelete: false
   }).select("_id tableNumber tableNo assignedWaiter coverWaiter");
 
-  const usersWithTables = users.map(u => {
+  const usersWithTables = paginated.map(u => {
     const assignedTables: string[] = [];
     userTables.forEach((t: any) => {
       const primaryId = t.assignedWaiter?.toString();
@@ -103,9 +122,18 @@ export const getStationsByRestaurantId = async (restaurantId: string, branchId?:
 
 export const createUserForRestaurant = async (restaurantId: string, userData: any) => {
   if (userData.email) {
+    const existingAdmin = await Admin.findOne({ email: userData.email, isDelete: false });
     const existingUser = await User.findOne({ email: userData.email, isDelete: false });
-    if (existingUser) throw new Error("Email already registered");
+    if (existingAdmin || existingUser) throw new Error("Email already registered");
   }
+
+  if (userData.phoneNumber) {
+    const existingAdmin = await Admin.findOne({ phoneNumber: userData.phoneNumber, isDelete: false });
+    const existingUser = await User.findOne({ phoneNumber: userData.phoneNumber, isDelete: false });
+    if (existingAdmin || existingUser) throw new Error("Phone number already registered");
+  }
+
+  const isBranchAdmin = userData.userType === 'BRANCH_ADMIN';
 
   if (userData.userType === 'STATION' && userData.branchId) {
     const existingStation = await User.findOne({
@@ -119,13 +147,15 @@ export const createUserForRestaurant = async (restaurantId: string, userData: an
     }
   }
 
-
   if (userData.roleId && userData.branchId && userData.isActive !== false) {
-    const role = await Role.findById(userData.roleId);
+    const role = isBranchAdmin 
+      ? await AdminRole.findById(userData.roleId)
+      : await UserRole.findById(userData.roleId);
+
     if (role && role.roleType === 'BRANCH_MANAGER') {
-      const managerRoles = await Role.find({ restaurantId, roleType: 'BRANCH_MANAGER', isDelete: false }).select('_id');
+      const managerRoles = await AdminRole.find({ restaurantId, roleType: 'BRANCH_MANAGER', isDelete: false }).select('_id');
       const managerRoleIds = managerRoles.map(r => r._id);
-      const existingManager = await User.findOne({
+      const existingManager = await Admin.findOne({
         restaurantId,
         branchId: userData.branchId,
         roleId: { $in: managerRoleIds },
@@ -138,18 +168,33 @@ export const createUserForRestaurant = async (restaurantId: string, userData: an
     }
   }
 
-  const newUser = new User({
-    ...userData,
-    restaurantId,
-    status: userData.status || (userData.isActive ? 'Active' : 'Inactive'),
-  });
+  let newRecord;
+  if (isBranchAdmin) {
+    newRecord = new Admin({
+      ...userData,
+      restaurantId,
+      status: userData.status || (userData.isActive ? 'Active' : 'Inactive'),
+    });
+  } else {
+    newRecord = new User({
+      ...userData,
+      restaurantId,
+      status: userData.status || (userData.isActive ? 'Active' : 'Inactive'),
+    });
+  }
 
-  await newUser.save();
-  return newUser;
+  await newRecord.save();
+  return newRecord;
 };
 
 export const updateUserForRestaurant = async (restaurantId: string, userId: string, updateData: any) => {
-  const user = await User.findOne({ _id: userId, restaurantId, isDelete: false });
+  let user: any = await Admin.findOne({ _id: userId, restaurantId, isDelete: false });
+  let isAdminRecord = true;
+  if (!user) {
+    user = await User.findOne({ _id: userId, restaurantId, isDelete: false });
+    isAdminRecord = false;
+  }
+  
   if (!user) throw new Error("User not found");
 
   const newRoleId = updateData.roleId || user.roleId;
@@ -157,11 +202,14 @@ export const updateUserForRestaurant = async (restaurantId: string, userId: stri
   const newIsActive = updateData.isActive !== undefined ? updateData.isActive : user.isActive;
 
   if (newRoleId && newBranchId && newIsActive) {
-    const role = await Role.findById(newRoleId);
+    const role = isAdminRecord 
+      ? await AdminRole.findById(newRoleId)
+      : await UserRole.findById(newRoleId);
+
     if (role && role.roleType === 'BRANCH_MANAGER') {
-      const managerRoles = await Role.find({ restaurantId, roleType: 'BRANCH_MANAGER', isDelete: false }).select('_id');
+      const managerRoles = await AdminRole.find({ restaurantId, roleType: 'BRANCH_MANAGER', isDelete: false }).select('_id');
       const managerRoleIds = managerRoles.map(r => r._id);
-      const existingManager = await User.findOne({
+      const existingManager = await Admin.findOne({
         _id: { $ne: userId },
         restaurantId,
         branchId: newBranchId,
@@ -181,7 +229,7 @@ export const updateUserForRestaurant = async (restaurantId: string, userId: stri
   if (updateData.userType) user.userType = updateData.userType;
   if (updateData.roleId) user.roleId = updateData.roleId;
   if (updateData.branchId) user.branchId = updateData.branchId;
-  if (updateData.dutyStatus) user.dutyStatus = updateData.dutyStatus;
+  if (user.dutyStatus && updateData.dutyStatus) user.dutyStatus = updateData.dutyStatus;
 
   if (updateData.status !== undefined) {
     user.status = updateData.status;
@@ -194,7 +242,10 @@ export const updateUserForRestaurant = async (restaurantId: string, userId: stri
 };
 
 export const deleteUserForRestaurant = async (restaurantId: string, userId: string) => {
-  const user = await User.findOne({ _id: userId, restaurantId, isDelete: false });
+  let user: any = await Admin.findOne({ _id: userId, restaurantId, isDelete: false });
+  if (!user) {
+    user = await User.findOne({ _id: userId, restaurantId, isDelete: false });
+  }
   if (!user) throw new Error("User not found");
 
   // Prevent RESTAURANT_OWNER deletion
@@ -209,7 +260,10 @@ export const deleteUserForRestaurant = async (restaurantId: string, userId: stri
 };
 
 export const changePasswordForRestaurant = async (restaurantId: string, userId: string, newPassword: string) => {
-  const user = await User.findOne({ _id: userId, restaurantId, isDelete: false });
+  let user: any = await Admin.findOne({ _id: userId, restaurantId, isDelete: false });
+  if (!user) {
+    user = await User.findOne({ _id: userId, restaurantId, isDelete: false });
+  }
   if (!user) throw new Error("User not found");
 
   user.password = newPassword;

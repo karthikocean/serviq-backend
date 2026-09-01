@@ -7,12 +7,8 @@ interface IPermission {
   delete: boolean;
 }
 
-export interface IRole extends Document {
-  restaurantId?: mongoose.Types.ObjectId;
-  type: "SUPER_ADMIN" | "RESTAURANT";
+export interface ISuperAdminRole extends Document {
   roleName: string;
-  code?: string;
-  roleType?: string;
   permissions: Record<string, IPermission>;
   isDefault: boolean;
   isDeletable: boolean;
@@ -30,13 +26,9 @@ const PermissionSchema = new Schema<IPermission>(
   { _id: false }
 );
 
-const RoleSchema = new Schema<IRole>(
+const SuperAdminRoleSchema = new Schema<ISuperAdminRole>(
   {
-    restaurantId: { type: Schema.Types.ObjectId, ref: "Restaurant" },
-    type: { type: String, enum: ["SUPER_ADMIN", "RESTAURANT"], required: true },
     roleName: { type: String, required: true },
-    code: { type: String },
-    roleType: { type: String },
     permissions: { type: Map, of: PermissionSchema },
     isDefault: { type: Boolean, default: false },
     isDeletable: { type: Boolean, default: true },
@@ -46,11 +38,5 @@ const RoleSchema = new Schema<IRole>(
   { timestamps: true }
 );
 
-// Compound unique index for restaurant-scoped roles
-RoleSchema.index(
-  { restaurantId: 1, code: 1 },
-  { unique: true, partialFilterExpression: { code: { $exists: true } } }
-);
-
-const Role = mongoose.model<IRole>("Role", RoleSchema);
-export default Role;
+const SuperAdminRole = mongoose.model<ISuperAdminRole>("SuperAdminRole", SuperAdminRoleSchema);
+export default SuperAdminRole;
