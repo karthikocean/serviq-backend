@@ -33,11 +33,11 @@ export const protectAdmin = async (req: AuthRequest, res: Response, next: NextFu
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
     
     const decodedId = decoded.userId || decoded.id;
-    const activeToken = await UserToken.findOne({ userId: decodedId, token });
-    if (!activeToken) {
-        res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: "Session expired. Another login detected." });
-        return;
-    }
+    // const activeToken = await UserToken.findOne({ userId: decodedId, token });
+    // if (!activeToken) {
+    //     res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: "Session expired. Another login detected." });
+    //     return;
+    // }
 
     if (decoded.userType === 'SUPER_ADMIN' || decoded.type === 'super-admin') {
         res.status(StatusCodes.FORBIDDEN).json({ success: false, message: "Super Admin cannot access tenant routes directly." });
@@ -108,11 +108,11 @@ export const protectSuperAdmin = async (req: AuthRequest, res: Response, next: N
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
     
     const decodedId = decoded.userId || decoded.id;
-    const activeToken = await UserToken.findOne({ userId: decodedId, token });
-    if (!activeToken) {
-        res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: "Session expired. Another login detected." });
-        return;
-    }
+    // const activeToken = await UserToken.findOne({ userId: decodedId, token });
+    // if (!activeToken) {
+    //     res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: "Session expired. Another login detected." });
+    //     return;
+    // }
 
     if (decoded.userType !== 'SUPER_ADMIN' && decoded.type !== 'super-admin') {
         res.status(StatusCodes.FORBIDDEN).json({ success: false, message: "Super Admin access required." });
@@ -161,11 +161,11 @@ export const protectMobile = async (req: AuthRequest, res: Response, next: NextF
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
     
     const decodedId = decoded.userId || decoded.id;
-    const activeToken = await UserToken.findOne({ userId: decodedId, token });
-    if (!activeToken) {
-        res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: "Session expired. Another login detected." });
-        return;
-    }
+    // const activeToken = await UserToken.findOne({ userId: decodedId, token });
+    // if (!activeToken) {
+    //     res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: "Session expired. Another login detected." });
+    //     return;
+    // }
 
     const user = await User.findById(decodedId);
     if (!user || user.isDelete) {

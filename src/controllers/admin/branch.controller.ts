@@ -159,6 +159,20 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
   }
 };
 
+const getManagerForBranch = async (branchId: any) => {
+  let manager = await Admin.findOne({ branchId, userType: 'BRANCH_ADMIN', isDelete: false }).select("name email phoneNumber");
+  if (!manager) {
+    manager = await Admin.findOne({ branchId, userType: { $ne: 'RESTAURANT_OWNER' }, isDelete: false }).select("name email phoneNumber");
+  }
+  if (!manager) {
+    manager = await User.findOne({ branchId, userType: 'BRANCH_ADMIN', isDelete: false }).select("name email phoneNumber") as any;
+  }
+  if (!manager) {
+    manager = await User.findOne({ branchId, isDelete: false }).select("name email phoneNumber") as any;
+  }
+  return manager;
+};
+
 export const getAllBranches = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const user = req.user as any;
@@ -178,7 +192,7 @@ export const getAllBranches = async (req: AuthRequest, res: Response): Promise<v
     
     // Attach manager details and table count for each branch
     const branchesWithManagers = await Promise.all(branches.map(async (branch) => {
-        const manager = await Admin.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false }).select("name email phoneNumber");
+        const manager = await getManagerForBranch(branch._id);
         const totalTables = await Table.countDocuments({ branchId: branch._id, isDelete: false });
         
         return {
@@ -210,7 +224,7 @@ export const getBranchById = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
     
-    const manager = await Admin.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false }).select("name email phoneNumber");
+    const manager = await getManagerForBranch(branch._id);
     const totalTables = await Table.countDocuments({ branchId: branch._id, isDelete: false });
     
     const branchWithManager = {
@@ -287,7 +301,13 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
 
     // Update Manager Details
     if (managerName || managerMobile || managerEmail) {
-        const manager = await Admin.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false });
+        let manager = await Admin.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false });
+        if (!manager) {
+            manager = await Admin.findOne({ branchId: branch._id, userType: { $ne: 'RESTAURANT_OWNER' }, isDelete: false });
+        }
+        if (!manager) {
+            manager = await User.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false }) as any;
+        }
         if (manager) {
             if (managerName) manager.name = managerName;
             if (managerMobile) manager.phoneNumber = managerMobile;
