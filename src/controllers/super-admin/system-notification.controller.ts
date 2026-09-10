@@ -26,6 +26,49 @@ export const getAllNotifications = async (req: Request, res: Response): Promise<
     }
 };
 
+import { getIO } from "../../socket";
+import Subscription from "../../models/Subscription";
+
+const broadcastSystemNotificationSocket = async (notification: any) => {
+    try {
+        const io = getIO();
+        if (!io) return;
+
+        const payload = {
+            _id: notification._id,
+            source: "SUPER_ADMIN",
+            type: notification.type || "SYSTEM_NOTIFICATION",
+            subject: notification.subject,
+            body: notification.body,
+            targetType: notification.targetType,
+            status: notification.status,
+            createdAt: notification.createdAt || new Date()
+        };
+
+        if (notification.targetType === "ALL") {
+            io.to("room_all").emit("superadmin_notification", payload);
+            io.to("room_all").emit("admin_notification", payload);
+        } else if (notification.targetType === "RESTAURANT") {
+            for (const restId of notification.targetRestaurants || []) {
+                const rStr = restId.toString();
+                io.to(`room_restaurant_${rStr}`).emit("superadmin_notification", payload);
+                io.to(`room_restaurant_${rStr}`).emit("admin_notification", payload);
+            }
+        } else if (notification.targetType === "PLAN" && notification.targetPlan) {
+            const activeSubs = await Subscription.find({ plan: notification.targetPlan, status: "Active" });
+            for (const sub of activeSubs) {
+                if (sub.restaurant) {
+                    const rStr = sub.restaurant.toString();
+                    io.to(`room_restaurant_${rStr}`).emit("superadmin_notification", payload);
+                    io.to(`room_restaurant_${rStr}`).emit("admin_notification", payload);
+                }
+            }
+        }
+    } catch (err) {
+        console.warn("Error broadcasting system notification socket:", err);
+    }
+};
+
 export const createNotification = async (req: Request, res: Response): Promise<void> => {
     try {
         const { subject, type, targetType, targetPlan, targetRestaurants, body, isScheduled, scheduledDate, scheduledTime } = req.body;
@@ -40,18 +83,20 @@ export const createNotification = async (req: Request, res: Response): Promise<v
             return;
         }
 
-        let status = 'Draft';
+        let status = req.body.status || 'Sent';
         if (isScheduled) {
             status = 'Scheduled';
         }
 
         const newNtf = new SystemNotification({
-            subject, type, targetType, targetPlan: targetType === 'PLAN' ? targetPlan : null, targetRestaurants: targetType === 'RESTAURANT' ? targetRestaurants : [], body, isScheduled, scheduledDate, scheduledTime, status
+            subject, type: type || 'Alert', targetType, targetPlan: targetType === 'PLAN' ? targetPlan : null, targetRestaurants: targetType === 'RESTAURANT' ? targetRestaurants : [], body, isScheduled, scheduledDate, scheduledTime, status
         });
 
         await newNtf.save();
         
-        // Future Implementation: Actual dispatch of notification (Email, SMS, Push) via external providers
+        if (status === 'Sent') {
+            await broadcastSystemNotificationSocket(newNtf);
+        }
         
         sendSuccess(res, "Notification created successfully.", newNtf, StatusCodes.CREATED);
     } catch (error) {
@@ -91,7 +136,7 @@ export const sendDraftNotification = async (req: Request, res: Response): Promis
         ntf.status = 'Sent';
         await ntf.save();
 
-        // Future Implementation: Trigger dispatch logic here
+        await broadcastSystemNotificationSocket(ntf);
 
         sendSuccess(res, "Notification sent.", ntf);
     } catch (error) {

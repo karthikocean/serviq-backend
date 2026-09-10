@@ -107,6 +107,7 @@ router.post("/", validate(createRestaurantSchema), createRestaurant);
  *             properties:
  *               restaurantName: { type: string, example: "ServiQ Grand Updated" }
  *               phoneNumber: { type: string, example: "9876543211" }
+ *               password: { type: string, example: "nivi@321" }
  *               websiteDomain: { type: string, example: "serviqgrand.com" }
  *               openingTime: { type: string, example: "09:00" }
  *               closingTime: { type: string, example: "23:00" }

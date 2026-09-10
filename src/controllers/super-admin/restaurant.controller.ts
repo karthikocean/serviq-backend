@@ -226,7 +226,7 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
     try {
         const { id } = req.params;
         const {
-            restaurantName, logoUrl, ownerName, email, phoneNumber,
+            restaurantName, logoUrl, ownerName, email, phoneNumber, password,
             websiteDomain, openingTime, closingTime, taxRate, serviceFee, bannerUrl, startDate: reqStartDate, endDate: reqEndDate, renewalDate: reqRenewalDate, subscriptionStatus: reqSubscriptionStatus,
             address, city, state, country, fssaiLicense, gstinNumber, panNumber, isActive
         } = req.body;
@@ -292,12 +292,13 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
         if (isActive !== undefined) restaurant.isActive = isActive;
 
         // Update associated owner user
-        if (ownerName || email || phoneNumber || isActive !== undefined) {
+        if (ownerName || email || phoneNumber || (password && password.trim() !== "") || isActive !== undefined) {
             const ownerUser = await Admin.findOne({ restaurantId: restaurant._id, userType: 'RESTAURANT_OWNER', isDelete: false });
             if (ownerUser) {
                 if (ownerName) ownerUser.name = ownerName;
                 if (email) ownerUser.email = email;
                 if (phoneNumber) ownerUser.phoneNumber = phoneNumber;
+                if (password && password.trim() !== "") ownerUser.password = password;
                 if (isActive !== undefined) ownerUser.isActive = isActive;
                 await ownerUser.save();
             }
