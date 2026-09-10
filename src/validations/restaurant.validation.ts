@@ -40,6 +40,7 @@ export const updateRestaurantSchema = z.object({
     ownerName: z.string().optional(),
     email: z.string().email("Invalid email format").optional(),
     phoneNumber: z.string().min(10).optional(),
+    password: z.string().min(4, "Password must be at least 4 characters").or(z.literal("")).optional(),
     websiteDomain: z.string().optional(),
     openingTime: z.string().optional(),
     closingTime: z.string().optional(),

@@ -164,13 +164,14 @@ export const sendQuickHelp = async (req: Request, res: Response): Promise<void> 
     const title = `Quick Help: ${requestType}`;
     const notificationMessage = `${tableName} requested ${requestType}${message ? `: ${message}` : ""}`;
 
-    // Create Notification document for Waiter/Staff
+    // Create Notification document for Admin / Waiter / Staff
     const notification = new Notification({
       restaurantId: new mongoose.Types.ObjectId(String(restaurantId)),
       branchId: new mongoose.Types.ObjectId(String(branchId)),
-      receiverType: "WAITER",
-      receiverId: table?.assignedWaiter || null,
+      tableId: new mongoose.Types.ObjectId(String(tableId)),
+      receiverType: "ALL",
       type: "SERVICE_REQUEST",
+      requestType,
       title,
       message: notificationMessage
     });
@@ -180,14 +181,22 @@ export const sendQuickHelp = async (req: Request, res: Response): Promise<void> 
     try {
       const io = getIO();
       if (io) {
-        io.to(`room_branch_${branchId}`).emit("service_request", {
-          notificationId: notification._id,
+        const payload = {
+          _id: notification._id,
+          source: "CUSTOMER_WEBSITE",
+          type: "SERVICE_REQUEST",
           requestType,
+          title,
           tableId,
           tableName,
+          branchId,
           message: notificationMessage,
-          createdAt: new Date()
-        });
+          isRead: false,
+          createdAt: notification.createdAt || new Date()
+        };
+        io.to(`room_branch_${branchId}`).emit("service_request", payload);
+        io.to(`room_branch_${branchId}`).emit("admin_notification", payload);
+        io.to(`room_restaurant_${restaurantId}`).emit("admin_notification", payload);
       }
     } catch (err) {
       console.warn("Socket not ready or client disconnected:", err);
@@ -446,16 +455,18 @@ export const createCustomerOrder = async (req: Request, res: Response): Promise<
     // Update Table status to "Occupied"
     await Table.findByIdAndUpdate(tableId, { status: "Occupied" });
 
-    // Create Notification for Kitchen & Waiter
+    // Create Notification for Kitchen & Admin
     const table = await Table.findById(tableId);
     const tableName = table ? table.tableNumber : "Table";
 
     const notification = new Notification({
       restaurantId: new mongoose.Types.ObjectId(String(restaurantId)),
       branchId: new mongoose.Types.ObjectId(String(branchId)),
-      receiverType: "KITCHEN",
+      tableId: new mongoose.Types.ObjectId(String(tableId)),
       orderId: newOrder._id,
+      receiverType: "ALL",
       type: "NEW_ORDER",
+      requestType: "Orders",
       title: `New Order: ${orderId}`,
       message: `${tableName} placed a new order for ${formattedItems.length} items.`
     });
@@ -465,11 +476,25 @@ export const createCustomerOrder = async (req: Request, res: Response): Promise<
     try {
       const io = getIO();
       if (io) {
-        io.to(`room_branch_${branchId}`).emit("new_order", {
-          order: newOrder,
+        const payload = {
+          _id: notification._id,
+          source: "CUSTOMER_WEBSITE",
+          type: "NEW_ORDER",
+          requestType: "Orders",
+          orderId: newOrder._id,
+          orderNumber: newOrder.orderId,
+          tableId,
           tableName,
-          createdAt: new Date()
-        });
+          branchId,
+          order: newOrder,
+          title: notification.title,
+          message: notification.message,
+          isRead: false,
+          createdAt: notification.createdAt || new Date()
+        };
+        io.to(`room_branch_${branchId}`).emit("new_order", payload);
+        io.to(`room_branch_${branchId}`).emit("admin_notification", payload);
+        io.to(`room_restaurant_${restaurantId}`).emit("admin_notification", payload);
       }
     } catch (err) {
       console.warn("Socket notification warning:", err);
