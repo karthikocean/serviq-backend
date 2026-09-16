@@ -30,7 +30,8 @@ export const checkSubscriptionFeature = (moduleKey: string) => {
             // Get active subscription and populate the plan
             const subscription = await Subscription.findOne({
                 restaurant: restaurantId,
-                status: "Active"
+                isDelete: false,
+                $or: [{ status: "Active" }, { isActive: true }]
             }).populate("plan");
 
             if (!subscription) {
@@ -40,10 +41,20 @@ export const checkSubscriptionFeature = (moduleKey: string) => {
 
             // Check if feature is in plan's featuresIncluded or subscription.features
             const plan = subscription.plan as any;
-            const features = plan?.featuresIncluded || subscription.features;
+            const features = subscription.features || plan?.featuresIncluded;
             
             const mappedKey = FEATURE_MAP[moduleKey] || moduleKey;
-            const hasFeature = features && features[mappedKey] === true;
+            
+            let hasFeature = true;
+            if (features) {
+                if (Array.isArray(features)) {
+                    hasFeature = features.some((f: any) => 
+                        f === mappedKey || f === moduleKey || f?.key === mappedKey || f?._id?.toString() === mappedKey
+                    );
+                } else if (typeof features === 'object' && Object.keys(features).length > 0) {
+                    hasFeature = features[mappedKey] !== false && features[moduleKey] !== false;
+                }
+            }
 
             if (!hasFeature) {
                 res.status(403).json({ success: false, message: `Your plan does not include access to ${moduleKey}` });

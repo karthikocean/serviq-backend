@@ -23,8 +23,8 @@ const ALLOWED_DOCUMENT_EXTENSIONS = [".pdf", ".doc", ".docx", ".xls", ".xlsx", "
 
 const ALLOWED_MIME_TYPES = ["image/png", "image/jpeg", "image/jpg", "application/pdf"];
 const ALLOWED_EXTENSIONS = [".png", ".jpg", ".jpeg", ".pdf"];
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
-const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; 
+const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024; 
 
 class ImageService {
     async uploadImage(
@@ -64,7 +64,6 @@ class ImageService {
             fs.mkdirSync(folderPath, { recursive: true });
         }
 
-        // Delete old file if provided
         if (oldFileName) {
             const oldPath = path.join(folderPath, oldFileName);
             if (fs.existsSync(oldPath)) {
@@ -135,7 +134,6 @@ class ImageService {
             }
         }
 
-        // Save file
         if (file.mv) {
             await new Promise<void>((resolve, reject) => {
                 file.mv(filePath, (err: any) => {
@@ -158,9 +156,6 @@ class ImageService {
         };
     }
 
-    /* ----------------------------------------
-     UNIFIED FILE UPLOAD FUNCTION
-    ---------------------------------------- */
     async uploadFile(options: UnifiedUploadOptions): Promise<UploadResponse> {
         const { file, type, moduleName, oldFileName, req } = options;
         if (type === "image") {
@@ -170,12 +165,14 @@ class ImageService {
         }
     }
 
-    /* ----------------------------------------
-     DELETE IMAGE
-    ---------------------------------------- */
     async deleteImage(moduleName: string, fileName: string): Promise<boolean> {
         try {
-            let filePath = path.join(process.cwd(), "public", moduleName, fileName);
+            let filePath = path.join(process.cwd(), "public", "uploads", moduleName, fileName);
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+                return true;
+            }
+            filePath = path.join(process.cwd(), "public", moduleName, fileName);
             if (fs.existsSync(filePath)) {
                 fs.unlinkSync(filePath);
                 return true;
@@ -194,7 +191,12 @@ class ImageService {
 
     async deleteDocument(moduleName: string, fileName: string): Promise<boolean> {
         try {
-            let filePath = path.join(process.cwd(), "public", moduleName, fileName);
+            let filePath = path.join(process.cwd(), "public", "uploads", moduleName, fileName);
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+                return true;
+            }
+            filePath = path.join(process.cwd(), "public", moduleName, fileName);
             if (fs.existsSync(filePath)) {
                 fs.unlinkSync(filePath);
                 return true;

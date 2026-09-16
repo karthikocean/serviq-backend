@@ -13,6 +13,7 @@ import ticketRoutes from "./super-admin/ticket.route";
 import notificationRoutes from "./super-admin/system-notification.route";
 import settingRoutes from "./super-admin/setting.route";
 import dashboardRoutes from "./super-admin/dashboard.route";
+import uploadRoutes from "./upload.route";
 import { protectSuperAdmin } from "../middleware/authMiddleware";
 
 const router = Router();
@@ -31,5 +32,6 @@ router.use("/leads", protectSuperAdmin, leadRoutes);
 router.use("/tickets", protectSuperAdmin, ticketRoutes);
 router.use("/notifications", protectSuperAdmin, notificationRoutes);
 router.use("/settings", protectSuperAdmin, settingRoutes);
+router.use("/upload", protectSuperAdmin, uploadRoutes);
 
 export default router;

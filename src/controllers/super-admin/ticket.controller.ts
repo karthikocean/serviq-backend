@@ -43,10 +43,26 @@ export const getAllTickets = async (req: Request, res: Response): Promise<void> 
     }
 };
 
+export const getTicketById = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const ticket = await Ticket.findById(id).lean();
+
+        if (!ticket) {
+            sendError(res, "Ticket not found.", StatusCodes.NOT_FOUND);
+            return;
+        }
+
+        sendSuccess(res, "Ticket fetched successfully.", ticket);
+    } catch (error) {
+        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
 export const updateTicketStatus = async (req: Request, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
-        const { status } = req.body;
+        const { status, resolution } = req.body;
 
         const ticket = await Ticket.findById(id);
         if (!ticket) {
@@ -54,13 +70,20 @@ export const updateTicketStatus = async (req: Request, res: Response): Promise<v
             return;
         }
 
-        ticket.status = status;
-        if (status === 'Resolved' || status === 'Closed') {
-            ticket.resolvedAt = new Date();
+        if (status) {
+            ticket.status = status;
+            if (status === 'Resolved' || status === 'Closed') {
+                ticket.resolvedAt = new Date();
+            }
         }
+
+        if (resolution !== undefined) {
+            ticket.resolution = resolution;
+        }
+
         await ticket.save();
 
-        sendSuccess(res, "Ticket status updated.", ticket);
+        sendSuccess(res, "Ticket status and resolution updated successfully.", ticket);
     } catch (error) {
         sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
     }
@@ -88,3 +111,4 @@ export const assignTicket = async (req: Request, res: Response): Promise<void> =
         sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
+

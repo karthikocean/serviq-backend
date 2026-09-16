@@ -6,3 +6,19 @@ export const buyAddonSchema = z.object({
     paymentMethod: z.enum(["Credit Card", "UPI", "NetBanking", "Cash"]),
   }),
 });
+
+export const renewPlanSchema = z.object({
+  body: z.object({
+    billingCycle: z.enum(["Monthly", "Annually"]).optional(),
+    paymentMethod: z.string().min(1, "Payment method is required"),
+    couponCode: z.string().optional()
+  }),
+});
+
+export const upgradePlanSchema = z.object({
+  body: z.object({
+    newPlanId: z.string().min(1, "New plan ID is required"),
+    billingCycle: z.enum(["Monthly", "Annually"]).optional(),
+    paymentMethod: z.string().min(1, "Payment method is required")
+  }),
+});

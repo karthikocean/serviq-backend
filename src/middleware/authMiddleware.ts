@@ -224,13 +224,25 @@ export const checkPermission = (moduleKey: string, action: 'view' | 'add' | 'edi
       // 2. Subscription Check
       const premiumModules = ['menu', 'tables', 'orders', 'waiter-list', 'kitchen-list', 'qr-code-config', 'inventory'];
       if (premiumModules.includes(moduleKey)) {
-        const subscription = await Subscription.findOne({ restaurantId: user.restaurantId, isActive: true, isDelete: false });
+        const subscription = await Subscription.findOne({ 
+          restaurant: user.restaurantId, 
+          isDelete: false,
+          $or: [{ status: "Active" }, { isActive: true }]
+        });
         if (!subscription) {
           res.status(StatusCodes.PAYMENT_REQUIRED).json({ success: false, message: "No active subscription found." });
           return;
         }
 
-        const hasFeature = (subscription.features as any)?.[moduleKey] === true;
+        const features = subscription.features as any;
+        let hasFeature = true;
+        if (features) {
+          if (Array.isArray(features)) {
+            hasFeature = features.some((f: any) => f === moduleKey || f?.key === moduleKey);
+          } else if (typeof features === 'object' && Object.keys(features).length > 0) {
+            hasFeature = features[moduleKey] !== false;
+          }
+        }
         if (!hasFeature) {
           res.status(StatusCodes.PAYMENT_REQUIRED).json({ 
             success: false, 
