@@ -8,15 +8,21 @@ interface DateFilter {
   endDate?: string;
 }
 
+const isValidDateStr = (d?: string): boolean => {
+  if (!d || d === "undefined" || d === "null" || d.trim() === "") return false;
+  const parsed = Date.parse(d);
+  return !isNaN(parsed);
+};
+
 const buildDateMatch = ({ startDate, endDate }: DateFilter) => {
   const match: any = {};
-  if (startDate) {
-    const start = new Date(startDate);
+  if (isValidDateStr(startDate)) {
+    const start = new Date(startDate!);
     start.setUTCHours(0, 0, 0, 0);
     match.$gte = start;
   }
-  if (endDate) {
-    const end = new Date(endDate);
+  if (isValidDateStr(endDate)) {
+    const end = new Date(endDate!);
     end.setUTCHours(23, 59, 59, 999);
     match.$lte = end;
   }
