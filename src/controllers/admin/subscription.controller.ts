@@ -3,7 +3,13 @@ import { StatusCodes } from "http-status-codes";
 import { sendSuccess, sendError } from "../../utils/response";
 import { pagination } from "../../utils/pagination";
 import { AuthRequest } from "../../middleware/authMiddleware";
-import { getSubscriptionDashboardData, getSubscriptionHistoryList, purchaseBranchAddon } from "../../services/admin/subscription.service";
+import { 
+  getSubscriptionDashboardData, 
+  getSubscriptionHistoryList, 
+  purchaseBranchAddon,
+  renewSubscriptionPlan,
+  upgradeSubscriptionPlan
+} from "../../services/admin/subscription.service";
 
 export const getSubscriptionDashboard = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -52,5 +58,33 @@ export const buyBranchAddon = async (req: AuthRequest, res: Response): Promise<v
     } else {
       sendError(res, "Failed to purchase branch addon", StatusCodes.INTERNAL_SERVER_ERROR);
     }
+  }
+};
+
+export const renewPlan = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.user?.restaurantId;
+    if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    const { billingCycle, paymentMethod, couponCode } = req.body;
+
+    const result = await renewSubscriptionPlan(restaurantId, billingCycle, paymentMethod, couponCode);
+    sendSuccess(res, result.message, result);
+  } catch (error: any) {
+    sendError(res, error.message || "Failed to renew plan", StatusCodes.BAD_REQUEST);
+  }
+};
+
+export const upgradePlan = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.user?.restaurantId;
+    if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    const { newPlanId, billingCycle, paymentMethod } = req.body;
+
+    const result = await upgradeSubscriptionPlan(restaurantId, newPlanId, billingCycle, paymentMethod);
+    sendSuccess(res, result.message, result);
+  } catch (error: any) {
+    sendError(res, error.message || "Failed to upgrade plan", StatusCodes.BAD_REQUEST);
   }
 };

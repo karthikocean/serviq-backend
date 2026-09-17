@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getMyTickets, createTicket } from "../../controllers/admin/ticket.controller";
+import { getMyTickets, createTicket, getTicketById } from "../../controllers/admin/ticket.controller";
 
 const router = Router();
 
@@ -53,6 +53,28 @@ router.get("/", getMyTickets);
 
 /**
  * @swagger
+ * /api/admin/tickets/{id}:
+ *   get:
+ *     summary: Get ticket by ID for restaurant admin
+ *     tags: [Admin Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Ticket fetched successfully
+ *       404:
+ *         description: Ticket not found
+ */
+router.get("/:id", getTicketById);
+
+/**
+ * @swagger
  * /api/admin/tickets:
  *   post:
  *     summary: Raise a new support ticket
@@ -81,3 +103,4 @@ router.get("/", getMyTickets);
 router.post("/", createTicket);
 
 export default router;
+

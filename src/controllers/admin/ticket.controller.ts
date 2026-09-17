@@ -101,3 +101,29 @@ export const createTicket = async (req: Request, res: Response): Promise<void> =
         sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
+
+export const getTicketById = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const admin = (req as any).user;
+        if (!admin || !admin.restaurantId) {
+            sendError(res, "Unauthorized access.", StatusCodes.UNAUTHORIZED);
+            return;
+        }
+
+        const { id } = req.params;
+        const ticket = await Ticket.findOne({ _id: id, restaurantId: admin.restaurantId })
+            .populate('createdBy', 'firstName lastName email')
+            .lean();
+
+        if (!ticket) {
+            sendError(res, "Ticket not found.", StatusCodes.NOT_FOUND);
+            return;
+        }
+
+        sendSuccess(res, "Ticket fetched successfully.", ticket);
+    } catch (error) {
+        console.error(error);
+        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+

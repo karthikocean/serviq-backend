@@ -3,12 +3,13 @@ import Subscription from "../../models/Subscription";
 import Payment from "../../models/Payment";
 import Branch from "../../models/Branch";
 import SubscriptionHistory from "../../models/SubscriptionHistory";
+import Plan from "../../models/Plan";
 
 export const getSubscriptionDashboardData = async (restaurantId: string) => {
   // 1. Fetch active subscription and populated plan
   const activeSubscription = await Subscription.findOne({
     restaurant: restaurantId,
-    status: { $in: ["Active", "Expiring Soon"] },
+    $or: [{ status: "Active" }, { isActive: true }],
     isDelete: false
   }).populate("plan");
 
@@ -109,7 +110,7 @@ export const getSubscriptionHistoryList = async (restaurantId: string, skip: num
 export const purchaseBranchAddon = async (restaurantId: string, additionalSlots: number, paymentMethod: string) => {
   const activeSubscription = await Subscription.findOne({
     restaurant: restaurantId,
-    status: { $in: ["Active", "Expiring Soon"] },
+    $or: [{ status: "Active" }, { isActive: true }],
     isDelete: false
   }).populate("plan");
 
@@ -172,3 +173,205 @@ export const purchaseBranchAddon = async (restaurantId: string, additionalSlots:
     }
   };
 };
+
+export const renewSubscriptionPlan = async (
+  restaurantId: string,
+  billingCycle?: "Monthly" | "Annually",
+  paymentMethod: string = "Online",
+  couponCode?: string
+) => {
+  const currentSub = await Subscription.findOne({
+    restaurant: restaurantId,
+    isDelete: false
+  }).sort({ createdAt: -1 });
+
+  if (!currentSub) {
+    throw new Error("No subscription found to renew.");
+  }
+
+  const plan = await Plan.findById(currentSub.plan);
+  if (!plan) {
+    throw new Error("Plan associated with current subscription not found.");
+  }
+
+  const cycle = billingCycle || currentSub.billingCycle;
+  const planPrice = cycle === "Annually" ? plan.annualPrice : plan.monthlyPrice;
+
+  let addonAmount = 0;
+  if (currentSub.extraBranches > 0) {
+    addonAmount = currentSub.extraBranches * (cycle === "Annually" ? 699 * 12 : 699);
+  }
+
+  let totalAmount = planPrice + addonAmount;
+
+  // Calculate new dates
+  const now = new Date();
+  const startDate = currentSub.endDate && new Date(currentSub.endDate) > now ? new Date(currentSub.endDate) : now;
+  const endDate = new Date(startDate);
+  if (cycle === "Annually") {
+    endDate.setFullYear(endDate.getFullYear() + 1);
+  } else {
+    endDate.setMonth(endDate.getMonth() + 1);
+  }
+
+  // Deactivate old subscription
+  currentSub.status = "Expired";
+  currentSub.isActive = false;
+  await currentSub.save();
+
+  const count = await Subscription.countDocuments();
+  const subId = `SUB-${String(count + 1).padStart(6, '0')}`;
+
+  const newSub = new Subscription({
+    subscriptionId: subId,
+    restaurant: restaurantId,
+    plan: plan._id,
+    billingCycle: cycle,
+    startDate,
+    endDate,
+    renewalDate: endDate,
+    maxBranches: plan.maxBranches,
+    features: plan.featuresIncluded,
+    status: "Active",
+    isActive: true,
+    isDelete: false,
+    planPrice,
+    addonAmount,
+    amountPaid: totalAmount,
+    extraBranches: currentSub.extraBranches,
+    renewedFrom: currentSub._id
+  });
+
+  await newSub.save();
+
+  // Create payment record
+  const transactionId = `TXN-RENEW-${Date.now()}`;
+  const payment = new Payment({
+    restaurant: restaurantId,
+    subscription: newSub._id,
+    transactionId,
+    amount: totalAmount,
+    currency: "INR",
+    paymentDate: new Date(),
+    paymentStatus: "Paid",
+    paymentMethod,
+    notes: `Renewed ${plan.planName} (${cycle})`
+  });
+  await payment.save();
+
+  // Log to history
+  const history = new SubscriptionHistory({
+    restaurant: restaurantId,
+    subscription: newSub._id,
+    action: "Renewed",
+    details: `Renewed ${plan.planName} for ${cycle} cycle.`,
+    amountPaid: totalAmount
+  });
+  await history.save();
+
+  return {
+    success: true,
+    message: `Plan renewed successfully until ${endDate.toISOString().split('T')[0]}.`,
+    subscription: newSub
+  };
+};
+
+export const upgradeSubscriptionPlan = async (
+  restaurantId: string,
+  newPlanId: string,
+  billingCycle?: "Monthly" | "Annually",
+  paymentMethod: string = "Online"
+) => {
+  const currentSub = await Subscription.findOne({
+    restaurant: restaurantId,
+    $or: [{ status: "Active" }, { isActive: true }],
+    isDelete: false
+  }).populate("plan");
+
+  const newPlan = await Plan.findById(newPlanId);
+  if (!newPlan) {
+    throw new Error("Target plan not found.");
+  }
+
+  const now = new Date();
+  const cycle = billingCycle || currentSub?.billingCycle || "Monthly";
+  const newPlanPrice = cycle === "Annually" ? newPlan.annualPrice : newPlan.monthlyPrice;
+
+  let extraBranches = currentSub?.extraBranches || 0;
+  let addonAmount = extraBranches * (cycle === "Annually" ? 699 * 12 : 699);
+  let totalAmount = newPlanPrice + addonAmount;
+
+  const endDate = new Date(now);
+  if (cycle === "Annually") {
+    endDate.setFullYear(endDate.getFullYear() + 1);
+  } else {
+    endDate.setMonth(endDate.getMonth() + 1);
+  }
+
+  if (currentSub) {
+    currentSub.status = "Expired";
+    currentSub.isActive = false;
+    await currentSub.save();
+  }
+
+  const count = await Subscription.countDocuments();
+  const subId = `SUB-${String(count + 1).padStart(6, '0')}`;
+
+  const newSub = new Subscription({
+    subscriptionId: subId,
+    restaurant: restaurantId,
+    plan: newPlan._id,
+    billingCycle: cycle,
+    startDate: now,
+    endDate,
+    renewalDate: endDate,
+    maxBranches: newPlan.maxBranches,
+    features: newPlan.featuresIncluded,
+    status: "Active",
+    isActive: true,
+    isDelete: false,
+    planPrice: newPlanPrice,
+    addonAmount,
+    amountPaid: totalAmount,
+    extraBranches,
+    changedFrom: currentSub ? currentSub._id : null
+  });
+
+  await newSub.save();
+
+  // Create payment record
+  const transactionId = `TXN-UPGRADE-${Date.now()}`;
+  const payment = new Payment({
+    restaurant: restaurantId,
+    subscription: newSub._id,
+    transactionId,
+    amount: totalAmount,
+    currency: "INR",
+    paymentDate: now,
+    paymentStatus: "Paid",
+    paymentMethod,
+    notes: `Upgraded plan to ${newPlan.planName} (${cycle})`
+  });
+  await payment.save();
+
+  // Log to history
+  const history = new SubscriptionHistory({
+    restaurant: restaurantId,
+    subscription: newSub._id,
+    action: "Plan Changed",
+    details: `Upgraded plan to ${newPlan.planName}.`,
+    previousPlan: currentSub?.plan ? (currentSub.plan as any)._id : null,
+    previousPlanName: currentSub?.plan ? (currentSub.plan as any).planName : undefined,
+    newPlan: newPlan._id,
+    newPlanName: newPlan.planName,
+    amountPaid: totalAmount
+  });
+  await history.save();
+
+  return {
+    success: true,
+    message: `Plan upgraded to ${newPlan.planName} successfully.`,
+    subscription: newSub
+  };
+};
+

@@ -13,6 +13,7 @@ export interface ITicket extends Document {
   status: string;
   resolution: string;
   resolvedAt: Date | null;
+  isReadBySuperAdmin?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -30,7 +31,8 @@ const ticketSchema = new Schema<ITicket>(
     description: { type: String, required: true },
     status: { type: String, default: 'Open' },
     resolution: { type: String, default: '' },
-    resolvedAt: { type: Date, default: null }
+    resolvedAt: { type: Date, default: null },
+    isReadBySuperAdmin: { type: Boolean, default: false }
   },
   { timestamps: true }
 );

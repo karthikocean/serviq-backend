@@ -7,6 +7,7 @@ export interface ISystemNotification extends Document {
   targetPlan: mongoose.Types.ObjectId | null;
   targetRestaurants: mongoose.Types.ObjectId[];
   readByRestaurants: mongoose.Types.ObjectId[];
+  isReadBySuperAdmin?: boolean;
   body: string;
   isScheduled: boolean;
   scheduledDate: string;
@@ -32,6 +33,7 @@ const systemNotificationSchema = new Schema<ISystemNotification>(
     },
     targetRestaurants: [{ type: Schema.Types.ObjectId, ref: 'Restaurant' }],
     readByRestaurants: [{ type: Schema.Types.ObjectId, ref: 'Restaurant' }],
+    isReadBySuperAdmin: { type: Boolean, default: false },
     body: { type: String, required: true },
     isScheduled: { type: Boolean, default: false },
     scheduledDate: { type: String, default: '' },

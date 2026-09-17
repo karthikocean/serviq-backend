@@ -270,11 +270,11 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
             }
         }
 
-        if (restaurantName) restaurant.restaurantName = restaurantName;
-        if (logoUrl) restaurant.logoUrl = logoUrl;
-        if (ownerName) restaurant.ownerName = ownerName;
-        if (email) restaurant.email = email;
-        if (phoneNumber) restaurant.phoneNumber = phoneNumber;
+        if (restaurantName && restaurantName.trim() !== "") restaurant.restaurantName = restaurantName;
+        if (logoUrl !== undefined) restaurant.logoUrl = logoUrl;
+        if (ownerName && ownerName.trim() !== "") restaurant.ownerName = ownerName;
+        if (email && email.trim() !== "") restaurant.email = email;
+        if (phoneNumber && phoneNumber.trim() !== "") restaurant.phoneNumber = phoneNumber;
 
         // Update new UI fields if provided
         if (websiteDomain !== undefined) restaurant.websiteDomain = websiteDomain;

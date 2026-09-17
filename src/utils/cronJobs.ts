@@ -25,9 +25,9 @@ export const startCronJobs = () => {
                 await sub.save();
             }
 
-            // 2. Active / Expiring Soon / Cancelled -> Expired
+            // 2. Active / Cancelled -> Expired
             const expiredSubscriptions = await Subscription.find({
-                status: { $in: ['Active', 'Expiring Soon', 'Cancelled'] },
+                status: { $in: ['Active', 'Cancelled'] },
                 endDate: { $lt: currentDate },
                 isDelete: false
             });
@@ -55,7 +55,7 @@ export const startCronJobs = () => {
                 const validSubCount = await Subscription.countDocuments({
                     restaurant: restId,
                     $or: [
-                        { status: { $in: ['Active', 'Expiring Soon'] } },
+                        { status: 'Active' },
                         { status: 'Cancelled', endDate: { $gt: currentDate } }
                     ],
                     isDelete: false
@@ -74,17 +74,7 @@ export const startCronJobs = () => {
                 }
             }
 
-            // 4. Mark Expiring Soon
-            const expiringSoonUpdate = await Subscription.updateMany(
-                { 
-                    endDate: { $gte: currentDate, $lte: next7Days }, 
-                    status: "Active",
-                    isDelete: false 
-                },
-                { $set: { status: "Expiring Soon" } }
-            );
-
-            console.log(`Cron completed. Activated: ${scheduledSubscriptions.length}, Expired: ${expiredSubscriptions.length}, Expiring Soon: ${expiringSoonUpdate.modifiedCount}`);
+            console.log(`Cron completed. Activated: ${scheduledSubscriptions.length}, Expired: ${expiredSubscriptions.length}`);
 
         } catch (error) {
             console.error('Error in Subscription Cron Job:', error);

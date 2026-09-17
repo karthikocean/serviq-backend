@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllTickets, updateTicketStatus, assignTicket } from "../../controllers/super-admin/ticket.controller";
+import { getAllTickets, getTicketById, updateTicketStatus, assignTicket } from "../../controllers/super-admin/ticket.controller";
 
 const router = Router();
 /**
@@ -50,12 +50,33 @@ const router = Router();
  */
 router.get("/", getAllTickets);
 
+/**
+ * @swagger
+ * /api/super-admin/tickets/{id}:
+ *   get:
+ *     summary: Get ticket by ID
+ *     tags: [Super Admin Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Ticket fetched successfully
+ *       404:
+ *         description: Ticket not found
+ */
+router.get("/:id", getTicketById);
 
 /**
  * @swagger
  * /api/super-admin/tickets/{id}/status:
  *   patch:
- *     summary: Update ticket status
+ *     summary: Update ticket status and resolution/reply
  *     tags: [Super Admin Tickets]
  *     security:
  *       - bearerAuth: []
@@ -74,9 +95,11 @@ router.get("/", getAllTickets);
  *             properties:
  *               status:
  *                 type: string
+ *               resolution:
+ *                 type: string
  *     responses:
  *       200:
- *         description: Ticket status updated successfully
+ *         description: Ticket status and resolution updated successfully
  */
 router.patch("/:id/status", updateTicketStatus);
 

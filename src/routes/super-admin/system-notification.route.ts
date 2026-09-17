@@ -1,42 +1,103 @@
 import { Router } from "express";
-import { getAllNotifications, createNotification, cancelNotification, sendDraftNotification, deleteNotification } from "../../controllers/super-admin/system-notification.controller";
+import {
+    getAllNotifications,
+    getSuperAdminHeaderNotifications,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+    createNotification,
+    cancelNotification,
+    sendDraftNotification,
+    deleteNotification
+} from "../../controllers/super-admin/system-notification.controller";
 
 const router = Router();
 /**
  * @swagger
  * tags:
  *   name: Super Admin System Notifications
- *   description: System Notifications management for Super Admin
+ *   description: System Notifications & Header Notification Feed management for Super Admin
  */
 
 /**
  * @swagger
  * /api/super-admin/notifications:
  *   get:
- *     summary: Get all system notifications
+ *     summary: Get super admin header notifications filtered by type (All, Alerts, Tickets, Unread)
  *     tags: [Super Admin System Notifications]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *         description: Filter type (all, alerts, tickets, unread)
+ *       - in: query
+ *         name: tab
+ *         schema:
+ *           type: string
+ *       - in: query
  *         name: page
  *         schema:
  *           type: integer
- *           default: 1
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
- *           default: 10
- *       - in: query
- *         name: filterType
- *         schema:
- *           type: string
  *     responses:
  *       200:
  *         description: Notifications fetched successfully
  */
-router.get("/", getAllNotifications);
+router.get("/", getSuperAdminHeaderNotifications);
+
+/**
+ * @swagger
+ * /api/super-admin/notifications/system:
+ *   get:
+ *     summary: Get all system broadcast notifications (management view)
+ *     tags: [Super Admin System Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: System notifications fetched successfully
+ */
+router.get("/system", getAllNotifications);
+
+/**
+ * @swagger
+ * /api/super-admin/notifications/read-all:
+ *   put:
+ *     summary: Mark all super admin notifications as read
+ *     tags: [Super Admin System Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All notifications marked as read
+ */
+router.put("/read-all", markAllNotificationsAsRead);
+router.put("/mark-all-read", markAllNotificationsAsRead);
+
+/**
+ * @swagger
+ * /api/super-admin/notifications/{id}/read:
+ *   put:
+ *     summary: Mark a specific notification (Alert or Ticket) as read for super admin
+ *     tags: [Super Admin System Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Notification marked as read
+ */
+router.put("/:id/read", markNotificationAsRead);
 
 /**
  * @swagger

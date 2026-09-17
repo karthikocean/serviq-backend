@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import SystemNotification from "../../models/SystemNotification";
+import Ticket from "../../models/Ticket";
 import { sendSuccess, sendError } from "../../utils/response";
 import { pagination } from "../../utils/pagination";
 
@@ -23,6 +24,134 @@ export const getAllNotifications = async (req: Request, res: Response): Promise<
         pagination(total, notifications, limit, pageIndex, res, "Notifications fetched successfully.");
     } catch (error) {
         sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
+export const getSuperAdminHeaderNotifications = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const typeFilter = req.query.type
+            ? String(req.query.type).trim().toLowerCase()
+            : (req.query.filterType ? String(req.query.filterType).trim().toLowerCase() : (req.query.tab ? String(req.query.tab).trim().toLowerCase() : "all"));
+
+        // 1. Fetch System Notifications (Alerts)
+        const sysNotifs = await SystemNotification.find({}).sort({ createdAt: -1 }).lean();
+        const alertNotifications = sysNotifs.map((sys: any) => ({
+            _id: sys._id,
+            source: "SYSTEM_NOTIFICATION",
+            type: "Alerts",
+            category: "Alerts",
+            title: sys.subject,
+            message: sys.body,
+            status: sys.status,
+            isRead: Boolean(sys.isReadBySuperAdmin),
+            createdAt: sys.createdAt
+        }));
+
+        // 2. Fetch Ticket Notifications
+        const ticketDocs = await Ticket.find({}).sort({ createdAt: -1 }).lean();
+        const ticketNotifications = ticketDocs.map((t: any) => ({
+            _id: t._id,
+            source: "TICKET",
+            type: "Tickets",
+            category: "Tickets",
+            ticketNumber: t.ticketNumber,
+            title: `${t.ticketNumber} ${t.subject}`,
+            message: t.description,
+            restaurantName: t.restaurantName || "Restaurant",
+            status: t.status,
+            isRead: Boolean(t.isReadBySuperAdmin),
+            createdAt: t.createdAt
+        }));
+
+        // 3. Combine and compute counts
+        const allNotifications = [...alertNotifications, ...ticketNotifications].sort(
+            (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+
+        const unreadAlerts = alertNotifications.filter((n: any) => !n.isRead).length;
+        const unreadTickets = ticketNotifications.filter((n: any) => !n.isRead).length;
+        const totalUnread = unreadAlerts + unreadTickets;
+
+        const counts = {
+            all: allNotifications.length,
+            alerts: alertNotifications.length,
+            tickets: ticketNotifications.length,
+            unread: totalUnread
+        };
+
+        // 4. Filter by requested type / tab
+        let filteredNotifications = [...allNotifications];
+        if (typeFilter === "alerts" || typeFilter === "alert") {
+            filteredNotifications = alertNotifications;
+        } else if (typeFilter === "tickets" || typeFilter === "ticket") {
+            filteredNotifications = ticketNotifications;
+        } else if (typeFilter === "unread") {
+            filteredNotifications = allNotifications.filter((n: any) => !n.isRead);
+        }
+
+        // Pagination if requested
+        const page = req.query.page !== undefined ? parseInt(req.query.page as string) : undefined;
+        const limit = req.query.limit !== undefined ? parseInt(req.query.limit as string) : undefined;
+        let result = filteredNotifications;
+
+        if (page !== undefined && limit !== undefined && !isNaN(page) && !isNaN(limit) && limit > 0) {
+            const skip = Math.max(0, page) * limit;
+            result = filteredNotifications.slice(skip, skip + limit);
+        }
+
+        sendSuccess(res, "Super Admin notifications fetched successfully.", {
+            counts,
+            unreadCount: totalUnread,
+            notifications: result,
+            alerts: alertNotifications,
+            tickets: ticketNotifications
+        });
+    } catch (error: any) {
+        console.error("Super Admin Notifications Error:", error);
+        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
+export const markNotificationAsRead = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        if (!id) {
+            sendError(res, "Notification ID is required.", StatusCodes.BAD_REQUEST);
+            return;
+        }
+
+        // Check if ticket
+        const ticket = await Ticket.findById(id);
+        if (ticket) {
+            ticket.isReadBySuperAdmin = true;
+            await ticket.save();
+            sendSuccess(res, "Ticket notification marked as read.", ticket);
+            return;
+        }
+
+        // Check if system notification
+        const sysNotif = await SystemNotification.findById(id);
+        if (sysNotif) {
+            sysNotif.isReadBySuperAdmin = true;
+            await sysNotif.save();
+            sendSuccess(res, "System notification marked as read.", sysNotif);
+            return;
+        }
+
+        sendError(res, "Notification not found.", StatusCodes.NOT_FOUND);
+    } catch (error: any) {
+        sendError(res, "Failed to mark notification as read.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
+export const markAllNotificationsAsRead = async (req: Request, res: Response): Promise<void> => {
+    try {
+        await Ticket.updateMany({ isReadBySuperAdmin: false }, { isReadBySuperAdmin: true });
+        await SystemNotification.updateMany({ isReadBySuperAdmin: false }, { isReadBySuperAdmin: true });
+
+        sendSuccess(res, "All super admin notifications marked as read.");
+    } catch (error: any) {
+        sendError(res, "Failed to mark all notifications as read.", StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
