@@ -15,8 +15,12 @@ export const getMetrics = async (req: Request, res: Response): Promise<void> => 
 
 export const getReportsAnalytics = async (req: Request, res: Response): Promise<void> => {
     try {
+        const { startDate, endDate } = req.query;
         const { getReportsAnalyticsData } = await import("../../services/super-admin/dashboard.service");
-        const analytics = await getReportsAnalyticsData();
+        const analytics = await getReportsAnalyticsData({
+            startDate: startDate as string,
+            endDate: endDate as string
+        });
         sendSuccess(res, "Reports analytics fetched successfully.", analytics);
     } catch (error: any) {
         console.error("Error in getReportsAnalytics:", error);

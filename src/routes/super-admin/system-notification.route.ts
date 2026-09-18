@@ -2,9 +2,11 @@ import { Router } from "express";
 import {
     getAllNotifications,
     getSuperAdminHeaderNotifications,
+    getNotificationById,
     markNotificationAsRead,
     markAllNotificationsAsRead,
     createNotification,
+    updateNotification,
     cancelNotification,
     sendDraftNotification,
     deleteNotification
@@ -66,6 +68,27 @@ router.get("/system", getAllNotifications);
 
 /**
  * @swagger
+ * /api/super-admin/notifications/system/{id}:
+ *   get:
+ *     summary: Get single system notification details by ID
+ *     tags: [Super Admin System Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: System notification details fetched successfully
+ */
+router.get("/system/:id", getNotificationById);
+router.get("/details/:id", getNotificationById);
+
+/**
+ * @swagger
  * /api/super-admin/notifications/read-all:
  *   put:
  *     summary: Mark all super admin notifications as read
@@ -98,6 +121,26 @@ router.put("/mark-all-read", markAllNotificationsAsRead);
  *         description: Notification marked as read
  */
 router.put("/:id/read", markNotificationAsRead);
+
+/**
+ * @swagger
+ * /api/super-admin/notifications/{id}:
+ *   put:
+ *     summary: Update an existing system broadcast notification
+ *     tags: [Super Admin System Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Notification updated successfully
+ */
+router.put("/:id", updateNotification);
 
 /**
  * @swagger

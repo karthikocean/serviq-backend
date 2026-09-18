@@ -1,5 +1,13 @@
 import { Router } from "express";
-import { getPayments, downloadReceipt } from "../../controllers/super-admin/payment.controller";
+import {
+    getPayments,
+    getPaymentSummary,
+    getPaymentDetails,
+    recordPayment,
+    updatePaymentStatus,
+    deletePayment,
+    downloadReceipt
+} from "../../controllers/super-admin/payment.controller";
 
 const router = Router();
 
@@ -9,6 +17,21 @@ const router = Router();
  *   name: Super Admin Payments
  *   description: Manage restaurant subscription/addon payments & receipts
  */
+
+/**
+ * @swagger
+ * /api/super-admin/payments/summary:
+ *   get:
+ *     summary: Get payment summary metrics (total revenue, pending payments, status counts)
+ *     tags: [Super Admin Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Payment summary fetched successfully
+ */
+router.get("/summary", getPaymentSummary);
+router.get("/stats", getPaymentSummary);
 
 /**
  * @swagger
@@ -55,6 +78,61 @@ router.get("/", getPayments);
 
 /**
  * @swagger
+ * /api/super-admin/payments:
+ *   post:
+ *     summary: Record a new payment manually for a restaurant subscription
+ *     tags: [Super Admin Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       201:
+ *         description: Payment recorded successfully
+ */
+router.post("/", recordPayment);
+
+/**
+ * @swagger
+ * /api/super-admin/payments/{id}:
+ *   get:
+ *     summary: Get single payment details
+ *     tags: [Super Admin Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Payment details fetched successfully
+ */
+router.get("/:id", getPaymentDetails);
+
+/**
+ * @swagger
+ * /api/super-admin/payments/{id}/status:
+ *   put:
+ *     summary: Update payment status or payment details
+ *     tags: [Super Admin Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Payment updated successfully
+ */
+router.put("/:id/status", updatePaymentStatus);
+router.put("/:id", updatePaymentStatus);
+
+/**
+ * @swagger
  * /api/super-admin/payments/{id}/receipt:
  *   get:
  *     summary: Download payment receipt as PDF
@@ -84,5 +162,25 @@ router.get("/", getPayments);
  *         $ref: '#/components/responses/500'
  */
 router.get("/:id/receipt", downloadReceipt);
+
+/**
+ * @swagger
+ * /api/super-admin/payments/{id}:
+ *   delete:
+ *     summary: Delete payment record
+ *     tags: [Super Admin Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Payment record deleted successfully
+ */
+router.delete("/:id", deletePayment);
 
 export default router;

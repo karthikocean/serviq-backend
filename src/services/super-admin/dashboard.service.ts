@@ -75,10 +75,32 @@ export const getDashboardMetrics = async () => {
     };
 };
 
-export const getReportsAnalyticsData = async () => {
+const isValidDateStr = (d?: string): boolean => {
+    if (!d || d === "undefined" || d === "null" || d.trim() === "") return false;
+    const parsed = Date.parse(d);
+    return !isNaN(parsed);
+};
+
+export const getReportsAnalyticsData = async (dates?: { startDate?: string; endDate?: string }) => {
+    const { startDate, endDate } = dates || {};
+    const dateMatch: any = {};
+    if (isValidDateStr(startDate)) {
+        const start = new Date(startDate!);
+        start.setUTCHours(0, 0, 0, 0);
+        dateMatch.$gte = start;
+    }
+    if (isValidDateStr(endDate)) {
+        const end = new Date(endDate!);
+        end.setUTCHours(23, 59, 59, 999);
+        dateMatch.$lte = end;
+    }
+
+    const paymentDateMatch = Object.keys(dateMatch).length > 0 ? { paymentDate: dateMatch } : {};
+    const subDateMatch = Object.keys(dateMatch).length > 0 ? { createdAt: dateMatch } : {};
+
     // 1. Cumulative Revenue
     const cumulativeRevenueResult = await Payment.aggregate([
-        { $match: { isDelete: false, paymentStatus: "Paid" } },
+        { $match: { isDelete: false, paymentStatus: "Paid", ...paymentDateMatch } },
         { $group: { _id: null, total: { $sum: "$amount" } } }
     ]);
     const cumulativeRevenue = cumulativeRevenueResult.length > 0 ? cumulativeRevenueResult[0].total : 0;
@@ -86,22 +108,26 @@ export const getReportsAnalyticsData = async () => {
     const cumulativeRevenueGrowth = 24.5; // mocked growth
 
     // 2. Active Subscriptions
-    const activeSubscriptionsCount = await Subscription.countDocuments({ isDelete: false, isActive: true });
+    const activeSubscriptionsCount = await Subscription.countDocuments({ isDelete: false, isActive: true, ...subDateMatch });
     const activeSubscriptionsGrowth = 12.3; // mocked growth
 
     // 3. Monthly Revenue Growth
     const currentYear = new Date().getFullYear();
+    const monthlyRevenueMatch: any = {
+        isDelete: false,
+        paymentStatus: "Paid"
+    };
+    if (Object.keys(dateMatch).length > 0) {
+        monthlyRevenueMatch.paymentDate = dateMatch;
+    } else {
+        monthlyRevenueMatch.paymentDate = {
+            $gte: new Date(`${currentYear}-01-01`),
+            $lt: new Date(`${currentYear + 1}-01-01`)
+        };
+    }
+
     const monthlyRevenueResult = await Payment.aggregate([
-        { 
-            $match: { 
-                isDelete: false, 
-                paymentStatus: "Paid",
-                paymentDate: { 
-                    $gte: new Date(`${currentYear}-01-01`), 
-                    $lt: new Date(`${currentYear + 1}-01-01`) 
-                }
-            }
-        },
+        { $match: monthlyRevenueMatch },
         {
             $group: {
                 _id: { $month: "$paymentDate" },
@@ -121,7 +147,7 @@ export const getReportsAnalyticsData = async () => {
     });
 
     // 4. Revenue by Subscription Plan & ARR
-    const activeSubs = await Subscription.find({ isDelete: false, isActive: true }).populate('plan');
+    const activeSubs = await Subscription.find({ isDelete: false, isActive: true, ...subDateMatch }).populate('plan');
     
     let totalArrEstimate = 0;
     const planStatsMap: Record<string, { activeCount: number, revenue: number }> = {};
@@ -139,7 +165,7 @@ export const getReportsAnalyticsData = async () => {
         totalArrEstimate += arr;
     }
     
-    const paymentsWithSub = await Payment.find({ isDelete: false, paymentStatus: "Paid" }).populate({
+    const paymentsWithSub = await Payment.find({ isDelete: false, paymentStatus: "Paid", ...paymentDateMatch }).populate({
         path: 'subscription',
         populate: { path: 'plan' }
     });

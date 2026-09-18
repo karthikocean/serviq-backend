@@ -81,6 +81,210 @@ export const getPayments = async (req: Request, res: Response): Promise<void> =>
     }
 };
 
+// GET Payment Summary / Overview Metrics
+export const getPaymentSummary = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const paidAgg = await Payment.aggregate([
+            { $match: { isDelete: false, paymentStatus: "Paid" } },
+            { $group: { _id: null, total: { $sum: "$amount" }, count: { $sum: 1 } } }
+        ]);
+
+        const pendingAgg = await Payment.aggregate([
+            { $match: { isDelete: false, paymentStatus: "Pending" } },
+            { $group: { _id: null, total: { $sum: "$amount" }, count: { $sum: 1 } } }
+        ]);
+
+        const totalPayments = await Payment.countDocuments({ isDelete: false });
+        const failedCount = await Payment.countDocuments({ isDelete: false, paymentStatus: "Failed" });
+        const refundedCount = await Payment.countDocuments({ isDelete: false, paymentStatus: "Refunded" });
+        const waivedCount = await Payment.countDocuments({ isDelete: false, paymentStatus: "Waived" });
+
+        const summary = {
+            totalRevenue: paidAgg.length > 0 ? paidAgg[0].total : 0,
+            paidCount: paidAgg.length > 0 ? paidAgg[0].count : 0,
+            pendingAmount: pendingAgg.length > 0 ? pendingAgg[0].total : 0,
+            pendingCount: pendingAgg.length > 0 ? pendingAgg[0].count : 0,
+            failedCount,
+            refundedCount,
+            waivedCount,
+            totalPayments
+        };
+
+        sendSuccess(res, "Payment summary fetched successfully.", summary);
+    } catch (error) {
+        console.error("Payment Summary Error:", error);
+        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
+// GET Single Payment Details
+export const getPaymentDetails = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        if (!id || typeof id !== "string" || !mongoose.Types.ObjectId.isValid(id)) {
+            sendError(res, "Invalid payment ID.", StatusCodes.BAD_REQUEST);
+            return;
+        }
+
+        const payment = await Payment.findOne({ _id: id, isDelete: false })
+            .populate("restaurant", "restaurantName restaurantId contactEmail contactNumber logoUrl status")
+            .populate({
+                path: "subscription",
+                select: "plan billingCycle startDate endDate status planPrice",
+                populate: {
+                    path: "plan",
+                    select: "planName description price"
+                }
+            })
+            .lean();
+
+        if (!payment) {
+            sendError(res, "Payment record not found.", StatusCodes.NOT_FOUND);
+            return;
+        }
+
+        const year = new Date((payment as any).createdAt || Date.now()).getFullYear();
+        const invoiceId = `INV-${year}-${payment._id.toString().slice(-4).toUpperCase()}`;
+
+        sendSuccess(res, "Payment details fetched successfully.", {
+            ...payment,
+            invoiceId
+        });
+    } catch (error) {
+        console.error("Get Payment Details Error:", error);
+        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
+// POST Record Manual / Offline Payment
+export const recordPayment = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {
+            restaurant,
+            subscription,
+            amount,
+            taxAmount,
+            paymentDate,
+            paymentStatus,
+            paymentMethod,
+            paymentType,
+            transactionId,
+            paymentProof,
+            notes
+        } = req.body;
+
+        if (!restaurant || amount === undefined) {
+            sendError(res, "Restaurant ID and amount are required.", StatusCodes.BAD_REQUEST);
+            return;
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(restaurant)) {
+            sendError(res, "Invalid restaurant ID.", StatusCodes.BAD_REQUEST);
+            return;
+        }
+
+        const restExists = await Restaurant.findById(restaurant);
+        if (!restExists) {
+            sendError(res, "Restaurant not found.", StatusCodes.NOT_FOUND);
+            return;
+        }
+
+        const status = paymentStatus || "Paid";
+        const dateOfPayment = paymentDate ? new Date(paymentDate) : new Date();
+
+        const newPayment = new Payment({
+            restaurant,
+            subscription: subscription || null,
+            transactionId: transactionId || `TXN-${Date.now()}`,
+            amount: Number(amount),
+            taxAmount: Number(taxAmount || 0),
+            paymentDate: dateOfPayment,
+            paymentStatus: status,
+            paymentMethod: paymentMethod || "Bank Transfer",
+            paymentType: paymentType || "Manual",
+            paymentProof: paymentProof || null,
+            notes: notes || null
+        });
+
+        await newPayment.save();
+
+        // If status is Paid and subscription is referenced, activate subscription
+        if (status === "Paid" && subscription) {
+            await Subscription.findByIdAndUpdate(subscription, {
+                status: "Active",
+                isActive: true
+            });
+        }
+
+        sendSuccess(res, "Payment recorded successfully.", newPayment, StatusCodes.CREATED);
+    } catch (error) {
+        console.error("Record Payment Error:", error);
+        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
+// PUT Update Payment Status / Info
+export const updatePaymentStatus = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const { paymentStatus, transactionId, paymentMethod, notes, paymentDate } = req.body;
+
+        if (!id || typeof id !== "string" || !mongoose.Types.ObjectId.isValid(id)) {
+            sendError(res, "Invalid payment ID.", StatusCodes.BAD_REQUEST);
+            return;
+        }
+
+        const payment = await Payment.findOne({ _id: id, isDelete: false });
+        if (!payment) {
+            sendError(res, "Payment record not found.", StatusCodes.NOT_FOUND);
+            return;
+        }
+
+        if (paymentStatus) payment.paymentStatus = paymentStatus;
+        if (transactionId) payment.transactionId = transactionId;
+        if (paymentMethod) payment.paymentMethod = paymentMethod;
+        if (notes !== undefined) payment.notes = notes;
+        if (paymentDate) payment.paymentDate = new Date(paymentDate);
+
+        await payment.save();
+
+        // Sync subscription if marked as Paid
+        if (paymentStatus === "Paid" && payment.subscription) {
+            await Subscription.findByIdAndUpdate(payment.subscription, {
+                status: "Active",
+                isActive: true
+            });
+        }
+
+        sendSuccess(res, "Payment updated successfully.", payment);
+    } catch (error) {
+        console.error("Update Payment Error:", error);
+        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
+// DELETE Soft Delete Payment
+export const deletePayment = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        if (!id || typeof id !== "string" || !mongoose.Types.ObjectId.isValid(id)) {
+            sendError(res, "Invalid payment ID.", StatusCodes.BAD_REQUEST);
+            return;
+        }
+
+        const payment = await Payment.findByIdAndUpdate(id, { isDelete: true }, { new: true });
+        if (!payment) {
+            sendError(res, "Payment record not found.", StatusCodes.NOT_FOUND);
+            return;
+        }
+
+        sendSuccess(res, "Payment record deleted successfully.");
+    } catch (error) {
+        console.error("Delete Payment Error:", error);
+        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
 // GET Download Receipt as PDF
 export const downloadReceipt = async (req: Request, res: Response): Promise<void> => {
     try {

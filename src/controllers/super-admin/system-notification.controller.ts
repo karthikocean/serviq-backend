@@ -198,9 +198,23 @@ const broadcastSystemNotificationSocket = async (notification: any) => {
     }
 };
 
+export const getNotificationById = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const ntf = await SystemNotification.findById(id).populate("targetPlan").populate("targetRestaurants").lean();
+        if (!ntf) {
+            sendError(res, "Notification not found.", StatusCodes.NOT_FOUND);
+            return;
+        }
+        sendSuccess(res, "Notification details fetched successfully.", ntf);
+    } catch (error) {
+        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
 export const createNotification = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { subject, type, targetType, targetPlan, targetRestaurants, body, isScheduled, scheduledDate, scheduledTime } = req.body;
+        const { subject, type, targetType, targetPlan, targetRestaurants, body, isScheduled, scheduledDate, scheduledTime, deliveryOption, status: reqStatus } = req.body;
 
         if (!subject || !body || !targetType) {
             sendError(res, "Subject, body, and target type are required.", StatusCodes.BAD_REQUEST);
@@ -212,13 +226,27 @@ export const createNotification = async (req: Request, res: Response): Promise<v
             return;
         }
 
-        let status = req.body.status || 'Sent';
-        if (isScheduled) {
+        let status = reqStatus || 'Sent';
+        if (deliveryOption) {
+            const opt = String(deliveryOption).trim().toLowerCase();
+            if (opt === 'now' || opt === 'broadcast' || opt === 'sent') status = 'Sent';
+            else if (opt === 'schedule' || opt === 'scheduled') status = 'Scheduled';
+            else if (opt === 'draft' || opt === 'savedraft' || opt === 'save draft') status = 'Draft';
+        } else if (isScheduled && status !== 'Draft') {
             status = 'Scheduled';
         }
 
         const newNtf = new SystemNotification({
-            subject, type: type || 'Alert', targetType, targetPlan: targetType === 'PLAN' ? targetPlan : null, targetRestaurants: targetType === 'RESTAURANT' ? targetRestaurants : [], body, isScheduled, scheduledDate, scheduledTime, status
+            subject,
+            type: type || 'Subscription Expiry',
+            targetType,
+            targetPlan: targetType === 'PLAN' ? targetPlan : null,
+            targetRestaurants: targetType === 'RESTAURANT' ? (targetRestaurants || []) : [],
+            body,
+            isScheduled: Boolean(isScheduled),
+            scheduledDate: scheduledDate || '',
+            scheduledTime: scheduledTime || '',
+            status
         });
 
         await newNtf.save();
@@ -228,6 +256,64 @@ export const createNotification = async (req: Request, res: Response): Promise<v
         }
         
         sendSuccess(res, "Notification created successfully.", newNtf, StatusCodes.CREATED);
+    } catch (error) {
+        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
+export const updateNotification = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const { subject, type, targetType, targetPlan, targetRestaurants, body, isScheduled, scheduledDate, scheduledTime, deliveryOption, status: reqStatus } = req.body;
+
+        const ntf = await SystemNotification.findById(id);
+        if (!ntf) {
+            sendError(res, "Notification not found.", StatusCodes.NOT_FOUND);
+            return;
+        }
+
+        if (subject) ntf.subject = subject;
+        if (type) ntf.type = type;
+        if (targetType) {
+            ntf.targetType = targetType;
+            if (targetType === 'PLAN') {
+                ntf.targetPlan = targetPlan || null;
+                ntf.targetRestaurants = [];
+            } else if (targetType === 'RESTAURANT') {
+                ntf.targetRestaurants = targetRestaurants || [];
+                ntf.targetPlan = null;
+            } else if (targetType === 'ALL') {
+                ntf.targetPlan = null;
+                ntf.targetRestaurants = [];
+            }
+        } else {
+            if (targetPlan !== undefined) ntf.targetPlan = targetPlan;
+            if (targetRestaurants !== undefined) ntf.targetRestaurants = targetRestaurants;
+        }
+
+        if (body) ntf.body = body;
+        if (isScheduled !== undefined) ntf.isScheduled = Boolean(isScheduled);
+        if (scheduledDate !== undefined) ntf.scheduledDate = scheduledDate;
+        if (scheduledTime !== undefined) ntf.scheduledTime = scheduledTime;
+
+        let status = reqStatus || ntf.status;
+        if (deliveryOption) {
+            const opt = String(deliveryOption).trim().toLowerCase();
+            if (opt === 'now' || opt === 'broadcast' || opt === 'sent') status = 'Sent';
+            else if (opt === 'schedule' || opt === 'scheduled') status = 'Scheduled';
+            else if (opt === 'draft' || opt === 'savedraft' || opt === 'save draft') status = 'Draft';
+        } else if (isScheduled && status !== 'Draft') {
+            status = 'Scheduled';
+        }
+        ntf.status = status;
+
+        await ntf.save();
+
+        if (status === 'Sent') {
+            await broadcastSystemNotificationSocket(ntf);
+        }
+
+        sendSuccess(res, "Notification updated successfully.", ntf);
     } catch (error) {
         sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
     }

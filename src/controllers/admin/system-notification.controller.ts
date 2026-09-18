@@ -15,7 +15,8 @@ export const getNotifications = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
-    const restObjId = new mongoose.Types.ObjectId(String(restaurantId));
+    const restIdStr = Array.isArray(restaurantId) ? restaurantId[0] : String(restaurantId);
+    const restObjId = new mongoose.Types.ObjectId(restIdStr);
 
     // 1. Fetch Customer Website Notifications (Orders, Table Quick Help: Water, Bill, Message)
     const customerDbNotifs = await Notification.find({
@@ -127,9 +128,12 @@ export const getNotifications = async (req: AuthRequest, res: Response): Promise
       (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
 
-    // 4. Query Parameter Filtering (`type` / `tab` & `requestType`)
+    // 4. Query Parameter Filtering (`type` / `tab`, `requestType`, `isRead` / `status` / `unreadOnly`)
     const typeParam = req.query.type ? String(req.query.type).trim().toLowerCase() : (req.query.tab ? String(req.query.tab).trim().toLowerCase() : "all");
     const subTypeParam = req.query.requestType ? String(req.query.requestType).trim().toLowerCase() : (req.query.subType ? String(req.query.subType).trim().toLowerCase() : "all");
+    const isReadQuery = req.query.isRead !== undefined ? String(req.query.isRead).trim().toLowerCase() : undefined;
+    const statusQuery = req.query.status ? String(req.query.status).trim().toLowerCase() : undefined;
+    const unreadOnly = req.query.unreadOnly === "true" || req.query.unread === "true";
 
     let filteredNotifications = [...allNotifications];
 
@@ -147,6 +151,12 @@ export const getNotifications = async (req: AuthRequest, res: Response): Promise
       });
     }
 
+    if (unreadOnly || statusQuery === "unread" || isReadQuery === "false") {
+      filteredNotifications = filteredNotifications.filter((n: any) => !n.isRead);
+    } else if (statusQuery === "read" || isReadQuery === "true") {
+      filteredNotifications = filteredNotifications.filter((n: any) => n.isRead);
+    }
+
     sendSuccess(res, "Admin notifications fetched successfully.", {
       counts,
       notifications: filteredNotifications,
@@ -162,37 +172,43 @@ export const getNotifications = async (req: AuthRequest, res: Response): Promise
 
 export const markAsRead = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const notifId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const restaurantId = req.user?.restaurantId;
 
-    if (!id) {
-      sendError(res, "Notification ID is required.", StatusCodes.BAD_REQUEST);
+    if (!notifId || !mongoose.Types.ObjectId.isValid(notifId)) {
+      sendError(res, "Valid notification ID is required.", StatusCodes.BAD_REQUEST);
       return;
     }
 
-    // Try finding customer website notification first
-    const notif = await Notification.findById(id);
+    // 1. Try finding customer website notification first
+    const notif = await Notification.findByIdAndUpdate(
+      notifId,
+      { isRead: true },
+      { new: true }
+    );
     if (notif) {
-      notif.isRead = true;
-      await notif.save();
       sendSuccess(res, "Notification marked as read.", notif);
       return;
     }
 
-    // Try system notification
-    const sysNotif = await SystemNotification.findById(id);
-    if (sysNotif && restaurantId) {
-      const restObjId = new mongoose.Types.ObjectId(String(restaurantId));
-      if (!sysNotif.readByRestaurants.some((rId: any) => rId.toString() === restObjId.toString())) {
-        sysNotif.readByRestaurants.push(restObjId);
-        await sysNotif.save();
+    // 2. Try system notification
+    if (restaurantId) {
+      const restIdStr = Array.isArray(restaurantId) ? restaurantId[0] : String(restaurantId);
+      const restObjId = new mongoose.Types.ObjectId(restIdStr);
+      const sysNotif = await SystemNotification.findByIdAndUpdate(
+        notifId,
+        { $addToSet: { readByRestaurants: restObjId } },
+        { new: true }
+      );
+      if (sysNotif) {
+        sendSuccess(res, "SuperAdmin notification marked as read.", sysNotif);
+        return;
       }
-      sendSuccess(res, "SuperAdmin notification marked as read.", sysNotif);
-      return;
     }
 
     sendError(res, "Notification not found.", StatusCodes.NOT_FOUND);
   } catch (error: any) {
+    console.error("Mark as read error:", error);
     sendError(res, "Failed to mark notification as read.", StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
@@ -216,7 +232,7 @@ export const clearAllNotifications = async (req: AuthRequest, res: Response): Pr
     // Mark all system notifications as read for this restaurant
     await SystemNotification.updateMany(
       { readByRestaurants: { $ne: restObjId } },
-      { $push: { readByRestaurants: restObjId } }
+      { $addToSet: { readByRestaurants: restObjId } }
     );
 
     sendSuccess(res, "All active notifications cleared successfully.");
