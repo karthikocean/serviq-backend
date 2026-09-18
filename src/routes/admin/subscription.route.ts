@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getSubscriptionDashboard, getSubscriptionHistory, buyBranchAddon, renewPlan, upgradePlan } from "../../controllers/admin/subscription.controller";
+import { getSubscriptionDashboard, getSubscriptionHistory, buyBranchAddon, renewPlan, upgradePlan, getAvailablePlans, getPlanById } from "../../controllers/admin/subscription.controller";
 import { validate } from "../../middleware/validate";
 import { buyAddonSchema, renewPlanSchema, upgradePlanSchema } from "../../validations/admin/subscription.validation";
 
@@ -11,6 +11,55 @@ const router = Router();
  *   name: Admin Subscription
  *   description: Admin Subscription Management
  */
+
+/**
+ * @swagger
+ * /api/admin/subscription/plans:
+ *   get:
+ *     summary: Get all available active plans
+ *     tags: [Admin Subscription]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Available plans fetched successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/plans", getAvailablePlans);
+
+/**
+ * @swagger
+ * /api/admin/subscription/plans/{id}:
+ *   get:
+ *     summary: Get single plan details by ID
+ *     tags: [Admin Subscription]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Plan details fetched successfully
+ *       404:
+ *         description: Plan not found
+ */
+router.get("/plans/:id", getPlanById);
 
 /**
  * @swagger
