@@ -3,6 +3,7 @@ import { StatusCodes } from "http-status-codes";
 import { sendSuccess, sendError } from "../../utils/response";
 import { pagination } from "../../utils/pagination";
 import { AuthRequest } from "../../middleware/authMiddleware";
+import Plan from "../../models/Plan";
 import { 
   getSubscriptionDashboardData, 
   getSubscriptionHistoryList, 
@@ -88,3 +89,36 @@ export const upgradePlan = async (req: AuthRequest, res: Response): Promise<void
     sendError(res, error.message || "Failed to upgrade plan", StatusCodes.BAD_REQUEST);
   }
 };
+
+export const getAvailablePlans = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const page = parseInt(req.query.page as string) || 0;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = page * limit;
+
+    const query = { isDelete: false, isActive: true, status: "Active" as const };
+    const totalCount = await Plan.countDocuments(query);
+    const plans = await Plan.find(query).sort({ monthlyPrice: 1 }).skip(skip).limit(limit);
+
+    pagination(totalCount, plans, limit, page, res, "Plans fetched successfully.");
+  } catch (error) {
+    sendError(res, "Failed to fetch plans", StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const getPlanById = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const plan = await Plan.findOne({ _id: id, isDelete: false, isActive: true });
+
+    if (!plan) {
+      sendError(res, "Plan not found", StatusCodes.NOT_FOUND);
+      return;
+    }
+
+    sendSuccess(res, "Plan details fetched successfully.", plan);
+  } catch (error) {
+    sendError(res, "Failed to fetch plan details", StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
