@@ -77,7 +77,8 @@ export const getNotifications = async (req: AuthRequest, res: Response): Promise
 
     const superAdminDbNotifs = await SystemNotification.find({
       status: "Sent",
-      $or: targetConditions
+      $or: targetConditions,
+      deletedByRestaurants: { $ne: restObjId }
     })
       .sort({ createdAt: -1 })
       .lean();
@@ -183,11 +184,11 @@ export const markAsRead = async (req: AuthRequest, res: Response): Promise<void>
     // 1. Try finding customer website notification first
     const notif = await Notification.findByIdAndUpdate(
       notifId,
-      { isRead: true },
+      { isRead: true, isDelete: true }, // Marking as delete as well to clear it from UI
       { new: true }
     );
     if (notif) {
-      sendSuccess(res, "Notification marked as read.", notif);
+      sendSuccess(res, "Notification marked as read and cleared.", notif);
       return;
     }
 
@@ -197,11 +198,11 @@ export const markAsRead = async (req: AuthRequest, res: Response): Promise<void>
       const restObjId = new mongoose.Types.ObjectId(restIdStr);
       const sysNotif = await SystemNotification.findByIdAndUpdate(
         notifId,
-        { $addToSet: { readByRestaurants: restObjId } },
+        { $addToSet: { readByRestaurants: restObjId, deletedByRestaurants: restObjId } },
         { new: true }
       );
       if (sysNotif) {
-        sendSuccess(res, "SuperAdmin notification marked as read.", sysNotif);
+        sendSuccess(res, "SuperAdmin notification marked as read and cleared.", sysNotif);
         return;
       }
     }
@@ -222,18 +223,23 @@ export const clearAllNotifications = async (req: AuthRequest, res: Response): Pr
     }
 
     const restObjId = new mongoose.Types.ObjectId(String(restaurantId));
+    const type = req.query.type ? String(req.query.type).trim().toLowerCase() : "all";
 
-    // Mark all customer website notifications as read & deleted for this restaurant
-    await Notification.updateMany(
-      { restaurantId: restObjId, isDelete: false },
-      { isRead: true, isDelete: true }
-    );
+    if (type === "all" || type === "customer" || type === "customer_website") {
+      // Mark all customer website notifications as read & deleted for this restaurant
+      await Notification.updateMany(
+        { restaurantId: restObjId, isDelete: false },
+        { isRead: true, isDelete: true }
+      );
+    }
 
-    // Mark all system notifications as read for this restaurant
-    await SystemNotification.updateMany(
-      { readByRestaurants: { $ne: restObjId } },
-      { $addToSet: { readByRestaurants: restObjId } }
-    );
+    if (type === "all" || type === "superadmin" || type === "super_admin") {
+      // Mark all system notifications as read and deleted for this restaurant
+      await SystemNotification.updateMany(
+        { deletedByRestaurants: { $ne: restObjId } },
+        { $addToSet: { readByRestaurants: restObjId, deletedByRestaurants: restObjId } }
+      );
+    }
 
     sendSuccess(res, "All active notifications cleared successfully.");
   } catch (error: any) {

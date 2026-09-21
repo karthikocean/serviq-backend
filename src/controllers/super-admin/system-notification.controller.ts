@@ -158,7 +158,7 @@ export const markAllNotificationsAsRead = async (req: Request, res: Response): P
 import { getIO } from "../../socket";
 import Subscription from "../../models/Subscription";
 
-const broadcastSystemNotificationSocket = async (notification: any) => {
+export const broadcastSystemNotificationSocket = async (notification: any) => {
     try {
         const io = getIO();
         if (!io) return;

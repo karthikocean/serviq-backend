@@ -2,6 +2,8 @@ import cron from 'node-cron';
 import Restaurant from '../models/Restaurant';
 import Subscription from '../models/Subscription';
 import User from '../models/User';
+import SystemNotification from '../models/SystemNotification';
+import { broadcastSystemNotificationSocket } from '../controllers/super-admin/system-notification.controller';
 
 export const startCronJobs = () => {
     // Run daily at midnight: 0 0 * * *
@@ -78,6 +80,72 @@ export const startCronJobs = () => {
 
         } catch (error) {
             console.error('Error in Subscription Cron Job:', error);
+        }
+    });
+
+    // Run every minute for scheduled notifications: * * * * *
+    cron.schedule('* * * * *', async () => {
+        try {
+            const scheduledNotifications = await SystemNotification.find({
+                status: 'Scheduled',
+                isScheduled: true
+            });
+
+            if (scheduledNotifications.length === 0) return;
+
+            const now = new Date();
+
+            for (const ntf of scheduledNotifications) {
+                const { scheduledDate, scheduledTime } = ntf;
+                if (!scheduledDate || !scheduledTime) continue;
+
+                let year, month, day;
+                if (scheduledDate.includes('-')) {
+                    const parts = scheduledDate.split('-');
+                    if (parts[0].length === 4) { // YYYY-MM-DD
+                        year = parseInt(parts[0], 10);
+                        month = parseInt(parts[1], 10) - 1;
+                        day = parseInt(parts[2], 10);
+                    } else if (parts[2].length === 4) { // DD-MM-YYYY
+                        day = parseInt(parts[0], 10);
+                        month = parseInt(parts[1], 10) - 1;
+                        year = parseInt(parts[2], 10);
+                    }
+                } else {
+                    const fallbackDate = new Date(`${scheduledDate} ${scheduledTime}`);
+                    if (!isNaN(fallbackDate.getTime()) && fallbackDate <= now) {
+                        ntf.status = 'Sent';
+                        await ntf.save();
+                        await broadcastSystemNotificationSocket(ntf);
+                    }
+                    continue;
+                }
+
+                let hours = 0, minutes = 0;
+                const timeRegex = /(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?/;
+                const timeMatch = scheduledTime.match(timeRegex);
+                if (timeMatch) {
+                    hours = parseInt(timeMatch[1], 10);
+                    minutes = parseInt(timeMatch[2], 10);
+                    const modifier = timeMatch[3];
+                    if (modifier) {
+                        const mod = modifier.toUpperCase();
+                        if (mod === 'PM' && hours < 12) hours += 12;
+                        if (mod === 'AM' && hours === 12) hours = 0;
+                    }
+                }
+
+                if (year !== undefined && month !== undefined && day !== undefined) {
+                    const notifDateTime = new Date(year, month, day, hours, minutes, 0, 0);
+                    if (notifDateTime <= now) {
+                        ntf.status = 'Sent';
+                        await ntf.save();
+                        await broadcastSystemNotificationSocket(ntf);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error in Scheduled Notifications Cron Job:', error);
         }
     });
 };
