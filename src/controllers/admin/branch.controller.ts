@@ -3,6 +3,7 @@ import { AuthRequest } from "../../middleware/authMiddleware";
 import mongoose from "mongoose";
 import { StatusCodes } from "http-status-codes";
 import { sendSuccess, sendError } from "../../utils/response";
+import { pagination } from "../../utils/pagination";
 import Branch from "../../models/Branch";
 import User from "../../models/User";
 import Admin from "../../models/Admin";
@@ -188,9 +189,23 @@ export const getAllBranches = async (req: AuthRequest, res: Response): Promise<v
         }
     }
     
-    const branches = await Branch.find(query).lean();
+    const page = parseInt(req.query.page as string) || 0;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const search = req.query.search as string | undefined;
+
+    if (search) {
+      query.$or = [
+        { branchName: { $regex: search, $options: "i" } },
+        { branchCode: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const pageIndex = Math.max(0, page);
+    const skip = pageIndex * limit;
+
+    const total = await Branch.countDocuments(query);
+    const branches = await Branch.find(query).skip(skip).limit(limit).lean();
     
-    // Attach manager details and table count for each branch
     const branchesWithManagers = await Promise.all(branches.map(async (branch) => {
         const manager = await getManagerForBranch(branch._id);
         const totalTables = await Table.countDocuments({ branchId: branch._id, isDelete: false });
@@ -204,7 +219,7 @@ export const getAllBranches = async (req: AuthRequest, res: Response): Promise<v
         };
     }));
 
-    sendSuccess(res, "Branches retrieved successfully.", branchesWithManagers, StatusCodes.OK);
+    pagination(total, branchesWithManagers, limit, pageIndex, res, "Branches retrieved successfully.");
   } catch (error) {
     console.error("Error fetching branches:", error);
     sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
