@@ -4,12 +4,30 @@ import User from "../../models/User";
 import Branch from "../../models/Branch";
 import crypto from "crypto";
 
-export const getTables = async (restaurantId: string, branchId?: string) => {
+export const getTables = async (restaurantId: string, branchId?: string, skip: number = 0, limit: number = 0, search?: string) => {
   const query: any = { restaurantId, isDelete: false };
   if (branchId && branchId !== "ALL") query.branchId = branchId;
-  return await Table.find(query)
+
+  if (search) {
+    query.$or = [
+      { tableNumber: { $regex: search, $options: "i" } },
+      { section: { $regex: search, $options: "i" } }
+    ];
+  }
+
+  const total = await Table.countDocuments(query);
+  
+  let dbQuery = Table.find(query)
     .populate("assignedWaiter", "name phoneNumber")
     .populate("coverWaiter", "name phoneNumber");
+
+  if (limit > 0) {
+    dbQuery = dbQuery.skip(skip).limit(limit);
+  }
+  
+  const items = await dbQuery;
+
+  return { total, items };
 };
 
 export const getNextTableIdStr = async (restaurantId: string, branchId?: string) => {

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { sendSuccess, sendError } from "../../utils/response";
+import { pagination } from "../../utils/pagination";
 import { AuthRequest } from "../../middleware/authMiddleware";
 import {
   getTables,
@@ -46,8 +47,15 @@ export const getAllTables = async (req: AuthRequest, res: Response): Promise<voi
 
     if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
-    const tables = await getTables(restaurantId, branchId);
-    sendSuccess(res, "Tables fetched successfully.", tables);
+    const page = parseInt(req.query.page as string) || 0;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const search = req.query.search as string | undefined;
+
+    const pageIndex = Math.max(0, page);
+    const skip = pageIndex * limit;
+
+    const { total, items } = await getTables(restaurantId, branchId, skip, limit, search);
+    pagination(total, items, limit, pageIndex, res, "Tables fetched successfully.");
   } catch (error) {
     sendError(res, "Failed to fetch tables", StatusCodes.INTERNAL_SERVER_ERROR);
   }
