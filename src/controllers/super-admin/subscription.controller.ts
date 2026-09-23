@@ -108,7 +108,7 @@ export const assignSubscription = async (req: Request, res: Response): Promise<v
         }
 
         // Enforce Single Active Subscription
-        const activeSub = await Subscription.findOne({ restaurant, status: "Active", isDelete: false });
+        const activeSub = await Subscription.findOne({ restaurant, status: "Active", isDelete: false }).sort({ createdAt: -1 });
         if (activeSub) {
             sendError(res, "Restaurant already has an active subscription. Please use Plan Change feature.", StatusCodes.CONFLICT);
             return;
@@ -224,7 +224,7 @@ export const calculateChangePlanProration = async (req: Request, res: Response):
         const restaurant = await Restaurant.findById(restaurantId);
         if (!restaurant) throw new Error("Restaurant not found");
 
-        const activeSub = await Subscription.findOne({ restaurant: restaurantId, status: "Active", isDelete: false });
+        const activeSub = await Subscription.findOne({ restaurant: restaurantId, status: "Active", isDelete: false }).sort({ createdAt: -1 });
         if (!activeSub) throw new Error("No active subscription found to change");
 
         const newPlan = await Plan.findById(newPlanId);
@@ -305,7 +305,7 @@ export const changePlan = async (req: Request, res: Response): Promise<void> => 
         const restaurant = await Restaurant.findById(restaurantId);
         if (!restaurant) throw new Error("Restaurant not found");
 
-        const activeSub = await Subscription.findOne({ restaurant: restaurantId, status: "Active", isDelete: false });
+        const activeSub = await Subscription.findOne({ restaurant: restaurantId, status: "Active", isDelete: false }).sort({ createdAt: -1 });
         if (!activeSub) throw new Error("No active subscription found to change");
 
         const oldPlan = await Plan.findById(activeSub.plan);
@@ -463,7 +463,7 @@ export const purchaseAddon = async (req: Request, res: Response): Promise<void> 
     try {
         const { restaurantId, extraBranches, additionalBranches, paymentMethod, referenceId, notes, paymentProof } = req.body;
 
-        const activeSub = await Subscription.findOne({ restaurant: restaurantId, status: "Active", isDelete: false });
+        const activeSub = await Subscription.findOne({ restaurant: restaurantId, status: "Active", isDelete: false }).sort({ createdAt: -1 });
         if (!activeSub) {
             sendError(res, "No active subscription found", StatusCodes.NOT_FOUND);
             return;

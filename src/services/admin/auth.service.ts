@@ -24,6 +24,12 @@ export const loginAdmin = async (email: string, password: string) => {
   if (!user) {
     throw new Error("Invalid mail");
   }
+  
+  const role: any = user.roleId;
+  if (role && (role.code === 'KITCHEN' || role.code === 'WAITER')) {
+    throw new Error("Access denied for kitchen and waiter staff");
+  }
+
   if (!user.isActive) {
     throw new Error("Account is inactive. Contact support.");
   }

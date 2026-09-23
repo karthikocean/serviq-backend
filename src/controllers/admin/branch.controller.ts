@@ -35,7 +35,7 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
     }
 
     // Validate Subscription
-    const subscription = await Subscription.findOne({ restaurant: restaurantId, status: "Active" });
+    const subscription = await Subscription.findOne({ restaurant: restaurantId, $or: [{ status: "Active" }, { isActive: true }], isDelete: false }).sort({ createdAt: -1 });
     if (!subscription) {
       sendError(res, "No active subscription found for this restaurant.", StatusCodes.FORBIDDEN);
       return;
@@ -204,7 +204,7 @@ export const getAllBranches = async (req: AuthRequest, res: Response): Promise<v
     const skip = pageIndex * limit;
 
     const total = await Branch.countDocuments(query);
-    const branches = await Branch.find(query).skip(skip).limit(limit).lean();
+    const branches = await Branch.find(query).populate('restaurantId').skip(skip).limit(limit).lean();
     
     const branchesWithManagers = await Promise.all(branches.map(async (branch) => {
         const manager = await getManagerForBranch(branch._id);

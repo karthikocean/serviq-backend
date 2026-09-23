@@ -63,8 +63,9 @@ export const getNotifications = async (req: AuthRequest, res: Response): Promise
     // 2. Fetch SuperAdmin System Notifications
     const activeSubscription = await Subscription.findOne({
       restaurant: restObjId,
-      status: "Active"
-    });
+      $or: [{ status: "Active" }, { isActive: true }],
+      isDelete: false
+    }).sort({ createdAt: -1 }).populate("plan");
     const activePlanId = activeSubscription ? activeSubscription.plan : null;
 
     const targetConditions: any[] = [

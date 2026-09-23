@@ -11,7 +11,7 @@ export const getSubscriptionDashboardData = async (restaurantId: string) => {
     restaurant: restaurantId,
     $or: [{ status: "Active" }, { isActive: true }],
     isDelete: false
-  }).populate("plan");
+  }).sort({ createdAt: -1 }).populate("plan");
 
   if (!activeSubscription) {
     throw new Error("No active subscription found for this restaurant.");
@@ -112,7 +112,7 @@ export const purchaseBranchAddon = async (restaurantId: string, additionalSlots:
     restaurant: restaurantId,
     $or: [{ status: "Active" }, { isActive: true }],
     isDelete: false
-  }).populate("plan");
+  }).sort({ createdAt: -1 }).populate("plan");
 
   if (!activeSubscription) {
     throw new Error("No active subscription found for this restaurant.");
@@ -286,7 +286,7 @@ export const upgradeSubscriptionPlan = async (
     restaurant: restaurantId,
     $or: [{ status: "Active" }, { isActive: true }],
     isDelete: false
-  }).populate("plan");
+  }).sort({ createdAt: -1 }).populate("plan");
 
   const newPlan = await Plan.findById(newPlanId);
   if (!newPlan) {
