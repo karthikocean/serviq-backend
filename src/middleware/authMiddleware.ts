@@ -228,7 +228,7 @@ export const checkPermission = (moduleKey: string, action: 'view' | 'add' | 'edi
           restaurant: user.restaurantId, 
           isDelete: false,
           $or: [{ status: "Active" }, { isActive: true }]
-        });
+        }).sort({ createdAt: -1 });
         if (!subscription) {
           res.status(StatusCodes.PAYMENT_REQUIRED).json({ success: false, message: "No active subscription found." });
           return;

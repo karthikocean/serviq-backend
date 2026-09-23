@@ -32,7 +32,7 @@ export const checkSubscriptionFeature = (moduleKey: string) => {
                 restaurant: restaurantId,
                 isDelete: false,
                 $or: [{ status: "Active" }, { isActive: true }]
-            }).populate("plan");
+            }).sort({ createdAt: -1 }).populate("plan");
 
             if (!subscription) {
                 res.status(403).json({ success: false, message: "No active subscription found." });

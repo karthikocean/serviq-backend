@@ -29,7 +29,7 @@ export const getAllRestaurants = async (req: AuthRequest, res: Response): Promis
             .lean();
 
         const restaurants = await Promise.all(dbRestaurants.map(async (rest) => {
-            const subscription = await Subscription.findOne({ restaurant: rest._id }).populate("plan").lean();
+            const subscription = await Subscription.findOne({ restaurant: rest._id, isDelete: false }).sort({ createdAt: -1 }).populate("plan").lean();
             return {
                 ...rest,
                 subscription: subscription || null
