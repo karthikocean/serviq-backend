@@ -49,9 +49,9 @@ export const getMyTickets = async (req: Request, res: Response): Promise<void> =
             .lean();
 
         pagination(total, tickets, limit, pageIndex, res, "Tickets fetched successfully.");
-    } catch (error) {
+    } catch (error: any) {
         console.error(error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -96,9 +96,9 @@ export const createTicket = async (req: Request, res: Response): Promise<void> =
 
         await newTicket.save();
         sendSuccess(res, "Ticket created successfully.", newTicket, StatusCodes.CREATED);
-    } catch (error) {
+    } catch (error: any) {
         console.error(error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -121,9 +121,9 @@ export const getTicketById = async (req: Request, res: Response): Promise<void> 
         }
 
         sendSuccess(res, "Ticket fetched successfully.", ticket);
-    } catch (error) {
+    } catch (error: any) {
         console.error(error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 

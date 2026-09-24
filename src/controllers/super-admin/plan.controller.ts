@@ -20,8 +20,8 @@ export const getAllPlans = async (req: Request, res: Response): Promise<void> =>
       .limit(limit);
 
     pagination(total, plans, limit, pageIndex, res, "Plans fetched.");
-  } catch (error) {
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -35,8 +35,8 @@ export const createPlan = async (req: Request, res: Response): Promise<void> => 
     }
     const plan = await Plan.create({ planName, planDescription, monthlyPrice, monthlyDiscount, annualPrice, maxBranches, featuresIncluded, status, isActive });
     sendSuccess(res, "Plan created.", { id: plan._id }, StatusCodes.CREATED);
-  } catch (error) {
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -60,8 +60,8 @@ export const updatePlan = async (req: Request, res: Response): Promise<void> => 
     plan.isActive = isActive !== undefined ? isActive : plan.isActive;
     await plan.save();
     sendSuccess(res, "Plan updated.");
-  } catch (error) {
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -76,7 +76,7 @@ export const deletePlan = async (req: Request, res: Response): Promise<void> => 
     plan.isDelete = true;
     await plan.save();
     sendSuccess(res, "Plan deleted.");
-  } catch (error) {
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

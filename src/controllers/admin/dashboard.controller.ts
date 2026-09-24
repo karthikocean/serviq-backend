@@ -23,7 +23,7 @@ export const getDashboard = async (req: AuthRequest, res: Response): Promise<voi
     sendSuccess(res, "Dashboard data fetched successfully.", overview);
   } catch (error: any) {
     console.error("Dashboard Controller Error:", error);
-    sendError(res, "Failed to fetch dashboard data.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch dashboard data.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -43,7 +43,7 @@ export const getStats = async (req: AuthRequest, res: Response): Promise<void> =
     sendSuccess(res, "Dashboard stats fetched successfully.", stats);
   } catch (error: any) {
     console.error("Dashboard Stats Error:", error);
-    sendError(res, "Failed to fetch dashboard stats.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch dashboard stats.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -65,7 +65,7 @@ export const getRevenueGrowthData = async (req: AuthRequest, res: Response): Pro
     sendSuccess(res, "Revenue growth data fetched successfully.", revenueGrowth);
   } catch (error: any) {
     console.error("Dashboard Revenue Growth Error:", error);
-    sendError(res, "Failed to fetch revenue growth data.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch revenue growth data.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -85,7 +85,7 @@ export const getOrderBreakdownData = async (req: AuthRequest, res: Response): Pr
     sendSuccess(res, "Order breakdown fetched successfully.", breakdown);
   } catch (error: any) {
     console.error("Dashboard Order Breakdown Error:", error);
-    sendError(res, "Failed to fetch order breakdown.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch order breakdown.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -107,7 +107,7 @@ export const getLiveOrderFeed = async (req: AuthRequest, res: Response): Promise
     sendSuccess(res, "Live orders fetched successfully.", liveOrders);
   } catch (error: any) {
     console.error("Dashboard Live Orders Error:", error);
-    sendError(res, "Failed to fetch live orders.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch live orders.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -127,7 +127,7 @@ export const getLiveTablesStatus = async (req: AuthRequest, res: Response): Prom
     sendSuccess(res, "Live tables status fetched successfully.", liveTables);
   } catch (error: any) {
     console.error("Dashboard Live Tables Error:", error);
-    sendError(res, "Failed to fetch live tables status.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch live tables status.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -146,6 +146,6 @@ export const getBranchPerformanceData = async (req: AuthRequest, res: Response):
     sendSuccess(res, "Branch performance data fetched successfully.", branchPerformance);
   } catch (error: any) {
     console.error("Dashboard Branch Performance Error:", error);
-    sendError(res, "Failed to fetch branch performance data.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch branch performance data.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

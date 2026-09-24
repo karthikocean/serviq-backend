@@ -56,8 +56,8 @@ export const getAllTables = async (req: AuthRequest, res: Response): Promise<voi
 
     const { total, items } = await getTables(restaurantId, branchId, skip, limit, search);
     pagination(total, items, limit, pageIndex, res, "Tables fetched successfully.");
-  } catch (error) {
-    sendError(res, "Failed to fetch tables", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to fetch tables", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -74,8 +74,8 @@ export const getNextTableId = async (req: AuthRequest, res: Response): Promise<v
 
     const nextId = await getNextTableIdStr(restaurantId, branchId);
     sendSuccess(res, "Next table ID fetched successfully.", { nextId });
-  } catch (error) {
-    sendError(res, "Failed to fetch next table ID", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to fetch next table ID", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 

@@ -26,9 +26,9 @@ export const getCategories = async (req: AuthRequest, res: Response): Promise<vo
       .limit(limit);
 
     pagination(totalCount, categories, limit, page, res, "Categories fetched successfully");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Waiter Menu Categories Error:", error);
-    sendError(res, "Failed to fetch categories", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch categories", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -61,8 +61,8 @@ export const getItems = async (req: AuthRequest, res: Response): Promise<void> =
       .limit(limit);
 
     pagination(totalCount, items, limit, page, res, "Menu items fetched successfully");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Waiter Menu Items Error:", error);
-    sendError(res, "Failed to fetch menu items", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch menu items", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

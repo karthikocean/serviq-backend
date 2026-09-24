@@ -34,9 +34,9 @@ export const getActiveOrders = async (req: AuthRequest, res: Response): Promise<
       .limit(limit);
 
     pagination(totalCount, orders, limit, page, res, "Active kitchen orders fetched");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Kitchen Get Active Orders Error:", error);
-    sendError(res, "Failed to fetch active orders", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch active orders", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -93,9 +93,9 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response): Promis
     }
 
     sendSuccess(res, "Order status updated", order);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Kitchen Update Order Status Error:", error);
-    sendError(res, "Failed to update order status", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to update order status", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -133,8 +133,8 @@ export const updateItemStatus = async (req: AuthRequest, res: Response): Promise
     }
 
     sendSuccess(res, "Item status updated", { orderId: order._id, itemId: itemId, status });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Kitchen Update Item Status Error:", error);
-    sendError(res, "Failed to update item status", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to update item status", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

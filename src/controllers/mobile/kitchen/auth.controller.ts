@@ -74,9 +74,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         // role: role.name
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Kitchen Login Error:", error);
-    sendError(res, "Failed to login. Please try again.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to login. Please try again.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -87,8 +87,8 @@ export const logout = async (req: AuthRequest, res: Response): Promise<void> => 
       await UserToken.deleteOne({ token });
     }
     sendSuccess(res, "Logged out successfully.");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Kitchen Logout Error:", error);
-    sendError(res, "Failed to logout.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to logout.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

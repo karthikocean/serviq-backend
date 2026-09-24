@@ -21,7 +21,7 @@ export const getBillingHistory = async (req: AuthRequest, res: Response): Promis
     const history = await getBillingHistoryService(restaurantId, branchId, filters);
     sendSuccess(res, "Billing history fetched successfully.", history);
   } catch (error: any) {
-    sendError(res, "Failed to fetch billing history", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch billing history", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -34,7 +34,7 @@ export const getActiveTables = async (req: AuthRequest, res: Response): Promise<
     const tables = await getActiveTablesBilling(restaurantId, branchId);
     sendSuccess(res, "Active tables fetched successfully.", tables);
   } catch (error: any) {
-    sendError(res, "Failed to fetch active tables", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch active tables", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 

@@ -41,8 +41,8 @@ export const getAnalytics = async (req: AuthRequest, res: Response): Promise<voi
       completedOrders,
       pendingOrders
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Kitchen Analytics Error:", error);
-    sendError(res, "Failed to fetch analytics", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch analytics", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

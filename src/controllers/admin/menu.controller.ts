@@ -37,8 +37,8 @@ export const getItems = async (req: AuthRequest, res: Response): Promise<void> =
 
     const { total, items } = await getMenuItems(restaurantId, branchId, categoryFilter, availableFilter, skip, limit, search);
     pagination(total, items, limit, pageIndex, res, "Menu items fetched successfully.");
-  } catch (error) {
-    sendError(res, "Failed to fetch menu items", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to fetch menu items", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -50,8 +50,8 @@ export const createItem = async (req: AuthRequest, res: Response): Promise<void>
 
     const newItem = await createMenuItem(restaurantId, branchId, req.body);
     sendSuccess(res, "Menu item created successfully.", { id: newItem._id });
-  } catch (error) {
-    sendError(res, "Failed to create menu item", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to create menu item", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -132,8 +132,8 @@ export const getCats = async (req: AuthRequest, res: Response): Promise<void> =>
       const { items } = await getCategories(restaurantId, branchId, 0, 0, search);
       sendSuccess(res, "Categories fetched.", items);
     }
-  } catch (error) {
-    sendError(res, "Failed to fetch categories", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to fetch categories", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -146,8 +146,8 @@ export const createCategoryController = async (req: AuthRequest, res: Response):
     const catData = req.body;
     const newCategory = await createCategory(restaurantId, branchId, catData);
     sendSuccess(res, "Category created.", newCategory);
-  } catch (error) {
-    sendError(res, "Failed to create category", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to create category", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 

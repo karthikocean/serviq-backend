@@ -22,7 +22,7 @@ export const getRoles = async (req: AuthRequest, res: Response): Promise<void> =
 
     sendSuccess(res, "Roles fetched successfully.", formattedRoles);
   } catch (error: any) {
-    sendError(res, "Failed to fetch roles", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch roles", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -45,7 +45,7 @@ export const getRole = async (req: AuthRequest, res: Response): Promise<void> =>
 
     sendSuccess(res, "Role fetched successfully.", roleObj);
   } catch (error: any) {
-    sendError(res, "Failed to fetch role", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch role", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 

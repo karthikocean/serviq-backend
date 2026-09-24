@@ -32,9 +32,9 @@ export const getActiveOrders = async (req: AuthRequest, res: Response): Promise<
       .limit(limit);
 
     pagination(totalCount, orders, limit, page, res, "Active orders fetched");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Waiter Get Active Orders Error:", error);
-    sendError(res, "Failed to fetch active orders", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch active orders", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -69,9 +69,9 @@ export const getOrderHistory = async (req: AuthRequest, res: Response): Promise<
       .limit(limit);
 
     pagination(totalCount, orders, limit, page, res, "Order history fetched");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Waiter Get Order History Error:", error);
-    sendError(res, "Failed to fetch order history", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch order history", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -146,9 +146,9 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
     });
 
     sendSuccess(res, "Order created successfully", newOrder, StatusCodes.CREATED);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Waiter Create Order Error:", error);
-    sendError(res, "Failed to create order", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to create order", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -209,9 +209,9 @@ export const addItemsToOrder = async (req: AuthRequest, res: Response): Promise<
     });
 
     sendSuccess(res, "Items added successfully", order);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Waiter Add Items Error:", error);
-    sendError(res, "Failed to add items to order", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to add items to order", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -255,9 +255,9 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response): Promis
     }
 
     sendSuccess(res, "Order status updated", order);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Waiter Update Order Status Error:", error);
-    sendError(res, "Failed to update order status", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to update order status", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -282,9 +282,9 @@ export const generateBill = async (req: AuthRequest, res: Response): Promise<voi
     };
 
     sendSuccess(res, "Bill generated", billData);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Waiter Generate Bill Error:", error);
-    sendError(res, "Failed to generate bill", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to generate bill", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -383,8 +383,8 @@ export const checkoutOrder = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     sendSuccess(res, "Order checked out and billed successfully", { invoiceId: billingRecord.invoiceId, paymentMethod });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Waiter Checkout Error:", error);
-    sendError(res, "Failed to checkout", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to checkout", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

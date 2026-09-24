@@ -28,9 +28,9 @@ export const createCategory = async (req: AuthRequest, res: Response): Promise<v
     });
 
     sendSuccess(res, "Category created successfully", newCategory, StatusCodes.CREATED);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Create Inventory Category Error:", error);
-    sendError(res, "Failed to create category", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to create category", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -44,9 +44,9 @@ export const getCategories = async (req: AuthRequest, res: Response): Promise<vo
 
     const categories = await InventoryCategory.find(query);
     sendSuccess(res, "Categories fetched successfully", categories);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Get Inventory Categories Error:", error);
-    sendError(res, "Failed to fetch categories", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch categories", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -77,9 +77,9 @@ export const createItem = async (req: AuthRequest, res: Response): Promise<void>
     const populatedItem = await InventoryItem.findById(newItem._id).populate("categoryId", "name");
 
     sendSuccess(res, "Inventory item created successfully", populatedItem, StatusCodes.CREATED);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Create Inventory Item Error:", error);
-    sendError(res, "Failed to create item", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to create item", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -111,9 +111,9 @@ export const getItems = async (req: AuthRequest, res: Response): Promise<void> =
       .sort({ createdAt: -1 });
 
     pagination(totalCount, items, Number(limit), Number(page), res, "Inventory items fetched");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Get Inventory Items Error:", error);
-    sendError(res, "Failed to fetch items", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch items", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -157,9 +157,9 @@ export const recordPurchase = async (req: AuthRequest, res: Response): Promise<v
     await item.save();
 
     sendSuccess(res, "Purchase recorded successfully", purchase, StatusCodes.CREATED);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Record Purchase Error:", error);
-    sendError(res, "Failed to record purchase", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to record purchase", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -204,9 +204,9 @@ export const recordReduction = async (req: AuthRequest, res: Response): Promise<
     await item.save();
 
     sendSuccess(res, "Stock reduced successfully", reduction, StatusCodes.CREATED);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Record Reduction Error:", error);
-    sendError(res, "Failed to record stock reduction", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to record stock reduction", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -245,9 +245,9 @@ export const getStats = async (req: AuthRequest, res: Response): Promise<void> =
         };
 
         sendSuccess(res, "Inventory stats fetched successfully", stats);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Get Inventory Stats Error:", error);
-        sendError(res, "Failed to fetch inventory stats", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Failed to fetch inventory stats", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 }
 
@@ -266,9 +266,9 @@ export const updateCategory = async (req: AuthRequest, res: Response): Promise<v
     if (!category) return sendError(res, "Category not found", StatusCodes.NOT_FOUND);
 
     sendSuccess(res, "Category updated", category);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Update Inventory Category Error:", error);
-    sendError(res, "Failed to update category", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to update category", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -286,9 +286,9 @@ export const deleteCategory = async (req: AuthRequest, res: Response): Promise<v
     if (!category) return sendError(res, "Category not found", StatusCodes.NOT_FOUND);
 
     sendSuccess(res, "Category deleted successfully");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Delete Inventory Category Error:", error);
-    sendError(res, "Failed to delete category", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to delete category", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -307,9 +307,9 @@ export const updateItem = async (req: AuthRequest, res: Response): Promise<void>
     if (!item) return sendError(res, "Item not found", StatusCodes.NOT_FOUND);
 
     sendSuccess(res, "Item updated", item);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Update Inventory Item Error:", error);
-    sendError(res, "Failed to update item", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to update item", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -327,9 +327,9 @@ export const deleteItem = async (req: AuthRequest, res: Response): Promise<void>
     if (!item) return sendError(res, "Item not found", StatusCodes.NOT_FOUND);
 
     sendSuccess(res, "Item deleted successfully");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Delete Inventory Item Error:", error);
-    sendError(res, "Failed to delete item", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to delete item", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -369,8 +369,8 @@ export const getLogs = async (req: AuthRequest, res: Response): Promise<void> =>
     }
 
     pagination(totalCount, data, Number(limit), Number(page), res, "Logs fetched");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Get Inventory Logs Error:", error);
-    sendError(res, "Failed to fetch logs", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch logs", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

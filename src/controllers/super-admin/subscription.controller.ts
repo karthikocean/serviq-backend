@@ -43,8 +43,8 @@ export const getAllSubscriptions = async (req: AuthRequest, res: Response): Prom
         }));
 
         pagination(total, subsWithPayments, limit, pageIndex, res, "Subscriptions fetched successfully.");
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -66,8 +66,8 @@ export const getSubscriptionHistory = async (req: AuthRequest, res: Response): P
             .limit(limit);
 
         pagination(total, history, limit, pageIndex, res, "Subscription history fetched successfully.");
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -85,8 +85,8 @@ export const getSubscriptionById = async (req: Request, res: Response): Promise<
         }
 
         sendSuccess(res, "Subscription details fetched successfully.", subscription);
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -210,9 +210,9 @@ export const assignSubscription = async (req: Request, res: Response): Promise<v
         });
 
         sendSuccess(res, "Subscription assigned successfully.", newSubscription, StatusCodes.CREATED);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Assign Sub Error:", error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -608,8 +608,8 @@ export const updateSubscription = async (req: Request, res: Response): Promise<v
 
         await subscription.save();
         sendSuccess(res, "Subscription updated successfully.", subscription);
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -626,8 +626,8 @@ export const deleteSubscription = async (req: Request, res: Response): Promise<v
         subscription.isDelete = true;
         await subscription.save();
         sendSuccess(res, "Subscription deleted successfully.");
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -870,9 +870,9 @@ export const cancelSubscription = async (req: Request, res: Response): Promise<v
         });
 
         sendSuccess(res, "Subscription cancelled successfully. It will remain active until the end of the billing period.", subscription);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Cancel Subscription Error:", error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -881,9 +881,9 @@ export const getAddons = async (req: Request, res: Response): Promise<void> => {
     try {
         const addons = await Addon.find({ isDelete: false });
         sendSuccess(res, "Addons fetched successfully.", addons);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Get Addons Error:", error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -899,9 +899,9 @@ export const createAddon = async (req: Request, res: Response): Promise<void> =>
             isActive
         });
         sendSuccess(res, "Addon created successfully.", newAddon);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Create Addon Error:", error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -925,9 +925,9 @@ export const updateAddon = async (req: Request, res: Response): Promise<void> =>
         }
         
         sendSuccess(res, "Addon updated successfully.", addon);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Update Addon Error:", error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -943,8 +943,8 @@ export const deleteAddon = async (req: Request, res: Response): Promise<void> =>
         }
         
         sendSuccess(res, "Addon deleted successfully.", addon);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Delete Addon Error:", error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };

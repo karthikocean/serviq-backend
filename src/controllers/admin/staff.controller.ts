@@ -20,8 +20,8 @@ export const getAllStaff = async (req: AuthRequest, res: Response): Promise<void
     const dutyStatus = req.query.dutyStatus as string | undefined;
     const staffMembers = await getStaffByRestaurantId(restaurantId, branchId, dutyStatus);
     sendSuccess(res, "Staff fetched successfully.", staffMembers);
-  } catch (error) {
-    sendError(res, "Failed to fetch staff", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to fetch staff", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 

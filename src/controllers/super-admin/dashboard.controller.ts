@@ -9,7 +9,7 @@ export const getMetrics = async (req: Request, res: Response): Promise<void> => 
         sendSuccess(res, "Dashboard metrics fetched successfully.", metrics);
     } catch (error: any) {
         console.error("Error in getMetrics:", error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -24,6 +24,6 @@ export const getReportsAnalytics = async (req: Request, res: Response): Promise<
         sendSuccess(res, "Reports analytics fetched successfully.", analytics);
     } catch (error: any) {
         console.error("Error in getReportsAnalytics:", error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };

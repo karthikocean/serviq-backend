@@ -32,9 +32,9 @@ export const getAllRoles = async (req: Request, res: Response): Promise<void> =>
     });
       
     pagination(total, rolesData, limit, pageIndex, res, "Roles fetched.");
-  } catch (error) {
+  } catch (error: any) {
     console.error("getAllRoles error:", error);
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -66,9 +66,9 @@ export const createRole = async (req: Request, res: Response): Promise<void> => 
       isDelete: false,
     });
     sendSuccess(res, "Role created.", { id: role._id }, StatusCodes.CREATED);
-  } catch (error) {
+  } catch (error: any) {
     console.error("createRole error:", error);
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -103,9 +103,9 @@ export const updateRole = async (req: Request, res: Response): Promise<void> => 
     }
 
     sendSuccess(res, "Role updated.", saved);
-  } catch (error) {
+  } catch (error: any) {
     console.error("updateRole error:", error);
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -121,8 +121,8 @@ export const deleteRole = async (req: Request, res: Response): Promise<void> => 
     role.isDelete = true;
     await role.save();
     sendSuccess(res, "Role deleted.");
-  } catch (error) {
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -142,7 +142,7 @@ export const getAllModules = async (req: Request, res: Response): Promise<void> 
       .limit(limit);
       
     pagination(total, modules, limit, pageIndex, res, "Modules fetched.");
-  } catch (error) {
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
