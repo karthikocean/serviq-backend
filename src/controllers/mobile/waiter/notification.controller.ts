@@ -27,9 +27,9 @@ export const getNotifications = async (req: AuthRequest, res: Response): Promise
       .limit(limit);
 
     pagination(totalCount, notifications, limit, page, res, "Notifications fetched");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Waiter Notifications Error:", error);
-    sendError(res, "Failed to fetch notifications", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch notifications", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -55,8 +55,8 @@ export const markAsRead = async (req: AuthRequest, res: Response): Promise<void>
     await notification.save();
 
     sendSuccess(res, "Notification marked as read", { id: notification._id });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Waiter Mark Read Error:", error);
-    sendError(res, "Failed to mark notification as read", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to mark notification as read", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

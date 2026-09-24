@@ -19,8 +19,8 @@ export const getSettings = async (req: Request, res: Response): Promise<void> =>
         }
         
         sendSuccess(res, "Settings fetched successfully.", settings);
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -41,7 +41,7 @@ export const updateSettings = async (req: Request, res: Response): Promise<void>
         } else {
             sendError(res, "Settings not found.", StatusCodes.NOT_FOUND);
         }
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };

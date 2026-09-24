@@ -29,8 +29,8 @@ export const getAllOrders = async (req: AuthRequest, res: Response): Promise<voi
     
     const { orders, totalCount } = await getOrders(restaurantId, branchId, status, billingStatus, waiterId, page, limit);
     pagination(totalCount, orders, limit, page, res, "Orders fetched successfully.");
-  } catch (error) {
-    sendError(res, "Failed to fetch orders", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to fetch orders", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 

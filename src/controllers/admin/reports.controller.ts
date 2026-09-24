@@ -53,9 +53,9 @@ export const getWaiterReports = async (req: AuthRequest, res: Response): Promise
     };
 
     res.status(StatusCodes.OK).json(responseData);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Waiter Reports Error:", error);
-    sendError(res, "Failed to fetch Waiter Reports", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch Waiter Reports", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -105,8 +105,8 @@ export const getKitchenReports = async (req: AuthRequest, res: Response): Promis
     };
 
     res.status(StatusCodes.OK).json(responseData);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Kitchen Reports Error:", error);
-    sendError(res, "Failed to fetch Kitchen Reports", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch Kitchen Reports", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

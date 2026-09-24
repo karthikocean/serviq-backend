@@ -32,9 +32,9 @@ export const getTables = async (req: AuthRequest, res: Response): Promise<void> 
       .limit(limit);
 
     pagination(totalCount, tables, limit, page, res, "Tables fetched successfully");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Waiter Tables Error:", error);
-    sendError(res, "Failed to fetch tables", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch tables", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -63,8 +63,8 @@ export const getAssignedTables = async (req: AuthRequest, res: Response): Promis
       .limit(limit);
 
     pagination(totalCount, tables, limit, page, res, "Assigned tables fetched successfully");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Waiter Assigned Tables Error:", error);
-    sendError(res, "Failed to fetch assigned tables", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch assigned tables", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

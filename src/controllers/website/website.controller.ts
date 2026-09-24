@@ -95,7 +95,7 @@ export const scanQrCode = async (req: Request, res: Response): Promise<void> => 
     });
   } catch (error: any) {
     console.error("Error in scanQrCode:", error);
-    sendError(res, "Failed to resolve QR code", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to resolve QR code", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -140,8 +140,8 @@ export const getHeaderInfo = async (req: Request, res: Response): Promise<void> 
         section: (table as any)?.section
       } : null
     });
-  } catch (error) {
-    sendError(res, "Failed to fetch header info", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to fetch header info", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -198,7 +198,7 @@ export const sendQuickHelp = async (req: Request, res: Response): Promise<void> 
         io.to(`room_branch_${branchId}`).emit("admin_notification", payload);
         io.to(`room_restaurant_${restaurantId}`).emit("admin_notification", payload);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Socket not ready or client disconnected:", err);
     }
 
@@ -207,9 +207,9 @@ export const sendQuickHelp = async (req: Request, res: Response): Promise<void> 
       requestType,
       tableName
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in sendQuickHelp:", error);
-    sendError(res, "Failed to send quick help request", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to send quick help request", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -234,8 +234,8 @@ export const getCategories = async (req: Request, res: Response): Promise<void> 
     }).sort({ createdAt: 1 });
 
     sendSuccess(res, "Categories fetched successfully", categories);
-  } catch (error) {
-    sendError(res, "Failed to fetch categories", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to fetch categories", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -288,8 +288,8 @@ export const getMenuItems = async (req: Request, res: Response): Promise<void> =
       .sort({ bestseller: -1, name: 1 });
 
     sendSuccess(res, "Menu items fetched successfully", items);
-  } catch (error) {
-    sendError(res, "Failed to fetch menu items", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to fetch menu items", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -319,8 +319,8 @@ export const getSpecials = async (req: Request, res: Response): Promise<void> =>
       .limit(10);
 
     sendSuccess(res, "Today's specials fetched successfully", specials);
-  } catch (error) {
-    sendError(res, "Failed to fetch today's specials", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to fetch today's specials", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -358,8 +358,8 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
       .sort({ createdAt: -1 });
 
     sendSuccess(res, "Orders fetched successfully", orders);
-  } catch (error) {
-    sendError(res, "Failed to fetch orders", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to fetch orders", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -496,7 +496,7 @@ export const createCustomerOrder = async (req: Request, res: Response): Promise<
         io.to(`room_branch_${branchId}`).emit("admin_notification", payload);
         io.to(`room_restaurant_${restaurantId}`).emit("admin_notification", payload);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Socket notification warning:", err);
     }
 
@@ -512,6 +512,6 @@ export const createCustomerOrder = async (req: Request, res: Response): Promise<
     }, StatusCodes.CREATED);
   } catch (error: any) {
     console.error("Error in createCustomerOrder:", error);
-    sendError(res, "Failed to create order", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to create order", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

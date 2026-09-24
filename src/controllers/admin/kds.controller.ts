@@ -17,8 +17,8 @@ export const getKdsOrders = async (req: AuthRequest, res: Response): Promise<voi
 
     const orders = await getActiveKdsOrders(restaurantId, branchId);
     sendSuccess(res, "KDS orders fetched successfully.", orders);
-  } catch (error) {
-    sendError(res, "Failed to fetch KDS orders", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to fetch KDS orders", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 

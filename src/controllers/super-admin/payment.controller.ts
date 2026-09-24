@@ -75,9 +75,9 @@ export const getPayments = async (req: Request, res: Response): Promise<void> =>
         });
 
         pagination(total, formattedPayments, limit, pageIndex, res, "Payments fetched successfully.");
-    } catch (error) {
+    } catch (error: any) {
         console.error("Get Payments Error:", error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -111,9 +111,9 @@ export const getPaymentSummary = async (req: Request, res: Response): Promise<vo
         };
 
         sendSuccess(res, "Payment summary fetched successfully.", summary);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Payment Summary Error:", error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -150,9 +150,9 @@ export const getPaymentDetails = async (req: Request, res: Response): Promise<vo
             ...payment,
             invoiceId
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Get Payment Details Error:", error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -217,9 +217,9 @@ export const recordPayment = async (req: Request, res: Response): Promise<void> 
         }
 
         sendSuccess(res, "Payment recorded successfully.", newPayment, StatusCodes.CREATED);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Record Payment Error:", error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -257,9 +257,9 @@ export const updatePaymentStatus = async (req: Request, res: Response): Promise<
         }
 
         sendSuccess(res, "Payment updated successfully.", payment);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Update Payment Error:", error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -279,9 +279,9 @@ export const deletePayment = async (req: Request, res: Response): Promise<void> 
         }
 
         sendSuccess(res, "Payment record deleted successfully.");
-    } catch (error) {
+    } catch (error: any) {
         console.error("Delete Payment Error:", error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -475,8 +475,8 @@ export const downloadReceipt = async (req: Request, res: Response): Promise<void
            .text("This is a computer-generated document. No signature required.", 50, 715, { align: "center", width: 495 });
 
         doc.end();
-    } catch (error) {
+    } catch (error: any) {
         console.error("Download Receipt Error:", error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };

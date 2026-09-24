@@ -44,8 +44,8 @@ export const logout = async (req: AuthRequest, res: Response): Promise<void> => 
       await logoutAdmin(req.user.userId, token);
     }
     sendSuccess(res, "Logged out successfully.");
-  } catch (error) {
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 

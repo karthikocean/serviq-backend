@@ -147,16 +147,16 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
       });
 
       await newManager.save();
-    } catch (error) {
+    } catch (error: any) {
       // Manual rollback
       await Branch.findByIdAndDelete(newBranch._id);
       throw error;
     }
 
     sendSuccess(res, "Branch and Manager created successfully.", { branch: newBranch, manager: { id: newManager._id, name: newManager.name, email: newManager.email } }, StatusCodes.CREATED);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating branch:", error);
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -220,9 +220,9 @@ export const getAllBranches = async (req: AuthRequest, res: Response): Promise<v
     }));
 
     pagination(total, branchesWithManagers, limit, pageIndex, res, "Branches retrieved successfully.");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching branches:", error);
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -251,9 +251,9 @@ export const getBranchById = async (req: AuthRequest, res: Response): Promise<vo
     };
 
     sendSuccess(res, "Branch details retrieved successfully.", branchWithManager, StatusCodes.OK);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching branch details:", error);
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -332,9 +332,9 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
     }
 
     sendSuccess(res, "Branch updated successfully.", branch, StatusCodes.OK);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating branch:", error);
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -379,10 +379,10 @@ export const deleteBranch = async (req: AuthRequest, res: Response): Promise<voi
     session.endSession();
 
     sendSuccess(res, "Branch deleted successfully.", null, StatusCodes.OK);
-  } catch (error) {
+  } catch (error: any) {
     await session.abortTransaction();
     session.endSession();
     console.error("Error deleting branch:", error);
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

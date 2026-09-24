@@ -39,8 +39,8 @@ export const getSubscriptionHistory = async (req: AuthRequest, res: Response): P
 
     const { history, totalCount } = await getSubscriptionHistoryList(restaurantId, skip, limit);
     pagination(totalCount, history, limit, page, res, "Subscription history fetched successfully.");
-  } catch (error) {
-    sendError(res, "Failed to fetch subscription history", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to fetch subscription history", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -101,8 +101,8 @@ export const getAvailablePlans = async (req: AuthRequest, res: Response): Promis
     const plans = await Plan.find(query).sort({ monthlyPrice: 1 }).skip(skip).limit(limit);
 
     pagination(totalCount, plans, limit, page, res, "Plans fetched successfully.");
-  } catch (error) {
-    sendError(res, "Failed to fetch plans", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to fetch plans", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -117,8 +117,8 @@ export const getPlanById = async (req: AuthRequest, res: Response): Promise<void
     }
 
     sendSuccess(res, "Plan details fetched successfully.", plan);
-  } catch (error) {
-    sendError(res, "Failed to fetch plan details", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to fetch plan details", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 

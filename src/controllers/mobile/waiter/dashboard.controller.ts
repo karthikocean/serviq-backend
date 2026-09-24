@@ -43,8 +43,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
       pendingBills,
       totalOrders: stats.reduce((acc, curr) => acc + curr.count, 0)
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Waiter Dashboard Error:", error);
-    sendError(res, "Failed to fetch dashboard stats", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch dashboard stats", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

@@ -27,8 +27,8 @@ export const getAllManagers = async (req: AuthRequest, res: Response): Promise<v
       .limit(limit);
 
     pagination(total, managers, limit, pageIndex, res, "Managers fetched successfully.");
-  } catch (error) {
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -66,8 +66,8 @@ export const createManager = async (req: Request, res: Response): Promise<void> 
     });
 
     sendSuccess(res, "Manager created successfully.", { id: manager._id }, StatusCodes.CREATED);
-  } catch (error) {
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -93,8 +93,8 @@ export const updateManager = async (req: Request, res: Response): Promise<void> 
 
     await manager.save();
     sendSuccess(res, "Manager updated successfully.");
-  } catch (error) {
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -110,7 +110,7 @@ export const deleteManager = async (req: Request, res: Response): Promise<void> 
     manager.isDelete = true;
     await manager.save();
     sendSuccess(res, "Manager deleted successfully.");
-  } catch (error) {
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

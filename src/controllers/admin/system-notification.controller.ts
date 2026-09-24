@@ -168,7 +168,7 @@ export const getNotifications = async (req: AuthRequest, res: Response): Promise
     });
   } catch (error: any) {
     console.error("Admin Notifications Error:", error);
-    sendError(res, "Failed to fetch notifications.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch notifications.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -211,7 +211,7 @@ export const markAsRead = async (req: AuthRequest, res: Response): Promise<void>
     sendError(res, "Notification not found.", StatusCodes.NOT_FOUND);
   } catch (error: any) {
     console.error("Mark as read error:", error);
-    sendError(res, "Failed to mark notification as read.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to mark notification as read.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -244,7 +244,7 @@ export const clearAllNotifications = async (req: AuthRequest, res: Response): Pr
 
     sendSuccess(res, "All active notifications cleared successfully.");
   } catch (error: any) {
-    sendError(res, "Failed to clear notifications.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to clear notifications.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 

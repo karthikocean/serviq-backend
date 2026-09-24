@@ -117,6 +117,7 @@ export const getKitchenReport = async (
   const orderMatch: any = {
     restaurantId: new mongoose.Types.ObjectId(restaurantId),
     isDelete: false,
+    status: "completed",
     ...dateMatch
   };
 
@@ -127,7 +128,7 @@ export const getKitchenReport = async (
   const pipeline: any[] = [
     { $match: orderMatch },
     { $unwind: "$items" },
-    { $match: { "items.status": "completed" } } // Only consider completed items
+    { $match: { "items.status": { $in: ["ready", "served", "completed"] } } }
   ];
 
   pipeline.push(

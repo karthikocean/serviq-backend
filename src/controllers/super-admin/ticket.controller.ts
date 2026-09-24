@@ -38,8 +38,8 @@ export const getAllTickets = async (req: Request, res: Response): Promise<void> 
         const tickets = await Ticket.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean();
 
         pagination(total, tickets, limit, pageIndex, res, "Tickets fetched successfully.");
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -54,8 +54,8 @@ export const getTicketById = async (req: Request, res: Response): Promise<void> 
         }
 
         sendSuccess(res, "Ticket fetched successfully.", ticket);
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -84,8 +84,8 @@ export const updateTicketStatus = async (req: Request, res: Response): Promise<v
         await ticket.save();
 
         sendSuccess(res, "Ticket status and resolution updated successfully.", ticket);
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -107,8 +107,8 @@ export const assignTicket = async (req: Request, res: Response): Promise<void> =
         await ticket.save();
 
         sendSuccess(res, "Ticket assigned successfully.", ticket);
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 

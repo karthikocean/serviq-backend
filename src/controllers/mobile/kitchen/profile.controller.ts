@@ -22,8 +22,8 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
       branch: user.branchId,
       role: user.roleId
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Kitchen Profile Error:", error);
-    sendError(res, "Failed to fetch profile.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch profile.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

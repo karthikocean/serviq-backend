@@ -37,8 +37,8 @@ export const getAllRestaurants = async (req: AuthRequest, res: Response): Promis
         }));
 
         pagination(total, restaurants, limit, pageIndex, res, "Restaurants fetched successfully.");
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -208,16 +208,16 @@ export const createRestaurant = async (req: Request, res: Response): Promise<voi
             await seedDefaultRoles(newRestaurant._id.toString());
 
             sendSuccess(res, "Restaurant created successfully.", { id: newRestaurant._id }, StatusCodes.CREATED);
-        } catch (error) {
+        } catch (error: any) {
             // Manual Rollback if running on a standalone MongoDB instance that doesn't support transactions
             if (createdUserId) await Admin.findByIdAndDelete(createdUserId);
             if (createdSubscriptionId) await Subscription.findByIdAndDelete(createdSubscriptionId);
             if (createdRestaurantId) await Restaurant.findByIdAndDelete(createdRestaurantId);
             throw error;
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error("Create Restaurant Error:", error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -327,8 +327,8 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
 
         await restaurant.save();
         sendSuccess(res, "Restaurant updated successfully.");
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -349,8 +349,8 @@ export const deleteRestaurant = async (req: Request, res: Response): Promise<voi
         await User.updateMany({ restaurantId: restaurant._id }, { isDelete: true });
         await Branch.updateMany({ restaurantId: restaurant._id }, { isDelete: true });
         sendSuccess(res, "Restaurant deleted successfully.");
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -377,8 +377,8 @@ export const updateRestaurantStatus = async (req: Request, res: Response): Promi
 
 
         sendSuccess(res, `Restaurant status updated to ${status}.`, restaurant);
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 

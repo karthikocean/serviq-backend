@@ -31,8 +31,8 @@ export const getAllLeads = async (req: Request, res: Response): Promise<void> =>
         const leads = await Lead.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean();
 
         pagination(total, leads, limit, pageIndex, res, "Leads fetched successfully.");
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -53,8 +53,8 @@ export const createLead = async (req: Request, res: Response): Promise<void> => 
 
         await newLead.save();
         sendSuccess(res, "Lead created successfully.", newLead, StatusCodes.CREATED);
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -73,8 +73,8 @@ export const updateLeadStatus = async (req: Request, res: Response): Promise<voi
         await lead.save();
 
         sendSuccess(res, "Lead status updated.", lead);
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -93,8 +93,8 @@ export const assignLead = async (req: Request, res: Response): Promise<void> => 
         await lead.save();
 
         sendSuccess(res, "Lead assigned successfully.", lead);
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -113,8 +113,8 @@ export const updateFollowUp = async (req: Request, res: Response): Promise<void>
         await lead.save();
 
         sendSuccess(res, "Lead follow-up updated.", lead);
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -137,7 +137,7 @@ export const convertLead = async (req: Request, res: Response): Promise<void> =>
 
         // Only validate and return success so frontend can redirect to Add Restaurant form
         sendSuccess(res, "Lead valid for conversion. Redirecting...", lead);
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };

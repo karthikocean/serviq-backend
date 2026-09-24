@@ -25,7 +25,7 @@ export const getUsers = async (req: AuthRequest, res: Response): Promise<void> =
     
     pagination(total, users, limit, pageIndex, res, "Users fetched successfully.");
   } catch (error: any) {
-    sendError(res, "Failed to fetch users", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch users", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -40,7 +40,7 @@ export const getStations = async (req: AuthRequest, res: Response): Promise<void
     
     sendSuccess(res, "Station users fetched successfully.", data);
   } catch (error: any) {
-    sendError(res, "Failed to fetch station users", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch station users", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 

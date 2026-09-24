@@ -96,8 +96,8 @@ export const superAdminLogin = async (req: Request, res: Response): Promise<void
         role: admin.role,
       },
     });
-  } catch (error) {
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -153,9 +153,9 @@ export const getSuperAdminProfile = async (req: AuthRequest, res: Response): Pro
     }
 
     sendSuccess(res, "Profile fetched.", { ...adminObj, isSuperOwner });
-  } catch (error) {
+  } catch (error: any) {
     console.error("getSuperAdminProfile error:", error);
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -191,8 +191,8 @@ export const updateSuperAdminProfile = async (req: AuthRequest, res: Response): 
       ? await SuperAdmin.findById(req.user?.userId).select("-password").populate("role")
       : await SuperAdminUser.findById(req.user?.userId).select("-password").populate("role");
     sendSuccess(res, "Profile updated successfully.", updatedAdmin);
-  } catch (error) {
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -224,7 +224,7 @@ export const updateSuperAdminPassword = async (req: AuthRequest, res: Response):
     await admin.save();
     
     sendSuccess(res, "Password updated successfully.");
-  } catch (error) {
-    sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+  } catch (error: any) {
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

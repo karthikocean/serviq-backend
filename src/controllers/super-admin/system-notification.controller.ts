@@ -22,8 +22,8 @@ export const getAllNotifications = async (req: Request, res: Response): Promise<
         const notifications = await SystemNotification.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean();
 
         pagination(total, notifications, limit, pageIndex, res, "Notifications fetched successfully.");
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -108,7 +108,7 @@ export const getSuperAdminHeaderNotifications = async (req: Request, res: Respon
         });
     } catch (error: any) {
         console.error("Super Admin Notifications Error:", error);
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -140,7 +140,7 @@ export const markNotificationAsRead = async (req: Request, res: Response): Promi
 
         sendError(res, "Notification not found.", StatusCodes.NOT_FOUND);
     } catch (error: any) {
-        sendError(res, "Failed to mark notification as read.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Failed to mark notification as read.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -151,7 +151,7 @@ export const markAllNotificationsAsRead = async (req: Request, res: Response): P
 
         sendSuccess(res, "All super admin notifications marked as read.");
     } catch (error: any) {
-        sendError(res, "Failed to mark all notifications as read.", StatusCodes.INTERNAL_SERVER_ERROR);
+        sendError(res, error?.message || "Failed to mark all notifications as read.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -193,7 +193,7 @@ export const broadcastSystemNotificationSocket = async (notification: any) => {
                 }
             }
         }
-    } catch (err) {
+    } catch (err: any) {
         console.warn("Error broadcasting system notification socket:", err);
     }
 };
@@ -207,8 +207,8 @@ export const getNotificationById = async (req: Request, res: Response): Promise<
             return;
         }
         sendSuccess(res, "Notification details fetched successfully.", ntf);
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -256,8 +256,8 @@ export const createNotification = async (req: Request, res: Response): Promise<v
         }
         
         sendSuccess(res, "Notification created successfully.", newNtf, StatusCodes.CREATED);
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -314,8 +314,8 @@ export const updateNotification = async (req: Request, res: Response): Promise<v
         }
 
         sendSuccess(res, "Notification updated successfully.", ntf);
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -333,8 +333,8 @@ export const cancelNotification = async (req: Request, res: Response): Promise<v
         await ntf.save();
 
         sendSuccess(res, "Notification cancelled.", ntf);
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -354,8 +354,8 @@ export const sendDraftNotification = async (req: Request, res: Response): Promis
         await broadcastSystemNotificationSocket(ntf);
 
         sendSuccess(res, "Notification sent.", ntf);
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
 
@@ -364,7 +364,7 @@ export const deleteNotification = async (req: Request, res: Response): Promise<v
         const { id } = req.params;
         await SystemNotification.findByIdAndDelete(id);
         sendSuccess(res, "Notification deleted.");
-    } catch (error) {
-        sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
