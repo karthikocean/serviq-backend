@@ -55,8 +55,8 @@ export const protectAdmin = async (req: AuthRequest, res: Response, next: NextFu
         return;
     }
     if (!user.isActive) {
-        console.log(`[protectAdmin] 403: User is deactivated. decodedId=${decodedId}`);
-        res.status(StatusCodes.FORBIDDEN).json({ success: false, message: "Account is deactivated." });
+        console.log(`[protectAdmin] 401: User is deactivated. decodedId=${decodedId}`);
+        res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: "Account is deactivated." });
         return;
     }
     
@@ -127,7 +127,7 @@ export const protectSuperAdmin = async (req: AuthRequest, res: Response, next: N
         return;
     }
     if (!admin.isActive || !admin.canLoginAdmin) {
-        res.status(StatusCodes.FORBIDDEN).json({ success: false, message: "Admin account is deactivated." });
+        res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: "Admin account is deactivated." });
         return;
     }
 
@@ -173,7 +173,7 @@ export const protectMobile = async (req: AuthRequest, res: Response, next: NextF
         return;
     }
     if (!user.isActive) {
-        res.status(StatusCodes.FORBIDDEN).json({ success: false, message: "Account is deactivated." });
+        res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: "Account is deactivated." });
         return;
     }
     

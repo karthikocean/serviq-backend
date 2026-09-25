@@ -214,41 +214,26 @@ export const renewSubscriptionPlan = async (
     endDate.setMonth(endDate.getMonth() + 1);
   }
 
-  // Deactivate old subscription
-  currentSub.status = "Expired";
-  currentSub.isActive = false;
+  // Update existing subscription instead of creating a new one
+  currentSub.billingCycle = cycle;
+  currentSub.endDate = endDate;
+  currentSub.renewalDate = endDate;
+  currentSub.planPrice = planPrice;
+  currentSub.addonAmount = addonAmount;
+  
+  if (currentSub.status === "Expired") {
+      currentSub.startDate = startDate;
+      currentSub.status = "Active";
+      currentSub.isActive = true;
+  }
+  
   await currentSub.save();
-
-  const count = await Subscription.countDocuments();
-  const subId = `SUB-${String(count + 1).padStart(6, '0')}`;
-
-  const newSub = new Subscription({
-    subscriptionId: subId,
-    restaurant: restaurantId,
-    plan: plan._id,
-    billingCycle: cycle,
-    startDate,
-    endDate,
-    renewalDate: endDate,
-    maxBranches: plan.maxBranches,
-    features: plan.featuresIncluded,
-    status: "Active",
-    isActive: true,
-    isDelete: false,
-    planPrice,
-    addonAmount,
-    amountPaid: totalAmount,
-    extraBranches: currentSub.extraBranches,
-    renewedFrom: currentSub._id
-  });
-
-  await newSub.save();
 
   // Create payment record
   const transactionId = `TXN-RENEW-${Date.now()}`;
   const payment = new Payment({
     restaurant: restaurantId,
-    subscription: newSub._id,
+    subscription: currentSub._id,
     transactionId,
     amount: totalAmount,
     currency: "INR",
@@ -262,7 +247,7 @@ export const renewSubscriptionPlan = async (
   // Log to history
   const history = new SubscriptionHistory({
     restaurant: restaurantId,
-    subscription: newSub._id,
+    subscription: currentSub._id,
     action: "Renewed",
     details: `Renewed ${plan.planName} for ${cycle} cycle.`,
     amountPaid: totalAmount
@@ -272,7 +257,7 @@ export const renewSubscriptionPlan = async (
   return {
     success: true,
     message: `Plan renewed successfully until ${endDate.toISOString().split('T')[0]}.`,
-    subscription: newSub
+    subscription: currentSub
   };
 };
 

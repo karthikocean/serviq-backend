@@ -759,12 +759,15 @@ export const renewSubscription = async (req: Request, res: Response): Promise<vo
 
             // Determine dates and status
             let newStartDate = new Date();
-            let newStatus = "Active";
+            let newStatus: "Active" | "Expiring Soon" | "Expired" | "Cancelled" | "Scheduled" = "Active";
 
             if (["Active", "Expiring Soon"].includes(currentOldSub.status) || 
                 (currentOldSub.status === "Cancelled" && new Date(currentOldSub.endDate) > new Date())) {
                 newStartDate = new Date(currentOldSub.endDate);
-                newStatus = "Scheduled";
+                // Keep the current status as is, we are just extending the end date
+                newStatus = currentOldSub.status;
+            } else {
+                currentOldSub.startDate = newStartDate;
             }
 
             const newEndDate = new Date(newStartDate);
@@ -774,43 +777,29 @@ export const renewSubscription = async (req: Request, res: Response): Promise<vo
                 newEndDate.setMonth(newEndDate.getMonth() + 1);
             }
 
-            // Create New Subscription
-            const count = await Subscription.countDocuments().session(session);
-            const subId = `SUB-${String(count + 1).padStart(6, '0')}`;
+            // Update existing subscription
+            currentOldSub.endDate = newEndDate;
+            currentOldSub.renewalDate = newEndDate;
+            currentOldSub.planPrice = planPrice;
+            currentOldSub.addonAmount = addonPrice;
+            currentOldSub.discountAmount = discountAmount;
+            currentOldSub.creditUsed = creditsUsed;
+            currentOldSub.amountPaid = totalAmountWithTax;
+            currentOldSub.status = newStatus;
+            currentOldSub.isActive = newStatus === "Active" || newStatus === "Expiring Soon";
+            
+            await currentOldSub.save({ session });
 
-            const newSub = new Subscription({
-                subscriptionId: subId,
-                restaurant: currentOldSub.restaurant,
-                plan: currentOldSub.plan,
-                billingCycle: currentOldSub.billingCycle,
-                startDate: newStartDate,
-                endDate: newEndDate,
-                renewalDate: newEndDate,
-                maxBranches: currentOldSub.maxBranches,
-                features: currentOldSub.features,
-                extraBranches: currentOldSub.extraBranches,
-                planPrice: planPrice,
-                addonAmount: addonPrice,
-                discountAmount: discountAmount,
-                creditUsed: creditsUsed,
-                amountPaid: totalAmountWithTax,
-                renewedFrom: currentOldSub._id,
-                status: newStatus,
-                isActive: newStatus === "Active",
-                isDelete: false
-            });
-            await newSub.save({ session });
-
-            // Link Payment to new Sub
-            paymentRecord.subscription = newSub._id;
+            // Link Payment to existing Sub
+            paymentRecord.subscription = currentOldSub._id;
             await paymentRecord.save({ session });
 
             // Create History
             const newHistory = new SubscriptionHistory({
                 restaurant: currentOldSub.restaurant,
-                subscription: newSub._id,
+                subscription: currentOldSub._id,
                 action: "Renewed",
-                details: `Renewed subscription. Status: ${newStatus}`,
+                details: `Renewed subscription. Extended validity to ${newEndDate.toISOString().split('T')[0]}.`,
                 previousPlan: currentOldSub.plan,
                 newPlan: currentOldSub.plan,
                 amountPaid: totalAmountWithTax
@@ -824,7 +813,7 @@ export const renewSubscription = async (req: Request, res: Response): Promise<vo
             await session.commitTransaction();
             session.endSession();
 
-            sendSuccess(res, "Subscription renewed successfully.", newSub);
+            sendSuccess(res, "Subscription renewed successfully.", currentOldSub);
         } catch (txnError: any) {
             await session.abortTransaction();
             session.endSession();
