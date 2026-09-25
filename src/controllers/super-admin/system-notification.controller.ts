@@ -13,9 +13,17 @@ export const getAllNotifications = async (req: Request, res: Response): Promise<
         const skip = pageIndex * limit;
 
         const query: any = {};
+        const search = req.query.search as string;
 
         if (req.query.filterType && req.query.filterType !== 'All' && req.query.filterType !== 'All Types') {
             query.type = req.query.filterType;
+        }
+
+        if (search) {
+            query.$or = [
+                { title: { $regex: search, $options: "i" } },
+                { message: { $regex: search, $options: "i" } }
+            ];
         }
 
         const total = await SystemNotification.countDocuments(query);

@@ -7,6 +7,7 @@ import Subscription from "../../models/Subscription";
 import Branch from "../../models/Branch";
 import User from "../../models/User";
 import Admin from "../../models/Admin";
+import UserToken from "../../models/UserToken";
 import Lead from "../../models/Lead";
 import { sendSuccess, sendError } from "../../utils/response";
 import { pagination } from "../../utils/pagination";
@@ -17,12 +18,24 @@ export const getAllRestaurants = async (req: AuthRequest, res: Response): Promis
     try {
         const page = parseInt(req.query.page as string) || 0;
         const limit = parseInt(req.query.limit as string) || 10;
+        const search = req.query.search as string;
         const pageIndex = Math.max(0, page);
         const skip = pageIndex * limit;
 
-        const total = await Restaurant.countDocuments({ isDelete: false });
+        const query: any = { isDelete: false };
+        if (search) {
+            query.$or = [
+                { restaurantName: { $regex: search, $options: "i" } },
+                { ownerName: { $regex: search, $options: "i" } },
+                { email: { $regex: search, $options: "i" } },
+                { phoneNumber: { $regex: search, $options: "i" } },
+                { restaurantId: { $regex: search, $options: "i" } }
+            ];
+        }
 
-        const dbRestaurants = await Restaurant.find({ isDelete: false })
+        const total = await Restaurant.countDocuments(query);
+
+        const dbRestaurants = await Restaurant.find(query)
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
@@ -299,7 +312,12 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
                 if (email) ownerUser.email = email;
                 if (phoneNumber) ownerUser.phoneNumber = phoneNumber;
                 if (password && password.trim() !== "") ownerUser.password = password;
-                if (isActive !== undefined) ownerUser.isActive = isActive;
+                if (isActive !== undefined) {
+                    ownerUser.isActive = isActive;
+                    if (isActive === false) {
+                        await UserToken.deleteMany({ userId: ownerUser._id });
+                    }
+                }
                 await ownerUser.save();
             }
         }
@@ -357,10 +375,10 @@ export const deleteRestaurant = async (req: Request, res: Response): Promise<voi
 export const updateRestaurantStatus = async (req: Request, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
-        const { status } = req.body;
+        const { isActive } = req.body;
 
-        if (!['Active', 'Suspended', 'Expired'].includes(status)) {
-            sendError(res, "Invalid status. Must be Active, Suspended, or Expired.", StatusCodes.BAD_REQUEST);
+        if (typeof isActive !== 'boolean') {
+            sendError(res, "Invalid payload. 'isActive' must be a boolean.", StatusCodes.BAD_REQUEST);
             return;
         }
 
@@ -370,17 +388,65 @@ export const updateRestaurantStatus = async (req: Request, res: Response): Promi
             return;
         }
 
-        restaurant.status = status;
-        restaurant.isActive = status === 'Active';
+        restaurant.isActive = isActive;
+        restaurant.status = isActive ? 'Active' : 'Inactive';
         await restaurant.save();
 
+        // Also sync the isActive status to all associated users (Owner, Branch Admins, Staff)
+        // so that they can (or cannot) log in based on the restaurant's status.
+        await Admin.updateMany(
+            { restaurantId: restaurant._id },
+            { $set: { isActive: restaurant.isActive } }
+        );
+        await User.updateMany(
+            { restaurantId: restaurant._id },
+            { $set: { isActive: restaurant.isActive } }
+        );
 
-
-        sendSuccess(res, `Restaurant status updated to ${status}.`, restaurant);
+        sendSuccess(res, `Restaurant status updated to ${restaurant.status}.`, restaurant);
     } catch (error: any) {
         sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
     }
 };
+
+// GET single restaurant details by ID
+export const getRestaurantById = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        // Fetch restaurant details
+        const restaurant = await Restaurant.findOne({ _id: id, isDelete: false }).lean();
+        if (!restaurant) {
+            sendError(res, "Restaurant not found.", StatusCodes.NOT_FOUND);
+            return;
+        }
+
+        // Fetch associated active subscription and plan details
+        const subscription = await Subscription.findOne({ 
+            restaurant: id, 
+            isDelete: false,
+            $or: [{ status: "Active" }, { isActive: true }]
+        }).sort({ createdAt: -1 }).populate("plan").lean();
+
+        // Fetch all branches associated with the restaurant
+        const branches = await Branch.find({ restaurantId: id, isDelete: false }).lean();
+
+        // Count staff (users) for this restaurant
+        const staffCount = await User.countDocuments({ restaurantId: id, isDelete: false });
+
+        const restaurantDetails = {
+            ...restaurant,
+            subscription: subscription || null,
+            branches: branches || [],
+            staffCount
+        };
+
+        sendSuccess(res, "Restaurant details fetched successfully.", restaurantDetails);
+    } catch (error: any) {
+        sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
 
 
 

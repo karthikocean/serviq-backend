@@ -9,12 +9,18 @@ export const getAllPlans = async (req: Request, res: Response): Promise<void> =>
   try {
     const page = parseInt(req.query.page as string) || 0;
     const limit = parseInt(req.query.limit as string) || 10;
+    const search = req.query.search as string;
     const pageIndex = Math.max(0, page);
     const skip = pageIndex * limit;
 
-    const total = await Plan.countDocuments({ isDelete: false, isActive: true });
+    const query: any = { isDelete: false, isActive: true };
+    if (search) {
+      query.planName = { $regex: search, $options: "i" };
+    }
 
-    const plans = await Plan.find({ isDelete: false, isActive: true })
+    const total = await Plan.countDocuments(query);
+
+    const plans = await Plan.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

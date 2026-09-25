@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllRestaurants, createRestaurant, updateRestaurant, deleteRestaurant, updateRestaurantStatus } from "../../controllers/super-admin/restaurant.controller";
+import { getAllRestaurants, createRestaurant, updateRestaurant, deleteRestaurant, updateRestaurantStatus, getRestaurantById } from "../../controllers/super-admin/restaurant.controller";
 
 import { validate } from "../../middleware/validate";
 import { createRestaurantSchema, updateRestaurantSchema } from "../../validations/restaurant.validation";
@@ -83,6 +83,32 @@ router.get("/", getAllRestaurants);
  *         $ref: '#/components/responses/500'
  */
 router.post("/", validate(createRestaurantSchema), createRestaurant);
+
+/**
+ * @swagger
+ * /api/super-admin/restaurants/{id}:
+ *   get:
+ *     summary: Get a single restaurant details by ID
+ *     tags: [Super Admin Restaurants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Restaurant details
+ *       401:
+ *         $ref: '#/components/responses/401'
+ *       404:
+ *         $ref: '#/components/responses/404'
+ *       500:
+ *         $ref: '#/components/responses/500'
+ */
+router.get("/:id", getRestaurantById);
 
 /**
  * @swagger
@@ -174,7 +200,7 @@ router.delete("/:id", deleteRestaurant);
  *           schema:
  *             type: object
  *             properties:
- *               status: { type: string, enum: ['Active', 'Suspended', 'Expired'] }
+ *               isActive: { type: boolean, example: true }
  *     responses:
  *       200:
  *         description: Status updated

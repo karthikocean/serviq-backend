@@ -11,7 +11,7 @@ export const getUsers = async (req: AuthRequest, res: Response): Promise<void> =
     const restaurantId = req.user?.restaurantId;
     if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
-    const branchId = req.query.branchId as string;
+    const branchId = getTargetBranchId(req);
     const search = req.query.search as string;
     const roleFilter = req.query.roleFilter as string;
     const statusFilter = req.query.statusFilter as string;
@@ -34,7 +34,7 @@ export const getStations = async (req: AuthRequest, res: Response): Promise<void
     const restaurantId = req.user?.restaurantId;
     if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
-    const branchId = req.query.branchId as string;
+    const branchId = getTargetBranchId(req);
     
     const { data } = await getStationsByRestaurantId(restaurantId, branchId);
     

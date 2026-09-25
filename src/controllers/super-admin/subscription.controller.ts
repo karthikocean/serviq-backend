@@ -389,6 +389,7 @@ export const changePlan = async (req: Request, res: Response): Promise<void> => 
 
             // Expire old sub
             activeSub.status = "Expired";
+            activeSub.isActive = false;
             await activeSub.save({ session });
 
             // Calculate new dates

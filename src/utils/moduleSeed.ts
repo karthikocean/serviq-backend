@@ -14,6 +14,7 @@ export const seedModules = async (): Promise<void> => {
     { name: "Roles & Permissions", key: "roles-permissions", type: "RESTAURANT" },
     { name: "User Management", key: "users", type: "RESTAURANT" },
     { name: "Store Configurations", key: "settings", type: "RESTAURANT" },
+    { name: "Inventory Management", key: "inventory", type: "RESTAURANT" },
   ];
 
   try {

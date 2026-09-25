@@ -11,7 +11,7 @@ export const getMenuItems = async (
   search?: string
 ) => {
   const query: any = { restaurantId, isDelete: false };
-  if (branchId) query.branchId = branchId;
+  if (branchId && branchId !== "ALL") query.branchId = branchId;
   if (categoryFilter && categoryFilter !== 'All Items') query.category = categoryFilter;
   if (availableFilter !== undefined) query.available = availableFilter === 'true';
   if (search) {
@@ -80,7 +80,7 @@ export const deleteMenuItem = async (restaurantId: string, branchId: string, ite
 
 export const getCategories = async (restaurantId: string, branchId: string | undefined, skip: number = 0, limit: number = 0, search: string = "") => {
   const query: any = { restaurantId };
-  if (branchId) query.branchId = branchId;
+  if (branchId && branchId !== "ALL") query.branchId = branchId;
   
   if (search) {
     query.name = { $regex: search, $options: "i" };

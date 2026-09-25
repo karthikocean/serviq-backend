@@ -40,7 +40,7 @@ export const superAdminLogin = async (req: Request, res: Response): Promise<void
     }
 
     if (!admin.isActive) {
-      sendError(res, "Account is inactive.", StatusCodes.FORBIDDEN);
+      sendError(res, "Your account is inactive", StatusCodes.FORBIDDEN);
       return;
     }
 

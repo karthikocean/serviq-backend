@@ -20,8 +20,8 @@ export const getMyTickets = async (req: Request, res: Response): Promise<void> =
 
         const query: any = { restaurantId: admin.restaurantId };
 
-        if (req.query.searchTerm) {
-            const search = req.query.searchTerm as string;
+        if (req.query.search) {
+            const search = req.query.search as string;
             query.$or = [
                 { ticketNumber: { $regex: search, $options: "i" } },
                 { subject: { $regex: search, $options: "i" } }

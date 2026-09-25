@@ -4,6 +4,7 @@ import Admin from "../../models/Admin";
 import User from "../../models/User";
 import Branch from "../../models/Branch";
 import UserToken from "../../models/UserToken";
+import Restaurant from "../../models/Restaurant";
 
 export const loginAdmin = async (email: string, password: string) => {
   const cleanIdentifier = email ? email.trim() : "";
@@ -31,7 +32,14 @@ export const loginAdmin = async (email: string, password: string) => {
   }
 
   if (!user.isActive) {
-    throw new Error("Account is inactive. Contact support.");
+    throw new Error("Your account is inactive");
+  }
+
+  if (user.restaurantId) {
+    const restaurant = await Restaurant.findById(user.restaurantId);
+    if (restaurant && (!restaurant.isActive || restaurant.isDelete)) {
+      throw new Error("Your restaurant account has been deactivated. Please contact the Super Admin.");
+    }
   }
 
   let isMatch = false;

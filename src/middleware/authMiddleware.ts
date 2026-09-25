@@ -8,9 +8,9 @@ import SuperAdmin from "../models/SuperAdmin";
 import SuperAdminUser from "../models/SuperAdminUser";
 import AdminRole from "../models/AdminRole";
 import UserRole from "../models/UserRole";
-import UserToken from "../models/UserToken";
 import Subscription from "../models/Subscription";
 import Branch from "../models/Branch";
+import Restaurant from "../models/Restaurant";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -33,11 +33,6 @@ export const protectAdmin = async (req: AuthRequest, res: Response, next: NextFu
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
     
     const decodedId = decoded.userId || decoded.id;
-    // const activeToken = await UserToken.findOne({ userId: decodedId, token });
-    // if (!activeToken) {
-    //     res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: "Session expired. Another login detected." });
-    //     return;
-    // }
 
     if (decoded.userType === 'SUPER_ADMIN' || decoded.type === 'super-admin') {
         res.status(StatusCodes.FORBIDDEN).json({ success: false, message: "Super Admin cannot access tenant routes directly." });
@@ -56,7 +51,7 @@ export const protectAdmin = async (req: AuthRequest, res: Response, next: NextFu
     }
     if (!user.isActive) {
         console.log(`[protectAdmin] 401: User is deactivated. decodedId=${decodedId}`);
-        res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: "Account is deactivated." });
+        res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: "Your account is inactive" });
         return;
     }
     
@@ -66,21 +61,18 @@ export const protectAdmin = async (req: AuthRequest, res: Response, next: NextFu
         return;
     }
 
+    const restaurant = await Restaurant.findById(user.restaurantId);
+    if (restaurant && (!restaurant.isActive || restaurant.isDelete)) {
+        res.status(StatusCodes.FORBIDDEN).json({ success: false, message: "Your restaurant account has been deactivated. Please contact the Super Admin." });
+        return;
+    }
+
     let branchId = decoded.activeBranchId || user.branchId?.toString();
-    
-    // Allow RESTAURANT_OWNER to override branch via request payload (Stateless branch switching)
+ 
     if (user.userType === 'RESTAURANT_OWNER') {
         const requestedBranchId = req.query.branchId || req.body?.branchId;
-        if (requestedBranchId && requestedBranchId !== 'ALL') {
+        if (requestedBranchId) {
             branchId = requestedBranchId as string;
-        } else if (!branchId || branchId === 'ALL') {
-            // Dynamic fallback: If token still says ALL but they created a branch, fetch the first branch
-            const firstBranch = await Branch.findOne({ restaurantId: user.restaurantId, isDelete: false });
-            if (firstBranch) {
-                branchId = firstBranch._id.toString();
-            } else {
-                branchId = "ALL";
-            }
         }
     }
 
@@ -180,6 +172,12 @@ export const protectMobile = async (req: AuthRequest, res: Response, next: NextF
     // Check context
     if (!user.restaurantId) {
         res.status(StatusCodes.FORBIDDEN).json({ success: false, message: "No restaurant context found for user." });
+        return;
+    }
+
+    const restaurant = await Restaurant.findById(user.restaurantId);
+    if (restaurant && (!restaurant.isActive || restaurant.isDelete)) {
+        res.status(StatusCodes.FORBIDDEN).json({ success: false, message: "Your restaurant account has been deactivated. Please contact the Super Admin." });
         return;
     }
 

@@ -40,7 +40,7 @@ export const getCategories = async (req: AuthRequest, res: Response): Promise<vo
     const branchId = getTargetBranchId(req);
 
     const query: any = { restaurantId, isDelete: false };
-    if (branchId) query.branchId = branchId;
+    if (branchId && branchId !== "ALL") query.branchId = branchId;
 
     const categories = await InventoryCategory.find(query);
     sendSuccess(res, "Categories fetched successfully", categories);
@@ -94,7 +94,7 @@ export const getItems = async (req: AuthRequest, res: Response): Promise<void> =
       restaurantId,
       isDelete: false
     };
-    if (branchId) query.branchId = branchId;
+    if (branchId && branchId !== "ALL") query.branchId = branchId;
 
     if (search) {
       query.$or = [
@@ -344,7 +344,7 @@ export const getLogs = async (req: AuthRequest, res: Response): Promise<void> =>
     let totalCount = 0;
 
     const query: any = { restaurantId, isDelete: false };
-    if (branchId) query.branchId = branchId;
+    if (branchId && branchId !== "ALL") query.branchId = branchId;
 
     if (type === "purchase") {
        totalCount = await InventoryPurchase.countDocuments(query);

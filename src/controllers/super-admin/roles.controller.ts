@@ -10,12 +10,18 @@ export const getAllRoles = async (req: Request, res: Response): Promise<void> =>
   try {
     const page = parseInt(req.query.page as string) || 0;
     const limit = parseInt(req.query.limit as string) || 10;
+    const search = req.query.search as string;
     const pageIndex = Math.max(0, page);
     const skip = pageIndex * limit;
 
-    const total = await SuperAdminRole.countDocuments({ isDelete: false });
+    const query: any = { isDelete: false };
+    if (search) {
+      query.roleName = { $regex: search, $options: "i" };
+    }
 
-    const roles = await SuperAdminRole.find({ isDelete: false })
+    const total = await SuperAdminRole.countDocuments(query);
+
+    const roles = await SuperAdminRole.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

@@ -5,6 +5,7 @@ import SuperAdminRole from "../../models/SuperAdminRole";
 import { sendSuccess, sendError } from "../../utils/response";
 import { pagination } from "../../utils/pagination";
 import { AuthRequest } from "../../middleware/authMiddleware";
+import UserToken from "../../models/UserToken";
 
 // GET all managers
 export const getAllManagers = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -17,9 +18,18 @@ export const getAllManagers = async (req: AuthRequest, res: Response): Promise<v
     const pageIndex = Math.max(0, page);
     const skip = pageIndex * limit;
 
-    const total = await SuperAdminUser.countDocuments({ isDelete: false });
+    const query: any = { isDelete: false };
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { phoneNumber: { $regex: search, $options: "i" } }
+      ];
+    }
 
-    const managers = await SuperAdminUser.find({ isDelete: false })
+    const total = await SuperAdminUser.countDocuments(query);
+
+    const managers = await SuperAdminUser.find(query)
       .select("-password")
       .populate("role")
       .sort({ createdAt: -1 })
@@ -88,7 +98,12 @@ export const updateManager = async (req: Request, res: Response): Promise<void> 
     if (phoneNumber) manager.phoneNumber = phoneNumber;
     if (roleId) manager.role = roleId;
     if (canLoginAdmin !== undefined) manager.canLoginAdmin = canLoginAdmin;
-    if (isActive !== undefined) manager.isActive = isActive;
+    if (isActive !== undefined) {
+      manager.isActive = isActive;
+      if (isActive === false) {
+        await UserToken.deleteMany({ userId: manager._id });
+      }
+    }
     if (password) manager.password = password;
 
     await manager.save();

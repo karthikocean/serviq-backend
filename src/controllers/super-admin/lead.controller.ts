@@ -14,8 +14,8 @@ export const getAllLeads = async (req: Request, res: Response): Promise<void> =>
 
         const query: any = {};
 
-        if (req.query.leadSearchQuery) {
-            const search = req.query.leadSearchQuery as string;
+        if (req.query.search) {
+            const search = req.query.search as string;
             query.$or = [
                 { businessName: { $regex: search, $options: "i" } },
                 { contactPerson: { $regex: search, $options: "i" } },
