@@ -15,6 +15,9 @@ export interface IBranch extends Document {
     pincode: string;
   };
   isMainBranch: boolean;
+  branchType: 'MAIN' | 'SUB';
+  gstinNumber?: string;
+  fssaiLicense?: string;
   status: 'Active' | 'Inactive';
   isActive: boolean;
   isDelete: boolean;
@@ -36,6 +39,9 @@ const BranchSchema = new Schema<IBranch>(
       pincode: { type: String, required: true },
     },
     isMainBranch: { type: Boolean, default: false },
+    branchType: { type: String, enum: ['MAIN', 'SUB'], default: 'SUB' },
+    gstinNumber: { type: String, trim: true },
+    fssaiLicense: { type: String, trim: true },
     status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
     isActive: { type: Boolean, default: true },
     isDelete: { type: Boolean, default: false },

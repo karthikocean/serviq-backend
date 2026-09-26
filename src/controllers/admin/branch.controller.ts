@@ -25,13 +25,34 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
         branchName, branchCode, branchOpeningDate, contactNumber, email, 
         street, city, state, country, pincode, 
         managerName, managerMobile, managerEmail, managerPassword,
-        status, isMainBranch
+        status, isMainBranch, branchType, gstinNumber, fssaiLicense
     } = req.body;
 
     // Validate Required Fields
     if (!branchName || !branchCode || !contactNumber || !street || !city || !state || !country || !pincode || !managerName || !managerMobile || !managerPassword) {
       sendError(res, "All required fields must be provided.", StatusCodes.BAD_REQUEST);
       return;
+    }
+
+    // Validate FSSAI License if provided
+    const fssaiLicenseRegex = /^1\d{13}$/;
+    if (fssaiLicense && !fssaiLicenseRegex.test(fssaiLicense.trim())) {
+      sendError(
+        res,
+        "Invalid FSSAI License number. It must contain exactly 14 digits and start with 1.",
+        StatusCodes.BAD_REQUEST
+      );
+      return;
+    }
+
+    // Validate GSTIN if provided
+    const normalizedGstin = gstinNumber ? gstinNumber.trim().toUpperCase() : undefined;
+    if (normalizedGstin) {
+      const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+      if (!gstinRegex.test(normalizedGstin)) {
+        sendError(res, "Invalid GSTIN. Please enter a valid 15-character GSTIN.", StatusCodes.BAD_REQUEST);
+        return;
+      }
     }
 
     // Validate Subscription
@@ -75,9 +96,19 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    // Handle isMainBranch logic
-    if (isMainBranch === true) {
-      await Branch.updateMany({ restaurantId }, { $set: { isMainBranch: false } });
+    // Determine Main Branch status
+    let isMain = false;
+    if (branchType === 'MAIN' || isMainBranch === true) {
+      isMain = true;
+    } else if (branchType === 'SUB' || isMainBranch === false) {
+      isMain = false;
+    } else if (existingBranchCount === 0) {
+      // First branch defaults to MAIN branch if not specified
+      isMain = true;
+    }
+
+    if (isMain) {
+      await Branch.updateMany({ restaurantId }, { $set: { isMainBranch: false, branchType: 'SUB' } });
     }
 
     // Create Branch
@@ -95,9 +126,12 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
         country,
         pincode
       },
+      gstinNumber: normalizedGstin || gstinNumber,
+      fssaiLicense: fssaiLicense ? fssaiLicense.trim() : undefined,
       status: status || 'Active',
       isActive: status !== 'Inactive',
-      isMainBranch: isMainBranch === true
+      isMainBranch: isMain,
+      branchType: isMain ? 'MAIN' : 'SUB'
     });
     
     await newBranch.save();
@@ -268,7 +302,7 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
     const { 
         branchName, branchCode, branchOpeningDate, contactNumber, email, 
         street, city, state, country, pincode, 
-        status, isMainBranch,
+        status, isMainBranch, branchType, gstinNumber, fssaiLicense,
         managerName, managerMobile, managerEmail
     } = req.body;
 
@@ -276,6 +310,31 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
     if (!branch) {
       sendError(res, "Branch not found.", StatusCodes.NOT_FOUND);
       return;
+    }
+
+    if (fssaiLicense !== undefined) {
+      const fssaiLicenseRegex = /^1\d{13}$/;
+      if (fssaiLicense && !fssaiLicenseRegex.test(fssaiLicense.trim())) {
+        sendError(
+          res,
+          "Invalid FSSAI License number. It must contain exactly 14 digits and start with 1.",
+          StatusCodes.BAD_REQUEST
+        );
+        return;
+      }
+      branch.fssaiLicense = fssaiLicense ? fssaiLicense.trim() : undefined;
+    }
+
+    if (gstinNumber !== undefined) {
+      const normalizedGstin = gstinNumber ? gstinNumber.trim().toUpperCase() : undefined;
+      if (normalizedGstin) {
+        const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+        if (!gstinRegex.test(normalizedGstin)) {
+          sendError(res, "Invalid GSTIN. Please enter a valid 15-character GSTIN.", StatusCodes.BAD_REQUEST);
+          return;
+        }
+      }
+      branch.gstinNumber = normalizedGstin || gstinNumber;
     }
 
     if (branchCode && branchCode !== branch.branchCode) {
@@ -305,11 +364,18 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
         branch.isActive = status !== 'Inactive';
     }
 
-    if (isMainBranch !== undefined) {
-        if (isMainBranch === true) {
-            await Branch.updateMany({ restaurantId: user.restaurantId }, { $set: { isMainBranch: false } });
+    if (branchType !== undefined || isMainBranch !== undefined) {
+        const setAsMain = branchType === 'MAIN' || isMainBranch === true;
+        const setAsSub = branchType === 'SUB' || isMainBranch === false;
+        
+        if (setAsMain) {
+            await Branch.updateMany({ restaurantId: user.restaurantId }, { $set: { isMainBranch: false, branchType: 'SUB' } });
+            branch.isMainBranch = true;
+            branch.branchType = 'MAIN';
+        } else if (setAsSub) {
+            branch.isMainBranch = false;
+            branch.branchType = 'SUB';
         }
-        branch.isMainBranch = isMainBranch;
     }
 
     await branch.save();

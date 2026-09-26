@@ -24,10 +24,10 @@ export const createRestaurantSchema = z.object({
     state: z.string(),
     country: z.string(),
 
-    // Compliance info
-    fssaiLicense: z.string(),
-    gstinNumber: z.string(),
-    panNumber: z.string(),
+    // Compliance info (optional at restaurant level, primary at branch level)
+    fssaiLicense: z.string().optional(),
+    gstinNumber: z.string().optional(),
+    panNumber: z.string().optional(),
 
     isActive: z.boolean().optional().default(true),
     billingCycle: z.enum(["Monthly", "Annually"]).optional().default("Monthly"),
