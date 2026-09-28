@@ -16,7 +16,8 @@ import {
   createMenuItemSchema, 
   updateMenuItemSchema, 
   toggleMenuAvailabilitySchema, 
-  createCategorySchema 
+  createCategorySchema,
+  updateCategorySchema
 } from "../../validations/admin/menu.validation";
 
 const router = Router();
@@ -64,6 +65,8 @@ router.get("/categories", checkBranchAccess, checkSubscriptionFeature("MENU"), g
  *                 type: string
  *               description:
  *                 type: string
+ *               image:
+ *                 type: string
  *               status:
  *                 type: string
  *     responses:
@@ -97,13 +100,15 @@ router.post("/category", checkBranchAccess, checkSubscriptionFeature("MENU"), va
  *                 type: string
  *               description:
  *                 type: string
+ *               image:
+ *                 type: string
  *               status:
  *                 type: string
  *     responses:
  *       200:
  *         description: Category updated
  */
-router.put("/category/:id", checkBranchAccess, checkSubscriptionFeature("MENU"), updateCategoryController);
+router.put("/category/:id", checkBranchAccess, checkSubscriptionFeature("MENU"), validate(updateCategorySchema), updateCategoryController);
 
 /**
  * @swagger

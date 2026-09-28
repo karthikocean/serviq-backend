@@ -40,6 +40,16 @@ export const createCategorySchema = z.object({
   body: z.object({
     name: z.string().min(1, "Category name is required"),
     description: z.string().optional(),
+    image: z.string().optional(),
+    status: z.string().optional()
+  }),
+});
+
+export const updateCategorySchema = z.object({
+  body: z.object({
+    name: z.string().optional(),
+    description: z.string().optional(),
+    image: z.string().optional(),
     status: z.string().optional()
   }),
 });

@@ -5,6 +5,7 @@ export interface ICategory extends Document {
     branchId: mongoose.Types.ObjectId;
     name: string;
     description: string;
+    image?: string;
     status: string;
 }
 
@@ -14,6 +15,7 @@ const categorySchema = new Schema<ICategory>(
         branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true },
         name: { type: String, required: true },
         description: { type: String, default: "" },
+        image: { type: String, default: "" },
         status: { type: String, default: "AVAILABLE" }
     },
     { timestamps: true }

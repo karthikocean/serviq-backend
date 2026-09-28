@@ -23,7 +23,7 @@ export const getMenuItems = async (
 
   const total = await Menu.countDocuments(query);
   const items = await Menu.find(query)
-    .populate('category', 'name _id')
+    .populate('category', 'name _id image')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
@@ -118,6 +118,7 @@ export const createCategory = async (restaurantId: string, branchId: string, cat
     branchId,
     name: catData.name,
     description: catData.description || "",
+    image: catData.image || "",
     status: catData.status || "AVAILABLE"
   });
 
