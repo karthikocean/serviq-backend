@@ -8,7 +8,17 @@ import {
   getItems,
   updateItem,
   deleteItem,
+  createVendor,
+  getVendors,
+  updateVendor,
+  deleteVendor,
   recordPurchase,
+  getPurchases,
+  deletePurchase,
+  createStockRequest,
+  getStockRequests,
+  approveStockRequest,
+  rejectStockRequest,
   recordReduction,
   getStats,
   getLogs
@@ -296,7 +306,23 @@ router.delete("/items/:id", deleteItem);
  *       201:
  *         description: Purchase recorded successfully
  */
+// --- VENDORS ---
+router.post("/vendors", createVendor);
+router.get("/vendors", getVendors);
+router.put("/vendors/:id", updateVendor);
+router.delete("/vendors/:id", deleteVendor);
+
+// --- PURCHASES ---
+router.post("/purchases", recordPurchase);
 router.post("/purchase", recordPurchase);
+router.get("/purchases", getPurchases);
+router.delete("/purchases/:id", deletePurchase);
+
+// --- STOCK REQUESTS & DISTRIBUTIONS ---
+router.post("/requests", createStockRequest);
+router.get("/requests", getStockRequests);
+router.put("/requests/:id/approve", approveStockRequest);
+router.put("/requests/:id/reject", rejectStockRequest);
 
 /**
  * @swagger
