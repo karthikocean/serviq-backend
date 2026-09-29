@@ -69,7 +69,8 @@ export const getSubscriptionDashboardData = async (restaurantId: string) => {
       billingCycle: activeSubscription.billingCycle,
       price: activeSubscription.planPrice || (activeSubscription.plan as any)?.monthlyPrice,
       nextRenewal: activeSubscription.renewalDate,
-      validity: activeSubscription.endDate
+      validity: activeSubscription.endDate,
+      features: activeSubscription.features
     },
     lastRecharge,
     branchCapacity,

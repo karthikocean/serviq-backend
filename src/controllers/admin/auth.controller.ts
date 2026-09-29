@@ -7,14 +7,21 @@ import { loginAdmin, getAdminProfile, logoutAdmin, updateAdminPassword, forgotAd
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
+    console.log(`[Admin Login Attempt] Email: ${email}`);
+    
     const result = await loginAdmin(email, password);
+    console.log(`[Admin Login Success] Email: ${email}`);
+    
     sendSuccess(res, "Login successful.", result);
   } catch (error: any) {
+    console.error(`[Admin Login Failed] Email: ${req.body.email} - Error:`, error.message);
+    
     if (error.message === "Invalid mail" || error.message === "Invalid password") {
       sendError(res, error.message, StatusCodes.UNAUTHORIZED);
-    } else if (error.message.includes("Account is inactive") || error.message.includes("Your branch is currently inactive") || error.message.includes("Access denied")) {
+    } else if (error.message.includes("account is inactive") || error.message.includes("Your branch is currently inactive") || error.message.includes("Access denied") || error.message.includes("Your restaurant account has been deactivated")) {
       sendError(res, error.message, StatusCodes.FORBIDDEN);
     } else {
+      console.error(`[Admin Login Unexpected Error]`, error);
       sendError(res, "Internal server error.", StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }

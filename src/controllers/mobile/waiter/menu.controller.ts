@@ -21,7 +21,7 @@ export const getCategories = async (req: AuthRequest, res: Response): Promise<vo
 
     const totalCount = await Category.countDocuments(query);
     const categories = await Category.find(query)
-      .select("name description status")
+      .select("name description image status")
       .skip(skip)
       .limit(limit);
 
@@ -55,7 +55,7 @@ export const getItems = async (req: AuthRequest, res: Response): Promise<void> =
 
     const totalCount = await Menu.countDocuments(query);
     const items = await Menu.find(query)
-      .populate("category", "name")
+      .populate("category", "name image")
       .select("name desc price image veg bestseller available")
       .skip(skip)
       .limit(limit);

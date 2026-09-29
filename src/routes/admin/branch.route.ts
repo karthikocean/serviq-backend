@@ -42,6 +42,13 @@ const router = Router();
  *                 type: string
  *               isMainBranch:
  *                 type: boolean
+ *               branchType:
+ *                 type: string
+ *                 enum: [MAIN, SUB]
+ *               gstinNumber:
+ *                 type: string
+ *               fssaiLicense:
+ *                 type: string
  *               branchCode:
  *                 type: string
  *               branchOpeningDate:

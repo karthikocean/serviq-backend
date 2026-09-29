@@ -284,7 +284,7 @@ export const getMenuItems = async (req: Request, res: Response): Promise<void> =
     }
 
     const items = await Menu.find(query)
-      .populate("category", "name description")
+      .populate("category", "name description image")
       .sort({ bestseller: -1, name: 1 });
 
     sendSuccess(res, "Menu items fetched successfully", items);
@@ -315,7 +315,7 @@ export const getSpecials = async (req: Request, res: Response): Promise<void> =>
       available: true,
       bestseller: true
     })
-      .populate("category", "name")
+      .populate("category", "name image")
       .limit(10);
 
     sendSuccess(res, "Today's specials fetched successfully", specials);

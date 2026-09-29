@@ -5,7 +5,7 @@ export const seedPlans = async (): Promise<void> => {
   try {
     // Retrieve modules to get their ObjectIds
     const modules = await Module.find({
-      key: { $in: ["qr-code-config", "menu", "tables", "orders", "waiter-list", "kitchen-list"] }
+      key: { $in: ["qr-code-config", "menu", "tables", "orders", "waiter-list", "kitchen-list", "inventory"] }
     });
 
     const getModuleId = (key: string) => {
@@ -19,6 +19,7 @@ export const seedPlans = async (): Promise<void> => {
     const orderManagement = getModuleId("orders");
     const waiterManagement = getModuleId("waiter-list");
     const kitchenManagement = getModuleId("kitchen-list");
+    const inventoryManagement = getModuleId("inventory");
 
     const defaultPlans = [
       {
@@ -27,7 +28,12 @@ export const seedPlans = async (): Promise<void> => {
         monthlyPrice: 999,
         monthlyDiscount: 0,
         annualPrice: 9999,
-        featuresIncluded: [qrOrdering, menuManagement, tableManagement, orderManagement].filter(Boolean),
+        featuresIncluded: {
+            "qr-code-config": true,
+            "menu": true,
+            "tables": true,
+            "orders": true
+        },
         isActive: true,
         isDelete: false,
       },
@@ -37,17 +43,31 @@ export const seedPlans = async (): Promise<void> => {
         monthlyPrice: 1999,
         monthlyDiscount: 0,
         annualPrice: 19999,
-        featuresIncluded: [qrOrdering, menuManagement, tableManagement, orderManagement, waiterManagement].filter(Boolean),
+        featuresIncluded: {
+            "qr-code-config": true,
+            "menu": true,
+            "tables": true,
+            "orders": true,
+            "waiter-list": true
+        },
         isActive: true,
         isDelete: false,
       },
       {
         planName: "Premium Plan",
-        planDescription: "Advanced operations with integrated Kitchen KDS displays and advanced billing.",
+        planDescription: "Advanced operations with integrated Kitchen KDS displays, advanced billing, and inventory.",
         monthlyPrice: 4999,
         monthlyDiscount: 0,
         annualPrice: 49999,
-        featuresIncluded: [qrOrdering, menuManagement, tableManagement, orderManagement, waiterManagement, kitchenManagement].filter(Boolean),
+        featuresIncluded: {
+            "qr-code-config": true,
+            "menu": true,
+            "tables": true,
+            "orders": true,
+            "waiter-list": true,
+            "kitchen-list": true,
+            "inventory": true
+        },
         isActive: true,
         isDelete: false,
       },

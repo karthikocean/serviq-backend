@@ -19,7 +19,7 @@ export interface IRestaurant extends Document {
     gstinNumber?: string;
     panNumber?: string;
     isActive: boolean;
-    status: 'Active' | 'Suspended' | 'Expired';
+    status: 'Active' | 'Inactive' | 'Expired';
     isDelete: boolean;
     tagline?: string;
     currency?: string;
@@ -48,7 +48,7 @@ const RestaurantSchema = new Schema<IRestaurant>(
         gstinNumber: { type: String },
         panNumber: { type: String },
         isActive: { type: Boolean, default: true },
-        status: { type: String, enum: ['Active', 'Suspended', 'Expired'], default: 'Active' },
+        status: { type: String, enum: ['Active', 'Inactive', 'Expired'], default: 'Active' },
         isDelete: { type: Boolean, default: false },
         tagline: { type: String },
         currency: { type: String, default: "INR" },
