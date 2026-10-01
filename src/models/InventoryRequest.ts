@@ -11,7 +11,7 @@ export interface IInventoryRequest extends Document {
   appQty?: number;
   distQty?: number;
   unit: string;
-  status: "Pending" | "Approved" | "Dispatched" | "Rejected" | "Completed";
+  status: "Pending" | "Approved" | "Partially Dispatched" | "Dispatched" | "Rejected" | "Completed";
   requestDate: Date;
   remarks?: string;
   isDelete: boolean;
@@ -33,7 +33,7 @@ const inventoryRequestSchema = new Schema<IInventoryRequest>(
     unit: { type: String, default: "kg" },
     status: {
       type: String,
-      enum: ["Pending", "Approved", "Dispatched", "Rejected", "Completed"],
+      enum: ["Pending", "Approved", "Partially Dispatched", "Dispatched", "Rejected", "Completed"],
       default: "Pending"
     },
     requestDate: { type: Date, default: Date.now },
