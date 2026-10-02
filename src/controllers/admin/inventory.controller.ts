@@ -746,48 +746,20 @@ export const approveStockRequest = async (req: AuthRequest, res: Response): Prom
   try {
     const restaurantId = req.user?.restaurantId;
     const { id } = req.params;
-    const { distributedQty, distQty, appQty, remarks } = req.body;
+    const { appQty, remarks } = req.body;
 
     const stockReq = await InventoryRequest.findOne({ _id: id, restaurantId, isDelete: false });
     if (!stockReq) {
       return sendError(res, "Stock request not found", StatusCodes.NOT_FOUND);
     }
 
-    const qtyToDeduct = Number(distributedQty || distQty || appQty || stockReq.reqQty || 0);
-
-    if (qtyToDeduct <= 0) {
-      return sendError(res, "Valid distributed quantity is required", StatusCodes.BAD_REQUEST);
+    const approvedQuantity = Number(appQty !== undefined ? appQty : stockReq.reqQty);
+    if (approvedQuantity <= 0) {
+      return sendError(res, "Valid approved quantity is required", StatusCodes.BAD_REQUEST);
     }
 
-    // Find Central Stock Item (where branchId is null/undefined or main item)
-    let centralItem: any = null;
-    if (stockReq.itemId) {
-      centralItem = await InventoryItem.findOne({ _id: stockReq.itemId, restaurantId, isDelete: false });
-    }
-    if (!centralItem && stockReq.itemName) {
-      centralItem = await InventoryItem.findOne({ name: stockReq.itemName, restaurantId, isDelete: false });
-    }
-
-    if (centralItem) {
-      const currentCentral = centralItem.currentStock || 0;
-      if (currentCentral < qtyToDeduct) {
-        return sendError(res, `Insufficient Central Stock. Current stock is ${currentCentral} ${centralItem.unit}`, StatusCodes.BAD_REQUEST);
-      }
-
-      // DECREASE CENTRAL STOCK (- qtyToDeduct)
-      centralItem.currentStock = Math.max(0, currentCentral - qtyToDeduct);
-      if (centralItem.currentStock === 0) {
-        (centralItem as any).status = "OUT_OF_STOCK";
-      } else if (centralItem.currentStock <= centralItem.minAlertLevel) {
-        (centralItem as any).status = "LOW_STOCK";
-      }
-      await centralItem.save();
-    }
-
-    // Update Request Status to Dispatched / Approved
-    stockReq.appQty = qtyToDeduct;
-    stockReq.distQty = qtyToDeduct;
-    stockReq.status = "Dispatched";
+    stockReq.appQty = approvedQuantity;
+    stockReq.status = "Approved";
     if (remarks) stockReq.remarks = remarks;
 
     await stockReq.save();
@@ -801,18 +773,99 @@ export const approveStockRequest = async (req: AuthRequest, res: Response): Prom
           receiverType: "ADMIN",
           type: "STOCK_REQUEST_APPROVED",
           requestType: "BranchRequest",
-          title: "Stock Request Approved & Dispatched",
-          message: `Stock Request ${stockReq.requestNo} for ${stockReq.itemName} (Qty: ${qtyToDeduct} ${stockReq.unit}) has been APPROVED and dispatched by Central HQ.`
+          title: "Stock Request Approved",
+          message: `Stock Request ${stockReq.requestNo} for ${stockReq.itemName} (Qty: ${approvedQuantity} ${stockReq.unit}) has been APPROVED by Central HQ.`
         });
       }
     } catch (notifErr) {
       console.warn("Approval notification warning:", notifErr);
     }
 
-    sendSuccess(res, `Stock request approved & dispatched! Central stock decreased by ${qtyToDeduct} ${stockReq.unit}.`, stockReq);
+    sendSuccess(res, `Stock request approved for ${approvedQuantity} ${stockReq.unit}. Ready for stock distribution.`, stockReq);
   } catch (error: any) {
     console.error("Approve Stock Request Error:", error);
     sendError(res, error?.message || "Failed to approve stock request", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const distributeStockRequest = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.user?.restaurantId;
+    const { id } = req.params;
+    const { distributedQty, distQty, givenQty, remarks } = req.body;
+
+    const stockReq = await InventoryRequest.findOne({ _id: id, restaurantId, isDelete: false });
+    if (!stockReq) {
+      return sendError(res, "Stock request not found", StatusCodes.NOT_FOUND);
+    }
+
+    const qtyGiven = Number(distributedQty || distQty || givenQty || 0);
+    if (qtyGiven <= 0) {
+      return sendError(res, "Valid distribution quantity is required", StatusCodes.BAD_REQUEST);
+    }
+
+    // Find Central Stock Item
+    let centralItem: any = null;
+    if (stockReq.itemId) {
+      centralItem = await InventoryItem.findOne({ _id: stockReq.itemId, restaurantId, isDelete: false });
+    }
+    if (!centralItem && stockReq.itemName) {
+      centralItem = await InventoryItem.findOne({ name: stockReq.itemName, restaurantId, isDelete: false });
+    }
+
+    if (centralItem) {
+      const currentCentral = centralItem.currentStock || 0;
+      if (currentCentral < qtyGiven) {
+        return sendError(res, `Insufficient Central Stock. Current stock is ${currentCentral} ${centralItem.unit}`, StatusCodes.BAD_REQUEST);
+      }
+
+      // DECREASE CENTRAL STOCK (- qtyGiven)
+      centralItem.currentStock = Math.max(0, currentCentral - qtyGiven);
+      if (centralItem.currentStock === 0) {
+        (centralItem as any).status = "OUT_OF_STOCK";
+      } else if (centralItem.currentStock <= centralItem.minAlertLevel) {
+        (centralItem as any).status = "LOW_STOCK";
+      }
+      await centralItem.save();
+    }
+
+    const currentGiven = stockReq.distQty || 0;
+    const newTotalGiven = currentGiven + qtyGiven;
+    stockReq.distQty = newTotalGiven;
+
+    const targetQty = stockReq.appQty && stockReq.appQty > 0 ? stockReq.appQty : stockReq.reqQty;
+
+    if (newTotalGiven >= targetQty) {
+      stockReq.status = "Dispatched";
+    } else {
+      stockReq.status = "Partially Dispatched";
+    }
+
+    if (remarks) stockReq.remarks = remarks;
+
+    await stockReq.save();
+
+    // Send Notification to Branch when HQ distributes stock
+    try {
+      if (stockReq.branchId) {
+        await Notification.create({
+          restaurantId,
+          branchId: stockReq.branchId,
+          receiverType: "ADMIN",
+          type: "STOCK_REQUEST_DISPATCHED",
+          requestType: "BranchRequest",
+          title: "Stock Distributed / Dispatched",
+          message: `Stock Request ${stockReq.requestNo} for ${stockReq.itemName}: Distributed ${qtyGiven} ${stockReq.unit} (Total Given: ${newTotalGiven}/${targetQty}).`
+        });
+      }
+    } catch (notifErr) {
+      console.warn("Distribution notification warning:", notifErr);
+    }
+
+    sendSuccess(res, `Stock distributed successfully (${qtyGiven} ${stockReq.unit}). Central stock updated.`, stockReq);
+  } catch (error: any) {
+    console.error("Distribute Stock Request Error:", error);
+    sendError(res, error?.message || "Failed to distribute stock", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 

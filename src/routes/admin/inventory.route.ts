@@ -18,6 +18,7 @@ import {
   createStockRequest,
   getStockRequests,
   approveStockRequest,
+  distributeStockRequest,
   rejectStockRequest,
   recordReduction,
   getStats,
@@ -322,6 +323,7 @@ router.delete("/purchases/:id", deletePurchase);
 router.post("/requests", createStockRequest);
 router.get("/requests", getStockRequests);
 router.put("/requests/:id/approve", approveStockRequest);
+router.put("/requests/:id/distribute", distributeStockRequest);
 router.put("/requests/:id/reject", rejectStockRequest);
 
 /**
