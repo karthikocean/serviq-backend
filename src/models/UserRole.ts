@@ -13,6 +13,9 @@ export interface IUserRole extends Document {
   code?: string;
   roleType?: string;
   permissions: Record<string, IPermission>;
+  adminAccess?: boolean;
+  isAdminAccess?: boolean;
+  status?: string;
   isDefault: boolean;
   isDeletable: boolean;
   isActive: boolean;
@@ -36,6 +39,9 @@ const UserRoleSchema = new Schema<IUserRole>(
     code: { type: String },
     roleType: { type: String },
     permissions: { type: Map, of: PermissionSchema },
+    adminAccess: { type: Boolean, default: false },
+    isAdminAccess: { type: Boolean, default: false },
+    status: { type: String, enum: ["Active", "Inactive"], default: "Active" },
     isDefault: { type: Boolean, default: false },
     isDeletable: { type: Boolean, default: true },
     isActive: { type: Boolean, default: true },

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { getAllTickets, getTicketById, updateTicketStatus, assignTicket } from "../../controllers/super-admin/ticket.controller";
 
 const router = Router();
+
 /**
  * @swagger
  * tags:
@@ -13,7 +14,7 @@ const router = Router();
  * @swagger
  * /api/super-admin/tickets:
  *   get:
- *     summary: Get all tickets with pagination, search and filters
+ *     summary: Get all support tickets with pagination, search, and filters
  *     tags: [Super Admin Tickets]
  *     security:
  *       - bearerAuth: []
@@ -22,14 +23,14 @@ const router = Router();
  *         name: page
  *         schema:
  *           type: integer
- *           default: 1
+ *           default: 0
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
  *           default: 10
  *       - in: query
- *         name: searchTerm
+ *         name: search
  *         schema:
  *           type: string
  *       - in: query
@@ -44,6 +45,22 @@ const router = Router();
  *         name: categoryFilter
  *         schema:
  *           type: string
+ *       - in: query
+ *         name: restaurantId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: branchId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: isEscalated
+ *         schema:
+ *           type: boolean
+ *       - in: query
+ *         name: viewAll
+ *         schema:
+ *           type: boolean
  *     responses:
  *       200:
  *         description: Tickets fetched successfully
@@ -54,7 +71,7 @@ router.get("/", getAllTickets);
  * @swagger
  * /api/super-admin/tickets/{id}:
  *   get:
- *     summary: Get ticket by ID
+ *     summary: Get ticket details by ID for Super Admin
  *     tags: [Super Admin Tickets]
  *     security:
  *       - bearerAuth: []
@@ -76,7 +93,7 @@ router.get("/:id", getTicketById);
  * @swagger
  * /api/super-admin/tickets/{id}/status:
  *   patch:
- *     summary: Update ticket status and resolution/reply
+ *     summary: Update ticket status and resolution by Super Admin
  *     tags: [Super Admin Tickets]
  *     security:
  *       - bearerAuth: []
@@ -95,8 +112,10 @@ router.get("/:id", getTicketById);
  *             properties:
  *               status:
  *                 type: string
+ *                 example: "Resolved"
  *               resolution:
  *                 type: string
+ *                 example: "Resolved core sync issue in server build v2.4."
  *     responses:
  *       200:
  *         description: Ticket status and resolution updated successfully
@@ -107,7 +126,7 @@ router.patch("/:id/status", updateTicketStatus);
  * @swagger
  * /api/super-admin/tickets/{id}/assign:
  *   patch:
- *     summary: Assign ticket to a user
+ *     summary: Assign ticket to a support user
  *     tags: [Super Admin Tickets]
  *     security:
  *       - bearerAuth: []
@@ -126,6 +145,7 @@ router.patch("/:id/status", updateTicketStatus);
  *             properties:
  *               assignedUser:
  *                 type: string
+ *                 example: "John Doe (Support L2)"
  *     responses:
  *       200:
  *         description: Ticket assigned successfully

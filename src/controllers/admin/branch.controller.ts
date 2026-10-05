@@ -14,8 +14,8 @@ import Table from "../../models/Table";
 export const createBranch = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const user = req.user as any;
-    if (!user || user.userType !== 'RESTAURANT_OWNER') {
-      sendError(res, "Only Restaurant Owners can create branches.", StatusCodes.FORBIDDEN);
+    if (!user) {
+      sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
       return;
     }
 
@@ -211,8 +211,8 @@ const getManagerForBranch = async (branchId: any) => {
 export const getAllBranches = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const user = req.user as any;
-    if (!user || (user.userType !== 'RESTAURANT_OWNER' && user.userType !== 'BRANCH_ADMIN')) {
-      sendError(res, "Not authorized to view branches.", StatusCodes.FORBIDDEN);
+    if (!user) {
+      sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
       return;
     }
     
@@ -263,8 +263,8 @@ export const getAllBranches = async (req: AuthRequest, res: Response): Promise<v
 export const getBranchById = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const user = req.user as any;
-    if (!user || user.userType !== 'RESTAURANT_OWNER') {
-      sendError(res, "Only Restaurant Owners can view branches.", StatusCodes.FORBIDDEN);
+    if (!user) {
+      sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
       return;
     }
     const branch = await Branch.findOne({ _id: req.params.id, restaurantId: user.restaurantId, isDelete: false }).lean();
@@ -294,8 +294,8 @@ export const getBranchById = async (req: AuthRequest, res: Response): Promise<vo
 export const updateBranch = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const user = req.user as any;
-    if (!user || user.userType !== 'RESTAURANT_OWNER') {
-      sendError(res, "Only Restaurant Owners can update branches.", StatusCodes.FORBIDDEN);
+    if (!user) {
+      sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
       return;
     }
 
@@ -410,10 +410,10 @@ export const deleteBranch = async (req: AuthRequest, res: Response): Promise<voi
 
   try {
     const user = req.user as any;
-    if (!user || user.userType !== 'RESTAURANT_OWNER') {
+    if (!user) {
       await session.abortTransaction();
       session.endSession();
-      sendError(res, "Only Restaurant Owners can delete branches.", StatusCodes.FORBIDDEN);
+      sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
       return;
     }
 

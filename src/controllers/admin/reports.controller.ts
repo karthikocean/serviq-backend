@@ -11,56 +11,52 @@ export const getWaiterReports = async (req: AuthRequest, res: Response): Promise
     const activeBranchId = getTargetBranchId(req);
     if (!restaurantId || !activeBranchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
-    const { startDate, endDate, branchId, waiterId, search, page, limit } = req.query;
+    const payload = req.method === "POST" ? req.body : { ...req.query, ...req.body };
+    const {
+      startDate,
+      endDate,
+      preset,
+      branchId,
+      search,
+      searchQuery,
+      staff,
+      staffId,
+      waiterId,
+      role,
+      roleId,
+      page,
+      limit
+    } = payload;
 
-    const queryBranchId = branchId === "All" || !branchId ? activeBranchId : (branchId as string);
+    const queryBranchId = branchId === "All" || branchId === "all" || !branchId ? activeBranchId : (branchId as string);
 
-    const results = await reportsService.getWaiterReport(
-      restaurantId,
-      queryBranchId,
-      waiterId as string,
-      search as string,
-      { startDate: startDate as string, endDate: endDate as string }
-    );
+    const reportData = await reportsService.getStaffPerformanceReport(restaurantId, {
+      branchId: queryBranchId,
+      preset: preset as string,
+      startDate: startDate as string,
+      endDate: endDate as string,
+      searchQuery: (searchQuery || search) as string,
+      staffId: (staffId || waiterId || staff) as string,
+      roleId: (roleId || role) as string,
+      page: page !== undefined ? parseInt(page as string, 10) : 1,
+      limit: limit !== undefined ? parseInt(limit as string, 10) : 10
+    });
 
-    // Summary Calculations
-    const totalWaiterRevenue = results.reduce((sum, w) => sum + (w.totalRevenue || 0), 0);
-    const totalOrdersServed = results.reduce((sum, w) => sum + (w.ordersServed || 0), 0);
-    const activeWaitersOnDuty = results.filter(w => w.dutyStatus === "ON_DUTY" || w.status === "On Duty" || w.status === "Active").length;
-    const totalWaiters = results.length;
-    const averageOrderValue = totalOrdersServed > 0 ? (totalWaiterRevenue / totalOrdersServed).toFixed(2) : "0.00";
-
-    const parsedPage = page !== undefined && page !== "" && !isNaN(parseInt(page as string)) ? Math.max(0, parseInt(page as string)) : 0;
-    const parsedLimit = limit === "0" ? results.length : (parseInt(limit as string) || 10);
-
-    const startIndex = parsedPage * parsedLimit;
-    const paginatedResults = results.slice(startIndex, startIndex + parsedLimit);
-
-    const responseData = {
+    res.status(StatusCodes.OK).json({
       success: true,
-      message: "Waiter Reports fetched successfully",
-      summary: {
-        totalWaiterRevenue,
-        salesAmount: totalWaiterRevenue,
-        totalOrdersServed,
-        ordersHandled: totalOrdersServed,
-        billsGenerated: totalOrdersServed,
-        activeWaitersOnDuty,
-        activeStaff: activeWaitersOnDuty,
-        totalWaiters,
-        totalStaff: totalWaiters,
-        averageOrderValue
-      },
-      totalItems: results.length,
-      totalPages: Math.ceil(results.length / (parsedLimit || 1)),
-      page: parsedPage,
-      data: paginatedResults
-    };
-
-    res.status(StatusCodes.OK).json(responseData);
+      message: "Staff Performance Reports fetched successfully",
+      summary: reportData.summary,
+      tableSummary: reportData.tableSummary,
+      totalItems: reportData.totalRecords,
+      totalRecords: reportData.totalRecords,
+      totalPages: reportData.totalPages,
+      page: reportData.currentPage,
+      limit: reportData.limit,
+      data: reportData.data
+    });
   } catch (error: any) {
-    console.error("Waiter Reports Error:", error);
-    sendError(res, error?.message || "Failed to fetch Waiter Reports", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
+    console.error("Staff Performance Reports Error:", error);
+    sendError(res, error?.message || "Failed to fetch Staff Performance Reports", StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -122,40 +118,54 @@ export const getTaxSettlementReports = async (req: AuthRequest, res: Response): 
     const activeBranchId = getTargetBranchId(req);
     if (!restaurantId || !activeBranchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
-    const { startDate, endDate, branchId, paymentMethod, search, page, limit } = req.query;
+    const payload = req.method === "POST" ? req.body : { ...req.query, ...req.body };
+    const {
+      startDate,
+      endDate,
+      preset,
+      branchId,
+      search,
+      searchQuery,
+      taxType,
+      paymentMethod,
+      tab,
+      page,
+      limit
+    } = payload;
 
-    const queryBranchId = branchId === "All" || !branchId ? activeBranchId : (branchId as string);
+    const queryBranchId = branchId === "All" || branchId === "all" || !branchId ? activeBranchId : (branchId as string);
 
-    const { summary, paymentSettlementTable, gstTaxBreakdown, results } = await reportsService.getTaxSettlementReport(
-      restaurantId,
-      queryBranchId,
-      paymentMethod as string,
-      search as string,
-      { startDate: startDate as string, endDate: endDate as string }
-    );
+    const reportData = await reportsService.getTaxSettlementReport(restaurantId, {
+      branchId: queryBranchId,
+      preset: preset as string,
+      startDate: startDate as string,
+      endDate: endDate as string,
+      searchQuery: (searchQuery || search) as string,
+      taxType: taxType as string,
+      paymentMethod: paymentMethod as string,
+      tab: tab as string,
+      page: page !== undefined ? parseInt(page as string, 10) : 1,
+      limit: limit !== undefined ? parseInt(limit as string, 10) : 10
+    });
 
-    const parsedPage = page !== undefined && page !== "" && !isNaN(parseInt(page as string)) ? Math.max(0, parseInt(page as string)) : 0;
-    const parsedLimit = limit === "0" ? results.length : (parseInt(limit as string) || 10);
-
-    const startIndex = parsedPage * parsedLimit;
-    const paginatedResults = results.slice(startIndex, startIndex + parsedLimit);
-
-    const responseData = {
+    res.status(StatusCodes.OK).json({
       success: true,
       message: "Tax & Payment Settlement Reports fetched successfully",
-      summary,
-      paymentSettlementTable,
-      gstTaxBreakdown,
-      totalItems: results.length,
-      totalPages: Math.ceil(results.length / (parsedLimit || 1)),
-      page: parsedPage,
-      data: paginatedResults
-    };
-
-    res.status(StatusCodes.OK).json(responseData);
+      summary: reportData.summary,
+      tableSummary: reportData.tableSummary,
+      taxSummaryTable: reportData.taxSummaryTable,
+      paymentSettlementTable: reportData.paymentSettlementTable,
+      gstTaxBreakdown: reportData.gstTaxBreakdown,
+      totalItems: reportData.totalRecords,
+      totalRecords: reportData.totalRecords,
+      totalPages: reportData.totalPages,
+      page: reportData.currentPage,
+      limit: reportData.limit,
+      data: reportData.data
+    });
   } catch (error: any) {
     console.error("Tax & Settlement Reports Error:", error);
-    sendError(res, error?.message || "Failed to fetch Tax & Settlement Reports", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
+    sendError(res, error?.message || "Failed to fetch Tax & Settlement Reports", StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -165,30 +175,33 @@ export const getSalesRevenueReports = async (req: AuthRequest, res: Response): P
     const activeBranchId = getTargetBranchId(req);
     if (!restaurantId || !activeBranchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
-    const { startDate, endDate, branchId, search, page, limit } = req.query;
-    const queryBranchId = branchId === "All" || !branchId ? activeBranchId : (branchId as string);
+    const payload = req.method === "POST" ? req.body : { ...req.query, ...req.body };
+    const { startDate, endDate, preset, branchId, search, searchQuery, paymentMethod, orderType, page, limit } = payload;
 
-    const { summary, results } = await reportsService.getSalesRevenueReport(
-      restaurantId,
-      queryBranchId,
-      search as string,
-      { startDate: startDate as string, endDate: endDate as string }
-    );
+    const queryBranchId = branchId === "All" || branchId === "all" || !branchId ? activeBranchId : (branchId as string);
 
-    const parsedPage = page !== undefined && page !== "" && !isNaN(parseInt(page as string)) ? Math.max(0, parseInt(page as string)) : 0;
-    const parsedLimit = limit === "0" ? results.length : (parseInt(limit as string) || 10);
-
-    const startIndex = parsedPage * parsedLimit;
-    const paginatedResults = results.slice(startIndex, startIndex + parsedLimit);
+    const reportData = await reportsService.getSalesRevenueReport(restaurantId, {
+      branchId: queryBranchId,
+      preset: preset as string,
+      startDate: startDate as string,
+      endDate: endDate as string,
+      searchQuery: (searchQuery || search) as string,
+      paymentMethod: paymentMethod as string,
+      orderType: orderType as string,
+      page: page !== undefined ? parseInt(page as string, 10) : 1,
+      limit: limit !== undefined ? parseInt(limit as string, 10) : 10
+    });
 
     res.status(StatusCodes.OK).json({
       success: true,
       message: "Sales & Revenue Reports fetched successfully",
-      summary,
-      totalItems: results.length,
-      totalPages: Math.ceil(results.length / (parsedLimit || 1)),
-      page: parsedPage,
-      data: paginatedResults
+      summary: reportData.summary,
+      totalItems: reportData.totalRecords,
+      totalRecords: reportData.totalRecords,
+      totalPages: reportData.totalPages,
+      page: reportData.currentPage,
+      limit: reportData.limit,
+      data: reportData.data
     });
   } catch (error: any) {
     console.error("Sales & Revenue Reports Error:", error);
@@ -197,7 +210,61 @@ export const getSalesRevenueReports = async (req: AuthRequest, res: Response): P
 };
 
 export const getDishPerformanceReports = async (req: AuthRequest, res: Response): Promise<void> => {
-  return getKitchenReports(req, res);
+  try {
+    const restaurantId = req.user?.restaurantId;
+    const activeBranchId = getTargetBranchId(req);
+    if (!restaurantId || !activeBranchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    const payload = req.method === "POST" ? req.body : { ...req.query, ...req.body };
+    const {
+      startDate,
+      endDate,
+      preset,
+      branchId,
+      search,
+      searchQuery,
+      orderType,
+      category,
+      categoryId,
+      dish,
+      dishId,
+      menuId,
+      foodType,
+      page,
+      limit
+    } = payload;
+
+    const queryBranchId = branchId === "All" || branchId === "all" || !branchId ? activeBranchId : (branchId as string);
+
+    const reportData = await reportsService.getDishPerformanceReport(restaurantId, {
+      branchId: queryBranchId,
+      preset: preset as string,
+      startDate: startDate as string,
+      endDate: endDate as string,
+      searchQuery: (searchQuery || search) as string,
+      orderType: orderType as string,
+      categoryId: (categoryId || category) as string,
+      dishId: (dishId || menuId || dish) as string,
+      foodType: foodType as string,
+      page: page !== undefined ? parseInt(page as string, 10) : 1,
+      limit: limit !== undefined ? parseInt(limit as string, 10) : 10
+    });
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      message: "Dish Performance Reports fetched successfully",
+      summary: reportData.summary,
+      totalItems: reportData.totalRecords,
+      totalRecords: reportData.totalRecords,
+      totalPages: reportData.totalPages,
+      page: reportData.currentPage,
+      limit: reportData.limit,
+      data: reportData.data
+    });
+  } catch (error: any) {
+    console.error("Dish Performance Reports Error:", error);
+    sendError(res, error?.message || "Failed to fetch Dish Performance Reports", StatusCodes.INTERNAL_SERVER_ERROR);
+  }
 };
 
 export const getOrderAnalyticsReports = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -206,30 +273,45 @@ export const getOrderAnalyticsReports = async (req: AuthRequest, res: Response):
     const activeBranchId = getTargetBranchId(req);
     if (!restaurantId || !activeBranchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
-    const { startDate, endDate, branchId, search, page, limit } = req.query;
-    const queryBranchId = branchId === "All" || !branchId ? activeBranchId : (branchId as string);
+    const payload = req.method === "POST" ? req.body : { ...req.query, ...req.body };
+    const {
+      startDate,
+      endDate,
+      preset,
+      branchId,
+      search,
+      searchQuery,
+      orderType,
+      orderStatus,
+      status,
+      page,
+      limit
+    } = payload;
 
-    const { summary, results } = await reportsService.getOrderAnalyticsReport(
-      restaurantId,
-      queryBranchId,
-      search as string,
-      { startDate: startDate as string, endDate: endDate as string }
-    );
+    const queryBranchId = branchId === "All" || branchId === "all" || !branchId ? activeBranchId : (branchId as string);
 
-    const parsedPage = page !== undefined && page !== "" && !isNaN(parseInt(page as string)) ? Math.max(0, parseInt(page as string)) : 0;
-    const parsedLimit = limit === "0" ? results.length : (parseInt(limit as string) || 10);
-
-    const startIndex = parsedPage * parsedLimit;
-    const paginatedResults = results.slice(startIndex, startIndex + parsedLimit);
+    const reportData = await reportsService.getOrderAnalyticsReport(restaurantId, {
+      branchId: queryBranchId,
+      preset: preset as string,
+      startDate: startDate as string,
+      endDate: endDate as string,
+      searchQuery: (searchQuery || search) as string,
+      orderType: orderType as string,
+      orderStatus: (orderStatus || status) as string,
+      page: page !== undefined ? parseInt(page as string, 10) : 1,
+      limit: limit !== undefined ? parseInt(limit as string, 10) : 10
+    });
 
     res.status(StatusCodes.OK).json({
       success: true,
       message: "Order Analytics Reports fetched successfully",
-      summary,
-      totalItems: results.length,
-      totalPages: Math.ceil(results.length / (parsedLimit || 1)),
-      page: parsedPage,
-      data: paginatedResults
+      summary: reportData.summary,
+      totalItems: reportData.totalRecords,
+      totalRecords: reportData.totalRecords,
+      totalPages: reportData.totalPages,
+      page: reportData.currentPage,
+      limit: reportData.limit,
+      data: reportData.data
     });
   } catch (error: any) {
     console.error("Order Analytics Reports Error:", error);
@@ -243,29 +325,53 @@ export const getInventoryStockReports = async (req: AuthRequest, res: Response):
     const activeBranchId = getTargetBranchId(req);
     if (!restaurantId || !activeBranchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
-    const { branchId, search, page, limit } = req.query;
-    const queryBranchId = branchId === "All" || !branchId ? activeBranchId : (branchId as string);
+    const payload = req.method === "POST" ? req.body : { ...req.query, ...req.body };
+    const {
+      startDate,
+      endDate,
+      preset,
+      branchId,
+      search,
+      searchQuery,
+      category,
+      categoryId,
+      item,
+      itemId,
+      stockStatus,
+      transactionType,
+      tab,
+      page,
+      limit
+    } = payload;
 
-    const { summary, results } = await reportsService.getInventoryStockReport(
-      restaurantId,
-      queryBranchId,
-      search as string
-    );
+    const queryBranchId = branchId === "All" || branchId === "all" || !branchId ? activeBranchId : (branchId as string);
 
-    const parsedPage = page !== undefined && page !== "" && !isNaN(parseInt(page as string)) ? Math.max(0, parseInt(page as string)) : 0;
-    const parsedLimit = limit === "0" ? results.length : (parseInt(limit as string) || 10);
-
-    const startIndex = parsedPage * parsedLimit;
-    const paginatedResults = results.slice(startIndex, startIndex + parsedLimit);
+    const reportData = await reportsService.getInventoryStockReport(restaurantId, {
+      branchId: queryBranchId,
+      preset: preset as string,
+      startDate: startDate as string,
+      endDate: endDate as string,
+      searchQuery: (searchQuery || search) as string,
+      categoryId: (categoryId || category) as string,
+      itemId: (itemId || item) as string,
+      stockStatus: stockStatus as string,
+      transactionType: transactionType as string,
+      tab: tab as string,
+      page: page !== undefined ? parseInt(page as string, 10) : 1,
+      limit: limit !== undefined ? parseInt(limit as string, 10) : 10
+    });
 
     res.status(StatusCodes.OK).json({
       success: true,
       message: "Inventory & Stock Reports fetched successfully",
-      summary,
-      totalItems: results.length,
-      totalPages: Math.ceil(results.length / (parsedLimit || 1)),
-      page: parsedPage,
-      data: paginatedResults
+      summary: reportData.summary,
+      tableSummary: reportData.tableSummary,
+      totalItems: reportData.totalRecords,
+      totalRecords: reportData.totalRecords,
+      totalPages: reportData.totalPages,
+      page: reportData.currentPage,
+      limit: reportData.limit,
+      data: reportData.data
     });
   } catch (error: any) {
     console.error("Inventory & Stock Reports Error:", error);

@@ -85,6 +85,36 @@ export const loginAdmin = async (email: string, password: string) => {
     }
   }
 
+  const roleObj: any = user.roleId;
+  const userTypeStr = String(user.userType || '');
+  const isOwner = userTypeStr === 'RESTAURANT_OWNER' || userTypeStr === 'SUPER_ADMIN';
+  const hasAdminAccess = isOwner
+    ? true
+    : (roleObj?.adminAccess !== undefined
+        ? Boolean(roleObj.adminAccess)
+        : (roleObj?.isAdminAccess !== undefined
+            ? Boolean(roleObj.isAdminAccess)
+            : true));
+
+  let formattedRole: any = null;
+  if (roleObj) {
+    const rawRoleObj = roleObj.toObject ? roleObj.toObject({ getters: true }) : roleObj;
+    let permissionsObj: any = {};
+    if (rawRoleObj.permissions) {
+      if (typeof rawRoleObj.permissions.toObject === 'function') {
+        permissionsObj = rawRoleObj.permissions.toObject();
+      } else if (rawRoleObj.permissions instanceof Map) {
+        permissionsObj = Object.fromEntries(rawRoleObj.permissions);
+      } else if (typeof rawRoleObj.permissions === 'object') {
+        permissionsObj = rawRoleObj.permissions;
+      }
+    }
+    formattedRole = {
+      ...rawRoleObj,
+      permissions: permissionsObj
+    };
+  }
+
   // Always generate a fresh token with up-to-date payload
   const finalToken = jwt.sign(
     {
@@ -116,20 +146,64 @@ export const loginAdmin = async (email: string, password: string) => {
       userType: user.userType,
       restaurantId: user.restaurantId,
       activeBranchId: activeBranchId,
-      role: user.roleId,
+      role: formattedRole || user.roleId,
+      roleId: formattedRole || user.roleId,
+      adminAccess: hasAdminAccess,
+      isAdminAccess: hasAdminAccess,
+      isAdmin: hasAdminAccess,
     }
   };
 };
 
 export const getAdminProfile = async (userId: string) => {
-  let user = await Admin.findById(userId).select("-password").populate("roleId");
+  let user: any = await Admin.findById(userId).select("-password").populate("roleId");
   if (!user) {
     user = await User.findById(userId).select("-password").populate("roleId") as any;
   }
   if (!user) {
     throw new Error("User not found.");
   }
-  return user;
+
+  const roleObj: any = user.roleId;
+  const userTypeStr = String(user.userType || '');
+  const isOwner = userTypeStr === 'RESTAURANT_OWNER' || userTypeStr === 'SUPER_ADMIN';
+  const hasAdminAccess = isOwner
+    ? true
+    : (roleObj?.adminAccess !== undefined
+        ? Boolean(roleObj.adminAccess)
+        : (roleObj?.isAdminAccess !== undefined
+            ? Boolean(roleObj.isAdminAccess)
+            : true));
+
+  const userObj = user.toObject ? user.toObject({ getters: true }) : user;
+
+  let formattedRole: any = null;
+  if (roleObj) {
+    const rawRoleObj = roleObj.toObject ? roleObj.toObject({ getters: true }) : roleObj;
+    let permissionsObj: any = {};
+    if (rawRoleObj.permissions) {
+      if (typeof rawRoleObj.permissions.toObject === 'function') {
+        permissionsObj = rawRoleObj.permissions.toObject();
+      } else if (rawRoleObj.permissions instanceof Map) {
+        permissionsObj = Object.fromEntries(rawRoleObj.permissions);
+      } else if (typeof rawRoleObj.permissions === 'object') {
+        permissionsObj = rawRoleObj.permissions;
+      }
+    }
+    formattedRole = {
+      ...rawRoleObj,
+      permissions: permissionsObj
+    };
+  }
+
+  return {
+    ...userObj,
+    role: formattedRole || userObj.roleId || userObj.role,
+    roleId: formattedRole || userObj.roleId || userObj.role,
+    adminAccess: hasAdminAccess,
+    isAdminAccess: hasAdminAccess,
+    isAdmin: hasAdminAccess,
+  };
 };
 
 export const logoutAdmin = async (userId: string, token: string) => {
