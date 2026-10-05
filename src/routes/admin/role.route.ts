@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getRoles, getRole, createRole, updateRole, deleteRole } from "../../controllers/admin/role.controller";
+import { getRoles, getRole, createRole, updateRole, deleteRole, seedDefaultRoles } from "../../controllers/admin/role.controller";
 import { protectAdmin, restrictTo } from "../../middleware/authMiddleware";
 import { validate } from "../../middleware/validate";
 import { updateRolePermissionsSchema, createRoleSchema } from "../../validations/admin/role.validation";
@@ -10,7 +10,7 @@ const router = Router();
  * @swagger
  * tags:
  *   name: Admin Roles & Permissions
- *   description: Administrative roles and permissions management
+ *   description: Administrative roles and permissions management API
  */
 
 router.use(protectAdmin);
@@ -20,8 +20,20 @@ router.use(restrictTo("RESTAURANT_OWNER", "SUPER_ADMIN", "BRANCH_ADMIN"));
  * @swagger
  * /api/admin/roles-permissions:
  *   get:
- *     summary: Retrieves full permissions matrix for all system roles.
+ *     summary: Retrieves roles with permissions matrix, status, search, and user counts.
  *     tags: [Admin Roles & Permissions]
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by role name or code
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [Active, Inactive, ALL]
+ *         description: Filter by status
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -32,9 +44,23 @@ router.get("/", getRoles);
 
 /**
  * @swagger
+ * /api/admin/roles-permissions/seed:
+ *   post:
+ *     summary: Seeds default system roles for the restaurant.
+ *     tags: [Admin Roles & Permissions]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Default roles seeded successfully
+ */
+router.post("/seed", seedDefaultRoles);
+
+/**
+ * @swagger
  * /api/admin/roles-permissions/{id}:
  *   get:
- *     summary: Retrieves a specific role by ID.
+ *     summary: Retrieves a specific role by ID with permissions matrix.
  *     tags: [Admin Roles & Permissions]
  *     security:
  *       - bearerAuth: []
@@ -47,6 +73,8 @@ router.get("/", getRoles);
  *     responses:
  *       200:
  *         description: Role fetched successfully
+ *       404:
+ *         description: Role not found
  */
 router.get("/:id", getRole);
 
@@ -54,7 +82,7 @@ router.get("/:id", getRole);
  * @swagger
  * /api/admin/roles-permissions:
  *   post:
- *     summary: Creates a new role with permissions.
+ *     summary: Creates a new custom role with permissions matrix and access level.
  *     tags: [Admin Roles & Permissions]
  *     security:
  *       - bearerAuth: []
@@ -64,14 +92,25 @@ router.get("/:id", getRole);
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - roleName
  *             properties:
  *               roleName:
  *                 type: string
+ *               adminAccess:
+ *                 type: boolean
+ *               isActive:
+ *                 type: boolean
+ *               status:
+ *                 type: string
+ *                 enum: [Active, Inactive]
  *               permissions:
  *                 type: object
  *     responses:
  *       201:
- *         description: Role created
+ *         description: Role created successfully
+ *       409:
+ *         description: Role name already exists
  */
 router.post("/", validate(createRoleSchema), createRole);
 
@@ -79,7 +118,7 @@ router.post("/", validate(createRoleSchema), createRole);
  * @swagger
  * /api/admin/roles-permissions/{id}:
  *   put:
- *     summary: Updates module-wise granular permissions for a role.
+ *     summary: Updates permissions, access level, status, or role name.
  *     tags: [Admin Roles & Permissions]
  *     security:
  *       - bearerAuth: []
@@ -98,11 +137,22 @@ router.post("/", validate(createRoleSchema), createRole);
  *             properties:
  *               roleName:
  *                 type: string
+ *               adminAccess:
+ *                 type: boolean
+ *               isActive:
+ *                 type: boolean
+ *               status:
+ *                 type: string
+ *                 enum: [Active, Inactive]
  *               permissions:
  *                 type: object
  *     responses:
  *       200:
- *         description: Permissions updated
+ *         description: Role updated successfully
+ *       404:
+ *         description: Role not found
+ *       409:
+ *         description: Role name already exists or system role rename restriction
  */
 router.put("/:id", validate(updateRolePermissionsSchema), updateRole);
 
@@ -110,7 +160,7 @@ router.put("/:id", validate(updateRolePermissionsSchema), updateRole);
  * @swagger
  * /api/admin/roles-permissions/{id}:
  *   delete:
- *     summary: Deletes a role (soft delete).
+ *     summary: Deletes a role (with system default & user assignment safeguards).
  *     tags: [Admin Roles & Permissions]
  *     security:
  *       - bearerAuth: []
@@ -122,7 +172,11 @@ router.put("/:id", validate(updateRolePermissionsSchema), updateRole);
  *           type: string
  *     responses:
  *       200:
- *         description: Role deleted
+ *         description: Role deleted successfully
+ *       403:
+ *         description: Cannot delete default system roles
+ *       409:
+ *         description: Role is assigned to active users
  */
 router.delete("/:id", deleteRole);
 

@@ -9,18 +9,19 @@ export const getRoles = async (req: AuthRequest, res: Response): Promise<void> =
     const restaurantId = req.user?.restaurantId;
     if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
-    const roles = await roleService.getRolesByRestaurant(restaurantId);
-    
-    // Transform permissions Map back to plain object for response
-    const formattedRoles = roles.map(role => {
-        const roleObj = role.toObject();
-        if (roleObj.permissions) {
-            roleObj.permissions = Object.fromEntries(roleObj.permissions as any);
-        }
-        return roleObj;
+    const { search, searchQuery, searchTerm, status, adminAccess, page, limit } = req.query;
+    const searchVal = (search || searchQuery || searchTerm) as string | undefined;
+    const adminAccessBool = adminAccess !== undefined ? adminAccess === "true" || adminAccess === "1" : undefined;
+
+    const roles = await roleService.getRolesByRestaurant(restaurantId.toString(), {
+      search: searchVal,
+      status: status as string | undefined,
+      adminAccess: adminAccessBool,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
     });
 
-    sendSuccess(res, "Roles fetched successfully.", formattedRoles);
+    sendSuccess(res, "Roles fetched successfully.", roles);
   } catch (error: any) {
     sendError(res, error?.message || "Failed to fetch roles", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
@@ -32,18 +33,13 @@ export const getRole = async (req: AuthRequest, res: Response): Promise<void> =>
     if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
     const roleId = req.params.id as string;
-    const role = await roleService.getRoleById(roleId, restaurantId);
-    
+    const role = await roleService.getRoleById(roleId, restaurantId.toString());
+
     if (!role) {
       return sendError(res, "Role not found", StatusCodes.NOT_FOUND);
     }
 
-    const roleObj = role.toObject();
-    if (roleObj.permissions) {
-        roleObj.permissions = Object.fromEntries(roleObj.permissions as any);
-    }
-
-    sendSuccess(res, "Role fetched successfully.", roleObj);
+    sendSuccess(res, "Role fetched successfully.", role);
   } catch (error: any) {
     sendError(res, error?.message || "Failed to fetch role", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
@@ -54,21 +50,28 @@ export const createRole = async (req: AuthRequest, res: Response): Promise<void>
     const restaurantId = req.user?.restaurantId;
     if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
-    const { roleName, permissions } = req.body;
-    
-    if (!roleName) {
+    const { roleName, permissions, adminAccess, isAdminAccess, isActive, status } = req.body;
+
+    if (!roleName || !roleName.trim()) {
       return sendError(res, "Role name is required.", StatusCodes.BAD_REQUEST);
     }
 
-    const role = await roleService.createRole(restaurantId, roleName, permissions);
-    
+    const role = await roleService.createRole(restaurantId.toString(), {
+      roleName,
+      permissions,
+      adminAccess,
+      isAdminAccess,
+      isActive,
+      status
+    });
+
     sendSuccess(res, "Role created successfully.", role, StatusCodes.CREATED);
   } catch (error: any) {
     if (error.message === "Role name already exists") {
-        sendError(res, error.message, StatusCodes.CONFLICT);
+      sendError(res, error.message, StatusCodes.CONFLICT);
     } else {
-        console.error("Error creating role:", error);
-        sendError(res, "Failed to create role", StatusCodes.INTERNAL_SERVER_ERROR);
+      console.error("Error creating role:", error);
+      sendError(res, error?.message || "Failed to create role", StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
 };
@@ -79,19 +82,26 @@ export const updateRole = async (req: AuthRequest, res: Response): Promise<void>
     if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
     const roleId = req.params.id as string;
-    const { roleName, permissions } = req.body;
-    
-    const role = await roleService.updateRolePermissions(roleId, restaurantId, roleName, permissions);
-    
+    const { roleName, permissions, adminAccess, isAdminAccess, isActive, status } = req.body;
+
+    const role = await roleService.updateRolePermissions(roleId, restaurantId.toString(), {
+      roleName,
+      permissions,
+      adminAccess,
+      isAdminAccess,
+      isActive,
+      status
+    });
+
     sendSuccess(res, "Role updated successfully.", role);
   } catch (error: any) {
     if (error.message === "Role not found") {
-        sendError(res, error.message, StatusCodes.NOT_FOUND);
-    } else if (error.message === "Cannot edit default system roles directly" || error.message === "Role name already exists") {
-        sendError(res, error.message, StatusCodes.CONFLICT);
+      sendError(res, error.message, StatusCodes.NOT_FOUND);
+    } else if (error.message === "Cannot rename default system roles" || error.message === "Role name already exists") {
+      sendError(res, error.message, StatusCodes.CONFLICT);
     } else {
-        console.error("Error updating role:", error);
-        sendError(res, "Failed to update role", StatusCodes.INTERNAL_SERVER_ERROR);
+      console.error("Error updating role:", error);
+      sendError(res, error?.message || "Failed to update role", StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
 };
@@ -102,20 +112,34 @@ export const deleteRole = async (req: AuthRequest, res: Response): Promise<void>
     if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
     const roleId = req.params.id as string;
-    
-    await roleService.deleteRole(roleId, restaurantId);
-    
+
+    await roleService.deleteRole(roleId, restaurantId.toString());
+
     sendSuccess(res, "Role deleted successfully.");
   } catch (error: any) {
     if (error.message === "Role not found") {
-        sendError(res, error.message, StatusCodes.NOT_FOUND);
+      sendError(res, error.message, StatusCodes.NOT_FOUND);
     } else if (error.message.includes("is assigned to")) {
-        sendError(res, error.message, StatusCodes.CONFLICT);
+      sendError(res, error.message, StatusCodes.CONFLICT);
     } else if (error.message === "Cannot delete default system roles") {
-        sendError(res, error.message, StatusCodes.FORBIDDEN);
+      sendError(res, error.message, StatusCodes.FORBIDDEN);
     } else {
-        console.error("Error deleting role:", error);
-        sendError(res, "Failed to delete role", StatusCodes.INTERNAL_SERVER_ERROR);
+      console.error("Error deleting role:", error);
+      sendError(res, error?.message || "Failed to delete role", StatusCodes.INTERNAL_SERVER_ERROR);
     }
+  }
+};
+
+export const seedDefaultRoles = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.user?.restaurantId;
+    if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    await roleService.seedDefaultRoles(restaurantId.toString());
+    const roles = await roleService.getRolesByRestaurant(restaurantId.toString());
+
+    sendSuccess(res, "Default roles seeded successfully.", roles);
+  } catch (error: any) {
+    sendError(res, error?.message || "Failed to seed default roles", StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
