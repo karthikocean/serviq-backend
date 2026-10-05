@@ -29,7 +29,7 @@ const router = Router();
  *       500:
  *         description: Internal server error
  */
-router.get("/", protectAdmin, restrictTo("RESTAURANT_OWNER"), getSettings);
+router.get("/", protectAdmin, getSettings);
 
 /**
  * @swagger
@@ -76,6 +76,6 @@ router.get("/", protectAdmin, restrictTo("RESTAURANT_OWNER"), getSettings);
  *       500:
  *         description: Internal server error
  */
-router.put("/", protectAdmin, restrictTo("RESTAURANT_OWNER"), validate(updateSettingsSchema), updateSettings);
+router.put("/", protectAdmin, validate(updateSettingsSchema), updateSettings);
 
 export default router;

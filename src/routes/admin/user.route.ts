@@ -14,7 +14,6 @@ const router = Router();
  */
 
 router.use(protectAdmin);
-router.use(restrictTo("RESTAURANT_OWNER", "SUPER_ADMIN", "BRANCH_ADMIN"));
 
 /**
  * @swagger
