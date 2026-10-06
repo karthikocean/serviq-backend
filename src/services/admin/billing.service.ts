@@ -246,16 +246,35 @@ export const getBillingHistory = async (restaurantId: string, branchId: string, 
   };
 };
 
-export const getActiveTablesBilling = async (restaurantId: string, branchId: string) => {
+export const getActiveTablesBilling = async (restaurantId: string, branchId: string, filters: any = {}) => {
   const query: any = { restaurantId, isDelete: false, billingStatus: "unpaid" };
   
   if (branchId && branchId !== "ALL") {
     query.branchId = branchId;
   }
 
-  const orders = await Order.find(query).populate("tableId", "tableNumber section");
+  if (filters.search) {
+    query.$or = [
+      { orderId: { $regex: filters.search, $options: 'i' } },
+      { billNo: { $regex: filters.search, $options: 'i' } }
+    ];
+  }
 
-  return orders.map(order => {
+  if (filters.tableId && filters.tableId !== 'ALL' && filters.tableId !== 'All Tables') {
+    query.tableId = filters.tableId;
+  }
+
+  if (filters.cashierId && filters.cashierId !== 'ALL') {
+    query.waiterId = filters.cashierId;
+  }
+
+  if (filters.orderType && filters.orderType !== 'ALL') {
+    query.orderType = new RegExp(`^${filters.orderType}$`, 'i');
+  }
+
+  const orders = await Order.find(query).populate("tableId", "tableNumber section").populate("waiterId", "name");
+
+  return orders.map((order, index) => {
     const table: any = order.tableId;
     if (!table) return null;
 
@@ -267,15 +286,24 @@ export const getActiveTablesBilling = async (restaurantId: string, branchId: str
       notes: item.notes
     }));
 
+    const waiter: any = order.waiterId;
+
     return {
+      id: order._id.toString(),
+      sNo: index + 1,
+      billNo: (order as any).billNo || `B-${1041 + index}`,
+      orderId: order.orderId,
+      orderType: (order as any).orderType || "Dine-In",
       tableId: table._id.toString(),
       table: `Table ${table.tableNumber}`,
-      orderId: order.orderId,
-      status: "Unpaid",
+      billDateTime: order.createdAt,
       subtotal: order.subtotal || 0,
       tax: order.tax || 0,
       discount: order.discount || 0,
-      total: order.total || 0,
+      billAmount: order.total || 0,
+      paidAmount: 0.00,
+      status: "Unpaid",
+      cashier: waiter ? waiter.name : "Staff",
       items: items
     };
   }).filter(Boolean);

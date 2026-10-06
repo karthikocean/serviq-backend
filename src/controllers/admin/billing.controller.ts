@@ -31,7 +31,8 @@ export const getActiveTables = async (req: AuthRequest, res: Response): Promise<
     const branchId = getTargetBranchId(req);
     if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
-    const tables = await getActiveTablesBilling(restaurantId, branchId);
+    const filters = req.query;
+    const tables = await getActiveTablesBilling(restaurantId, branchId, filters);
     sendSuccess(res, "Active tables fetched successfully.", tables);
   } catch (error: any) {
     sendError(res, error?.message || "Failed to fetch active tables", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);

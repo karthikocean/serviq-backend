@@ -16,6 +16,7 @@ import {
 const router = Router();
 
 router.get("/history", checkBranchAccess, checkSubscriptionFeature("ORDER"), getBillingHistory);
+router.get("/current", checkBranchAccess, checkSubscriptionFeature("ORDER"), getActiveTables);
 router.get("/active-tables", checkBranchAccess, checkSubscriptionFeature("ORDER"), getActiveTables);
 router.get("/:orderId", checkBranchAccess, checkSubscriptionFeature("ORDER"), getBill);
 router.post("/:orderId/discount", checkBranchAccess, checkSubscriptionFeature("ORDER"), validate(applyDiscountSchema), applyBillDiscount);
