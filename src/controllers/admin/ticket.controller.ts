@@ -86,8 +86,8 @@ export const getMyTickets = async (req: Request, res: Response): Promise<void> =
             .skip(skip)
             .limit(limit)
             .populate('createdBy', 'name email phoneNumber userType')
-.populate('branchId', 'branchName branchCode')
-.populate('escalatedBy', 'name email')
+            .populate('branchId', 'branchName branchCode')
+            .populate('escalatedBy', 'name email')
             .lean();
 
         pagination(total, tickets, limit, pageIndex, res, "Tickets fetched successfully.");

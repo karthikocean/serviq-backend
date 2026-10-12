@@ -306,7 +306,7 @@ export const getTaxSettlementReport = async (
   let taxType: string | undefined;
   let paymentMethod: string | undefined;
   let tab = "tax_summary";
-  let page = 1;
+  let page = 0;
   let limit = 10;
 
   if (typeof filtersOrBranchId === "object" && filtersOrBranchId !== null) {
@@ -318,8 +318,8 @@ export const getTaxSettlementReport = async (
     taxType = filtersOrBranchId.taxType;
     paymentMethod = filtersOrBranchId.paymentMethod;
     tab = filtersOrBranchId.tab || "tax_summary";
-    page = filtersOrBranchId.page !== undefined ? Number(filtersOrBranchId.page) : 1;
-    limit = filtersOrBranchId.limit !== undefined ? Number(filtersOrBranchId.limit) : 10;
+    page = filtersOrBranchId.page !== undefined && !isNaN(Number(filtersOrBranchId.page)) ? Math.max(0, Number(filtersOrBranchId.page)) : 0;
+    limit = filtersOrBranchId.limit !== undefined && !isNaN(Number(filtersOrBranchId.limit)) ? Number(filtersOrBranchId.limit) : 10;
   } else {
     branchId = filtersOrBranchId;
     paymentMethod = paymentMethodLegacy;
@@ -561,7 +561,7 @@ export const getSalesRevenueReport = async (
   let searchQuery: string | undefined;
   let paymentMethod: string | undefined;
   let orderType: string | undefined;
-  let page = 1;
+  let page = 0;
   let limit = 10;
 
   if (typeof filtersOrBranchId === "object" && filtersOrBranchId !== null) {
@@ -572,8 +572,8 @@ export const getSalesRevenueReport = async (
     searchQuery = filtersOrBranchId.searchQuery || filtersOrBranchId.search;
     paymentMethod = filtersOrBranchId.paymentMethod;
     orderType = filtersOrBranchId.orderType;
-    page = filtersOrBranchId.page !== undefined ? Number(filtersOrBranchId.page) : 1;
-    limit = filtersOrBranchId.limit !== undefined ? Number(filtersOrBranchId.limit) : 10;
+    page = filtersOrBranchId.page !== undefined && !isNaN(Number(filtersOrBranchId.page)) ? Math.max(0, Number(filtersOrBranchId.page)) : 0;
+    limit = filtersOrBranchId.limit !== undefined && !isNaN(Number(filtersOrBranchId.limit)) ? Number(filtersOrBranchId.limit) : 10;
   } else {
     branchId = filtersOrBranchId;
     searchQuery = searchLegacy;
@@ -673,7 +673,7 @@ export const getSalesRevenueReport = async (
   };
 
   // Pagination calculation
-  const startIndex = (page - 1) * limit;
+  const startIndex = page * limit;
   const paginatedOrders = limit === 0 ? orders : orders.slice(startIndex, startIndex + limit);
 
   // Format data table records
@@ -759,7 +759,7 @@ export const getDishPerformanceReport = async (
   let categoryId: string | undefined;
   let dishId: string | undefined;
   let foodType: string | undefined;
-  let page = 1;
+  let page = 0;
   let limit = 10;
 
   if (typeof filtersOrBranchId === "object" && filtersOrBranchId !== null) {
@@ -772,8 +772,8 @@ export const getDishPerformanceReport = async (
     categoryId = filtersOrBranchId.categoryId || filtersOrBranchId.category;
     dishId = filtersOrBranchId.dishId || filtersOrBranchId.menuId || filtersOrBranchId.dish;
     foodType = filtersOrBranchId.foodType;
-    page = filtersOrBranchId.page !== undefined ? Number(filtersOrBranchId.page) : 1;
-    limit = filtersOrBranchId.limit !== undefined ? Number(filtersOrBranchId.limit) : 10;
+    page = filtersOrBranchId.page !== undefined && !isNaN(Number(filtersOrBranchId.page)) ? Math.max(0, Number(filtersOrBranchId.page)) : 0;
+    limit = filtersOrBranchId.limit !== undefined && !isNaN(Number(filtersOrBranchId.limit)) ? Number(filtersOrBranchId.limit) : 10;
   } else {
     branchId = filtersOrBranchId;
     categoryId = categoryIdLegacy;
@@ -915,7 +915,7 @@ export const getDishPerformanceReport = async (
 
   // Pagination calculation
   const totalRecords = aggregateResults.length;
-  const startIndex = (page - 1) * limit;
+  const startIndex = page * limit;
   const paginatedList = limit === 0 ? aggregateResults : aggregateResults.slice(startIndex, startIndex + limit);
 
   // Format table data
@@ -980,7 +980,7 @@ export const getOrderAnalyticsReport = async (
   let searchQuery: string | undefined;
   let orderType: string | undefined;
   let orderStatus: string | undefined;
-  let page = 1;
+  let page = 0;
   let limit = 10;
 
   if (typeof filtersOrBranchId === "object" && filtersOrBranchId !== null) {
@@ -991,8 +991,8 @@ export const getOrderAnalyticsReport = async (
     searchQuery = filtersOrBranchId.searchQuery || filtersOrBranchId.search;
     orderType = filtersOrBranchId.orderType;
     orderStatus = filtersOrBranchId.orderStatus || filtersOrBranchId.status;
-    page = filtersOrBranchId.page !== undefined ? Number(filtersOrBranchId.page) : 1;
-    limit = filtersOrBranchId.limit !== undefined ? Number(filtersOrBranchId.limit) : 10;
+    page = filtersOrBranchId.page !== undefined && !isNaN(Number(filtersOrBranchId.page)) ? Math.max(0, Number(filtersOrBranchId.page)) : 0;
+    limit = filtersOrBranchId.limit !== undefined && !isNaN(Number(filtersOrBranchId.limit)) ? Number(filtersOrBranchId.limit) : 10;
   } else {
     branchId = filtersOrBranchId;
     searchQuery = searchLegacy;
@@ -1099,7 +1099,7 @@ export const getOrderAnalyticsReport = async (
 
   // Pagination calculation
   const totalRecords = orders.length;
-  const startIndex = (page - 1) * limit;
+  const startIndex = page * limit;
   const paginatedOrders = limit === 0 ? orders : orders.slice(startIndex, startIndex + limit);
 
   // Format table rows
@@ -1187,7 +1187,7 @@ export const getInventoryStockReport = async (
   let stockStatus: string | undefined;
   let transactionType: string | undefined;
   let tab = "position";
-  let page = 1;
+  let page = 0;
   let limit = 10;
 
   if (typeof filtersOrBranchId === "object" && filtersOrBranchId !== null) {
@@ -1201,8 +1201,8 @@ export const getInventoryStockReport = async (
     stockStatus = filtersOrBranchId.stockStatus;
     transactionType = filtersOrBranchId.transactionType;
     tab = filtersOrBranchId.tab || "position";
-    page = filtersOrBranchId.page !== undefined ? Number(filtersOrBranchId.page) : 1;
-    limit = filtersOrBranchId.limit !== undefined ? Number(filtersOrBranchId.limit) : 10;
+    page = filtersOrBranchId.page !== undefined && !isNaN(Number(filtersOrBranchId.page)) ? Math.max(0, Number(filtersOrBranchId.page)) : 0;
+    limit = filtersOrBranchId.limit !== undefined && !isNaN(Number(filtersOrBranchId.limit)) ? Number(filtersOrBranchId.limit) : 10;
   } else {
     branchId = filtersOrBranchId;
     searchQuery = searchLegacy;
@@ -1375,7 +1375,7 @@ export const getInventoryStockReport = async (
 
   // Pagination calculation
   const totalRecords = formattedRows.length;
-  const startIndex = (page - 1) * limit;
+  const startIndex = page * limit;
   const paginatedRows = limit === 0 ? formattedRows : formattedRows.slice(startIndex, startIndex + limit);
 
   const data = paginatedRows.map((r, idx) => ({
@@ -1424,7 +1424,7 @@ export const getStaffPerformanceReport = async (
   let searchQuery: string | undefined;
   let staffId: string | undefined;
   let roleId: string | undefined;
-  let page = 1;
+  let page = 0;
   let limit = 10;
 
   if (typeof filtersOrBranchId === "object" && filtersOrBranchId !== null) {
@@ -1435,8 +1435,8 @@ export const getStaffPerformanceReport = async (
     searchQuery = filtersOrBranchId.searchQuery || filtersOrBranchId.search;
     staffId = filtersOrBranchId.staffId || filtersOrBranchId.waiterId || filtersOrBranchId.staff;
     roleId = filtersOrBranchId.roleId || filtersOrBranchId.role;
-    page = filtersOrBranchId.page !== undefined ? Number(filtersOrBranchId.page) : 1;
-    limit = filtersOrBranchId.limit !== undefined ? Number(filtersOrBranchId.limit) : 10;
+    page = filtersOrBranchId.page !== undefined && !isNaN(Number(filtersOrBranchId.page)) ? Math.max(0, Number(filtersOrBranchId.page)) : 0;
+    limit = filtersOrBranchId.limit !== undefined && !isNaN(Number(filtersOrBranchId.limit)) ? Number(filtersOrBranchId.limit) : 10;
   } else {
     branchId = filtersOrBranchId;
     searchQuery = searchLegacy;
@@ -1617,7 +1617,7 @@ export const getStaffPerformanceReport = async (
 
   // Pagination calculation
   const totalRecords = formattedRows.length;
-  const startIndex = (page - 1) * limit;
+  const startIndex = page * limit;
   const paginatedRows = limit === 0 ? formattedRows : formattedRows.slice(startIndex, startIndex + limit);
 
   const data = paginatedRows.map((r, idx) => ({
