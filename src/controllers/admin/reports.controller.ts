@@ -38,8 +38,8 @@ export const getWaiterReports = async (req: AuthRequest, res: Response): Promise
       searchQuery: (searchQuery || search) as string,
       staffId: (staffId || waiterId || staff) as string,
       roleId: (roleId || role) as string,
-      page: page !== undefined ? parseInt(page as string, 10) : 1,
-      limit: limit !== undefined ? parseInt(limit as string, 10) : 10
+      page: page !== undefined && page !== "" && !isNaN(parseInt(page as string, 10)) ? Math.max(0, parseInt(page as string, 10)) : 0,
+      limit: limit !== undefined && limit !== "" && !isNaN(parseInt(limit as string, 10)) ? parseInt(limit as string, 10) : 10
     });
 
     res.status(StatusCodes.OK).json({
@@ -100,8 +100,10 @@ export const getKitchenReports = async (req: AuthRequest, res: Response): Promis
         avgPrepTime
       },
       totalItems: results.length,
-      totalPages: Math.ceil(results.length / parsedLimit),
+      totalRecords: results.length,
+      totalPages: parsedLimit === 0 ? 1 : Math.ceil(results.length / parsedLimit),
       page: parsedPage,
+      limit: parsedLimit,
       data: paginatedResults
     };
 
@@ -144,8 +146,8 @@ export const getTaxSettlementReports = async (req: AuthRequest, res: Response): 
       taxType: taxType as string,
       paymentMethod: paymentMethod as string,
       tab: tab as string,
-      page: page !== undefined ? parseInt(page as string, 10) : 1,
-      limit: limit !== undefined ? parseInt(limit as string, 10) : 10
+      page: page !== undefined && page !== "" && !isNaN(parseInt(page as string, 10)) ? Math.max(0, parseInt(page as string, 10)) : 0,
+      limit: limit !== undefined && limit !== "" && !isNaN(parseInt(limit as string, 10)) ? parseInt(limit as string, 10) : 10
     });
 
     res.status(StatusCodes.OK).json({
@@ -188,8 +190,8 @@ export const getSalesRevenueReports = async (req: AuthRequest, res: Response): P
       searchQuery: (searchQuery || search) as string,
       paymentMethod: paymentMethod as string,
       orderType: orderType as string,
-      page: page !== undefined ? parseInt(page as string, 10) : 1,
-      limit: limit !== undefined ? parseInt(limit as string, 10) : 10
+      page: page !== undefined && page !== "" && !isNaN(parseInt(page as string, 10)) ? Math.max(0, parseInt(page as string, 10)) : 0,
+      limit: limit !== undefined && limit !== "" && !isNaN(parseInt(limit as string, 10)) ? parseInt(limit as string, 10) : 10
     });
 
     res.status(StatusCodes.OK).json({
@@ -246,8 +248,8 @@ export const getDishPerformanceReports = async (req: AuthRequest, res: Response)
       categoryId: (categoryId || category) as string,
       dishId: (dishId || menuId || dish) as string,
       foodType: foodType as string,
-      page: page !== undefined ? parseInt(page as string, 10) : 1,
-      limit: limit !== undefined ? parseInt(limit as string, 10) : 10
+      page: page !== undefined && page !== "" && !isNaN(parseInt(page as string, 10)) ? Math.max(0, parseInt(page as string, 10)) : 0,
+      limit: limit !== undefined && limit !== "" && !isNaN(parseInt(limit as string, 10)) ? parseInt(limit as string, 10) : 10
     });
 
     res.status(StatusCodes.OK).json({
@@ -298,8 +300,8 @@ export const getOrderAnalyticsReports = async (req: AuthRequest, res: Response):
       searchQuery: (searchQuery || search) as string,
       orderType: orderType as string,
       orderStatus: (orderStatus || status) as string,
-      page: page !== undefined ? parseInt(page as string, 10) : 1,
-      limit: limit !== undefined ? parseInt(limit as string, 10) : 10
+      page: page !== undefined && page !== "" && !isNaN(parseInt(page as string, 10)) ? Math.max(0, parseInt(page as string, 10)) : 0,
+      limit: limit !== undefined && limit !== "" && !isNaN(parseInt(limit as string, 10)) ? parseInt(limit as string, 10) : 10
     });
 
     res.status(StatusCodes.OK).json({
@@ -357,8 +359,8 @@ export const getInventoryStockReports = async (req: AuthRequest, res: Response):
       stockStatus: stockStatus as string,
       transactionType: transactionType as string,
       tab: tab as string,
-      page: page !== undefined ? parseInt(page as string, 10) : 1,
-      limit: limit !== undefined ? parseInt(limit as string, 10) : 10
+      page: page !== undefined && page !== "" && !isNaN(parseInt(page as string, 10)) ? Math.max(0, parseInt(page as string, 10)) : 0,
+      limit: limit !== undefined && limit !== "" && !isNaN(parseInt(limit as string, 10)) ? parseInt(limit as string, 10) : 10
     });
 
     res.status(StatusCodes.OK).json({
