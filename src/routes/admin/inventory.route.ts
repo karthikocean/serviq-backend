@@ -20,6 +20,11 @@ import {
   approveStockRequest,
   distributeStockRequest,
   rejectStockRequest,
+  createBranchTransfer,
+  getBranchTransfers,
+  getBranchTransferById,
+  updateBranchTransferStatus,
+  deleteBranchTransfer,
   recordReduction,
   getStats,
   getLogs
@@ -325,6 +330,13 @@ router.get("/requests", getStockRequests);
 router.put("/requests/:id/approve", approveStockRequest);
 router.put("/requests/:id/distribute", distributeStockRequest);
 router.put("/requests/:id/reject", rejectStockRequest);
+
+// --- INTER-BRANCH TRANSFERS ---
+router.post("/transfers", createBranchTransfer);
+router.get("/transfers", getBranchTransfers);
+router.get("/transfers/:id", getBranchTransferById);
+router.put("/transfers/:id/status", updateBranchTransferStatus);
+router.delete("/transfers/:id", deleteBranchTransfer);
 
 /**
  * @swagger
