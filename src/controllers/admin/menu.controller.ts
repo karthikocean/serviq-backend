@@ -19,11 +19,23 @@ import { getTargetBranchId } from "../../utils/authUtils";
 export const getItems = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const restaurantId = req.user?.restaurantId;
-    let branchId = getTargetBranchId(req);
-    if (req.query.branchId === 'all') {
-      branchId = undefined;
-    }
     if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    let branchId: string | undefined = undefined;
+
+    if (req.query.branchId !== undefined && req.query.branchId !== null && String(req.query.branchId).trim() !== '') {
+      const qBranch = String(req.query.branchId).trim();
+      if (qBranch !== 'all' && qBranch !== 'ALL') {
+        branchId = qBranch;
+      }
+    } else {
+      // If no branchId was specified in query:
+      // For RESTAURANT_OWNER and SUPER_ADMIN, undefined means All Branches (show all company + individual menus).
+      // Only for branch-level staff (BRANCH_ADMIN / STAFF), restrict to their assigned activeBranchId.
+      if (req.user?.userType === 'BRANCH_ADMIN' || req.user?.userType === 'STAFF') {
+        branchId = req.user?.activeBranchId;
+      }
+    }
 
     const categoryFilter = req.query.category as string | undefined;
     const availableFilter = req.query.available as string | undefined;
@@ -42,13 +54,55 @@ export const getItems = async (req: AuthRequest, res: Response): Promise<void> =
   }
 };
 
+import mongoose from "mongoose";
+import Branch from "../../models/Branch";
+
 export const createItem = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const restaurantId = req.user?.restaurantId;
-    const branchId = getTargetBranchId(req);
-    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+    let branchId = req.body?.branchId || getTargetBranchId(req);
+    if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
-    const newItem = await createMenuItem(restaurantId, branchId, req.body);
+    let branchDoc: any = null;
+    if (branchId && branchId !== 'ALL' && branchId !== 'all' && branchId !== 'COMPANY' && branchId !== 'company') {
+      if (mongoose.Types.ObjectId.isValid(branchId)) {
+        branchDoc = await Branch.findOne({ _id: branchId, restaurantId, isDelete: false });
+      }
+      if (!branchDoc) {
+        branchDoc = await Branch.findOne({
+          restaurantId,
+          $or: [{ branchCode: branchId }, { branchName: branchId }],
+          isDelete: false
+        });
+      }
+      if (branchDoc) {
+        branchId = branchDoc._id.toString();
+      }
+    }
+
+    // Check if the target branch has useCustomMenu enabled
+    const isCustomBranch = branchDoc && (branchDoc.useCustomMenu === true || String(branchDoc.useCustomMenu) === "true");
+
+    // If branch has useCustomMenu, this item belongs exclusively to this custom branch
+    // If not, it is part of the restaurant's Company Menu
+    const isCompanyMenu = !isCustomBranch;
+
+    if (!branchId) {
+      let defaultBranch = await Branch.findOne({ restaurantId, isMainBranch: true, isDelete: false });
+      if (!defaultBranch) {
+        defaultBranch = await Branch.findOne({ restaurantId, isDelete: false }).sort({ createdAt: 1 });
+      }
+      if (defaultBranch) {
+        branchId = defaultBranch._id.toString();
+      }
+    }
+
+    if (!branchId) return sendError(res, "Branch not found for restaurant", StatusCodes.BAD_REQUEST);
+
+    const newItem = await createMenuItem(restaurantId, branchId, {
+      ...req.body,
+      isCompanyMenu
+    });
     sendSuccess(res, "Menu item created successfully.", { id: newItem._id });
   } catch (error: any) {
     sendError(res, error?.message || "Failed to create menu item", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);

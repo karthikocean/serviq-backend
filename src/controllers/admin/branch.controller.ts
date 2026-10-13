@@ -25,7 +25,8 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
         branchName, branchCode, branchOpeningDate, contactNumber, email, 
         street, city, state, country, pincode, 
         managerName, managerMobile, managerEmail, managerPassword,
-        status, isMainBranch, branchType, gstinNumber, fssaiLicense
+        status, isMainBranch, branchType, gstinNumber, fssaiLicense,
+        useCustomMenu
     } = req.body;
 
     // Validate Required Fields
@@ -131,7 +132,8 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
       status: status || 'Active',
       isActive: status !== 'Inactive',
       isMainBranch: isMain,
-      branchType: isMain ? 'MAIN' : 'SUB'
+      branchType: isMain ? 'MAIN' : 'SUB',
+      useCustomMenu: useCustomMenu === true || useCustomMenu === 'true'
     });
     
     await newBranch.save();
@@ -303,7 +305,8 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
         branchName, branchCode, branchOpeningDate, contactNumber, email, 
         street, city, state, country, pincode, 
         status, isMainBranch, branchType, gstinNumber, fssaiLicense,
-        managerName, managerMobile, managerEmail
+        managerName, managerMobile, managerEmail,
+        useCustomMenu
     } = req.body;
 
     const branch = await Branch.findOne({ _id: req.params.id, restaurantId: user.restaurantId, isDelete: false });
@@ -376,6 +379,10 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
             branch.isMainBranch = false;
             branch.branchType = 'SUB';
         }
+    }
+
+    if (useCustomMenu !== undefined) {
+      branch.useCustomMenu = useCustomMenu === true || useCustomMenu === 'true';
     }
 
     await branch.save();

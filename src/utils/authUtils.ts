@@ -8,11 +8,11 @@ import { AuthRequest } from "../middleware/authMiddleware";
  * - For all other roles (BRANCH_ADMIN, STAFF), it strictly uses the token's activeBranchId.
  */
 export const getTargetBranchId = (req: AuthRequest): string | undefined => {
-  if (req.user?.userType === "RESTAURANT_OWNER") {
-    const queryBranchId = req.query.branchId as string;
-    const bodyBranchId = req.body?.branchId as string;
-    return queryBranchId || bodyBranchId || req.user.activeBranchId;
-  }
+  const queryBranchId = req.query?.branchId as string | undefined;
+  const bodyBranchId = req.body?.branchId as string | undefined;
+
+  if (queryBranchId) return queryBranchId;
+  if (bodyBranchId) return bodyBranchId;
 
   return req.user?.activeBranchId;
 };

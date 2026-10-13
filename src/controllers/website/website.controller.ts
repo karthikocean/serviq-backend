@@ -11,6 +11,7 @@ import Order from "../../models/Order";
 import Notification from "../../models/Notification";
 import { sendSuccess, sendError } from "../../utils/response";
 import { getIO } from "../../socket";
+import { resolveMenuBranchId } from "../../utils/menuUtils";
 
 
 export const scanQrCode = async (req: Request, res: Response): Promise<void> => {
@@ -229,7 +230,6 @@ export const getCategories = async (req: Request, res: Response): Promise<void> 
 
     const categories = await Category.find({
       restaurantId: new mongoose.Types.ObjectId(restaurantId),
-      branchId: new mongoose.Types.ObjectId(branchId),
       status: { $ne: "INACTIVE" }
     }).sort({ createdAt: 1 });
 
@@ -257,9 +257,12 @@ export const getMenuItems = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
+    const resolvedBranchId = await resolveMenuBranchId(restaurantId, branchId);
+    const targetBranchObjectId = resolvedBranchId || new mongoose.Types.ObjectId(branchId);
+
     const query: any = {
       restaurantId: new mongoose.Types.ObjectId(restaurantId),
-      branchId: new mongoose.Types.ObjectId(branchId),
+      branchId: targetBranchObjectId,
       isDelete: false,
       isActive: true,
       available: true
@@ -307,9 +310,12 @@ export const getSpecials = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
+    const resolvedBranchId = await resolveMenuBranchId(restaurantId, branchId);
+    const targetBranchObjectId = resolvedBranchId || new mongoose.Types.ObjectId(branchId);
+
     const specials = await Menu.find({
       restaurantId: new mongoose.Types.ObjectId(restaurantId),
-      branchId: new mongoose.Types.ObjectId(branchId),
+      branchId: targetBranchObjectId,
       isDelete: false,
       isActive: true,
       available: true,

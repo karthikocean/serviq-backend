@@ -5,6 +5,7 @@ import Menu from "../../../models/Menu";
 import { AuthRequest } from "../../../middleware/authMiddleware";
 import { sendSuccess, sendError } from "../../../utils/response";
 import { pagination } from "../../../utils/pagination";
+import { resolveMenuBranchId } from "../../../utils/menuUtils";
 
 export const getCategories = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -15,7 +16,6 @@ export const getCategories = async (req: AuthRequest, res: Response): Promise<vo
 
     const query: any = {
       restaurantId,
-      branchId: activeBranchId,
       status: "AVAILABLE"
     };
 
@@ -41,9 +41,11 @@ export const getItems = async (req: AuthRequest, res: Response): Promise<void> =
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = page * limit;
 
+    const resolvedBranchId = await resolveMenuBranchId(restaurantId, activeBranchId);
+
     const query: any = {
       restaurantId,
-      branchId: activeBranchId,
+      branchId: resolvedBranchId || activeBranchId,
       isActive: true,
       isDelete: false,
       available: true
