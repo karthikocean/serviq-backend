@@ -80,16 +80,24 @@ export const payBill = async (req: AuthRequest, res: Response): Promise<void> =>
   try {
     const restaurantId = req.user?.restaurantId;
     const branchId = getTargetBranchId(req);
-    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+    if (!restaurantId || !branchId) return sendError(res, "Unauthorized: Restaurant or Branch not found", StatusCodes.UNAUTHORIZED);
 
     const { tableId, paymentMethod } = req.body;
-    await processTablePayment(restaurantId, branchId, tableId, paymentMethod);
-    sendSuccess(res, "Payment processed successfully.");
+    if (!tableId) {
+      return sendError(res, "tableId is required", StatusCodes.BAD_REQUEST);
+    }
+    if (!paymentMethod) {
+      return sendError(res, "paymentMethod is required (cash, card, or upi)", StatusCodes.BAD_REQUEST);
+    }
+
+    const billing = await processTablePayment(restaurantId, branchId, tableId, paymentMethod.toLowerCase());
+    sendSuccess(res, "Payment processed successfully.", billing);
   } catch (error: any) {
+    console.error("Billing payBill Error:", error);
     if (error.message === "No unpaid orders found for this table.") {
       sendError(res, error.message, StatusCodes.NOT_FOUND);
     } else {
-      sendError(res, "Failed to process payment", StatusCodes.INTERNAL_SERVER_ERROR);
+      sendError(res, error?.message || "Failed to process payment", StatusCodes.BAD_REQUEST);
     }
   }
 };

@@ -30,12 +30,40 @@ export const applyDiscount = async (restaurantId: string, branchId: string, orde
   return order;
 };
 
-export const processTablePayment = async (restaurantId: string, branchId: string, tableId: string, paymentMethod: "cash" | "card" | "upi") => {
+export const processTablePayment = async (restaurantId: string, branchId: string, tableId: string, paymentMethod: "cash" | "card" | "upi" | string) => {
   let createdBillingId = null;
 
   try {
-    const orders = await Order.find({ tableId, restaurantId, branchId, isDelete: false, billingStatus: "unpaid" });
+    const tableObjectId = mongoose.Types.ObjectId.isValid(tableId) ? new mongoose.Types.ObjectId(tableId) : null;
     
+    // Find unpaid orders for this table OR directly by orderId
+    const queryConditions: any[] = [
+      { tableId: tableId }
+    ];
+    if (tableObjectId) {
+      queryConditions.push({ tableId: tableObjectId });
+      queryConditions.push({ _id: tableObjectId });
+    }
+    queryConditions.push({ orderId: tableId });
+
+    let orders = await Order.find({
+      $or: queryConditions,
+      restaurantId,
+      branchId,
+      isDelete: false,
+      billingStatus: "unpaid"
+    });
+    
+    // If not found with strict branchId, search across the restaurant for this table/order
+    if (!orders || orders.length === 0) {
+      orders = await Order.find({
+        $or: queryConditions,
+        restaurantId,
+        isDelete: false,
+        billingStatus: "unpaid"
+      });
+    }
+
     if (!orders || orders.length === 0) {
       throw new Error("No unpaid orders found for this table.");
     }
@@ -50,18 +78,19 @@ export const processTablePayment = async (restaurantId: string, branchId: string
     const orderRefId = orders[0].orderId;
     let staffName = "Admin";
 
-    const tableDoc = await Table.findById(tableId);
+    const resolvedTableId = orders[0].tableId || tableObjectId || tableId;
+    const tableDoc = await Table.findById(resolvedTableId);
     const tableNumber = tableDoc?.tableNumber || "N/A";
 
     // Recalculate and merge
     for (const order of orders) {
-      subtotal += order.subtotal;
-      tax += order.tax;
+      subtotal += order.subtotal || 0;
+      tax += order.tax || 0;
       discount += order.discount || 0;
       charge += order.charge || 0;
-      totalAmount += order.total;
+      totalAmount += order.total || 0;
 
-      for (const item of order.items) {
+      for (const item of (order.items || [])) {
         items.push({
           name: item.name,
           qty: item.qty,
@@ -79,16 +108,10 @@ export const processTablePayment = async (restaurantId: string, branchId: string
     // Double check the math just to be absolutely sure backend recalculation is solid
     const recalculatedTotal = Math.max(0, subtotal + tax + charge - discount);
 
-    const lastBilling = await Billing.findOne({ restaurantId }).sort({ createdAt: -1 });
-    let nextInvoiceNumber = 10001;
-
-    if (lastBilling && lastBilling.invoiceId && lastBilling.invoiceId.startsWith("INV-")) {
-      const lastNumber = parseInt(lastBilling.invoiceId.replace("INV-", ""), 10);
-      if (!isNaN(lastNumber)) {
-        nextInvoiceNumber = lastNumber + 1;
-      }
-    }
-    const invoiceId = `INV-${nextInvoiceNumber}`;
+    // Generate unique invoice number safely
+    const count = await Billing.countDocuments({ restaurantId });
+    const timestampSuffix = Date.now().toString().slice(-4);
+    const invoiceId = `INV-${10001 + count}-${timestampSuffix}`;
 
     const billingRecord = new Billing({
       restaurantId,
@@ -112,9 +135,13 @@ export const processTablePayment = async (restaurantId: string, branchId: string
     createdBillingId = billingRecord._id; // Store ID for manual rollback if needed
 
     // Update all orders
+    const validPaymentMethod = ["cash", "card", "upi"].includes(paymentMethod.toLowerCase())
+      ? (paymentMethod.toLowerCase() as "cash" | "card" | "upi")
+      : "cash";
+
     for (const order of orders) {
       order.billingStatus = "paid";
-      order.paymentMethod = paymentMethod;
+      order.paymentMethod = validPaymentMethod;
       order.status = "completed"; // Automatically complete the order when table is closed and paid
       await order.save();
     }
