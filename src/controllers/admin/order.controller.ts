@@ -13,13 +13,28 @@ import {
   deleteOrder,
   assignWaiterToOrder
 } from "../../services/admin/order.service";
+import Table from "../../models/Table";
 import { getTargetBranchId } from "../../utils/authUtils";
 
 export const getAllOrders = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const restaurantId = req.user?.restaurantId;
-    const branchId = getTargetBranchId(req);
-    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+    if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    let branchId: string | undefined = undefined;
+    const qBranch = req.query.branchId !== undefined && req.query.branchId !== null ? String(req.query.branchId).trim() : undefined;
+
+    if (qBranch && qBranch !== '' && qBranch !== 'ALL' && qBranch !== 'All' && qBranch.toUpperCase() !== 'COMPANY') {
+      branchId = qBranch;
+    } else if (qBranch === '' || qBranch === 'ALL' || qBranch === 'All' || qBranch?.toUpperCase() === 'COMPANY') {
+      branchId = undefined;
+    } else {
+      if (req.user?.userType === 'BRANCH_ADMIN' || req.user?.userType === 'STAFF') {
+        branchId = req.user?.activeBranchId;
+      } else {
+        branchId = undefined; // All branches
+      }
+    }
 
     const status = req.query.status as string | undefined;
     const billingStatus = req.query.billingStatus as string | undefined;
@@ -37,11 +52,10 @@ export const getAllOrders = async (req: AuthRequest, res: Response): Promise<voi
 export const getSingleOrder = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const restaurantId = req.user?.restaurantId;
-    const branchId = getTargetBranchId(req);
-    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+    if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
     const orderId = req.params.orderId as string;
-    const order = await getOrderById(restaurantId, branchId, orderId);
+    const order = await getOrderById(restaurantId, undefined, orderId);
     sendSuccess(res, "Order fetched successfully.", order);
   } catch (error: any) {
     if (error.message === "Order not found") {
@@ -55,16 +69,27 @@ export const getSingleOrder = async (req: AuthRequest, res: Response): Promise<v
 export const createNewOrder = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const restaurantId = req.user?.restaurantId;
-    const branchId = getTargetBranchId(req);
-    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+    let branchId = req.body?.branchId || getTargetBranchId(req);
+
+    // If branchId was not provided or is generic, resolve from table
+    if ((!branchId || branchId === 'ALL' || branchId === 'All') && req.body?.tableId) {
+      const table = await Table.findById(req.body.tableId);
+      if (table && table.branchId) {
+        branchId = table.branchId.toString();
+      }
+    }
+
+    if (!restaurantId || !branchId || branchId === 'ALL') {
+      return sendError(res, "Branch ID could not be determined. Please specify a valid branch or table.", StatusCodes.BAD_REQUEST);
+    }
 
     const newOrder = await createOrder(restaurantId, branchId, req.body);
     sendSuccess(res, "Order created successfully.", { id: newOrder._id, orderId: newOrder.orderId });
   } catch (error: any) {
-    if (error.message.includes("Table is already occupied")) {
+    if (error.message && error.message.includes("Table is already occupied")) {
       sendError(res, error.message, StatusCodes.BAD_REQUEST);
     } else {
-      sendError(res, "Failed to create order", StatusCodes.INTERNAL_SERVER_ERROR);
+      sendError(res, error?.message || "Failed to create order", StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
 };

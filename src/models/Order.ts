@@ -12,7 +12,7 @@ export interface IOrder extends Document {
     restaurantId: mongoose.Types.ObjectId;
     branchId: mongoose.Types.ObjectId;
     orderId: string;
-    tableId: mongoose.Types.ObjectId;
+    tableId?: mongoose.Types.ObjectId | null;
     time: string;
     items: IOrderItem[];
     notes: string;
@@ -21,6 +21,10 @@ export interface IOrder extends Document {
     charge: number;
     total: number;
     discount: number;
+    orderType?: "Dine-In" | "Takeaway" | "Delivery" | string;
+    customerName?: string;
+    customerPhone?: string;
+    deliveryAddress?: string;
     status: "new" | "preparing" | "ready" | "served" | "completed" | "cancelled";
     billingStatus: "unpaid" | "paid";
     paymentMethod?: "cash" | "card" | "upi" | null;
@@ -35,8 +39,12 @@ const orderSchema = new Schema<IOrder>(
         restaurantId: { type: Schema.Types.ObjectId, ref: "Restaurant", required: true },
         branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true },
         orderId: { type: String, required: true, unique: true },
-        tableId: { type: Schema.Types.ObjectId, ref: "Table", required: true },
+        tableId: { type: Schema.Types.ObjectId, ref: "Table", default: null },
         time: { type: String, required: true },
+        orderType: { type: String, default: "Dine-In" },
+        customerName: { type: String, default: "" },
+        customerPhone: { type: String, default: "" },
+        deliveryAddress: { type: String, default: "" },
         items: [
             {
                 menuId: { type: Schema.Types.ObjectId, ref: "Menu", required: true },

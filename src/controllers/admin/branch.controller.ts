@@ -244,14 +244,18 @@ export const getAllBranches = async (req: AuthRequest, res: Response): Promise<v
     
     const branchesWithManagers = await Promise.all(branches.map(async (branch) => {
         const manager = await getManagerForBranch(branch._id);
-        const totalTables = await Table.countDocuments({ branchId: branch._id, isDelete: false });
+        const tables = await Table.find({ branchId: branch._id, isDelete: false })
+          .populate("assignedWaiter", "name phoneNumber")
+          .populate("coverWaiter", "name phoneNumber");
+        const totalTables = tables.length;
         
         return {
             ...branch,
             managerName: manager?.name || '',
             managerEmail: manager?.email || '',
             managerMobile: manager?.phoneNumber || '',
-            totalTables
+            totalTables,
+            tables
         };
     }));
 
@@ -276,14 +280,18 @@ export const getBranchById = async (req: AuthRequest, res: Response): Promise<vo
     }
     
     const manager = await getManagerForBranch(branch._id);
-    const totalTables = await Table.countDocuments({ branchId: branch._id, isDelete: false });
+    const tables = await Table.find({ branchId: branch._id, isDelete: false })
+      .populate("assignedWaiter", "name phoneNumber")
+      .populate("coverWaiter", "name phoneNumber");
+    const totalTables = tables.length;
     
     const branchWithManager = {
         ...branch,
         managerName: manager?.name || '',
         managerEmail: manager?.email || '',
         managerMobile: manager?.phoneNumber || '',
-        totalTables
+        totalTables,
+        tables
     };
 
     sendSuccess(res, "Branch details retrieved successfully.", branchWithManager, StatusCodes.OK);

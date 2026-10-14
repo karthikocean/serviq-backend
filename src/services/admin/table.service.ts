@@ -6,7 +6,9 @@ import crypto from "crypto";
 
 export const getTables = async (restaurantId: string, branchId?: string, skip: number = 0, limit: number = 0, search?: string) => {
   const query: any = { restaurantId, isDelete: false };
-  if (branchId && branchId !== "ALL") query.branchId = branchId;
+  if (branchId && branchId !== "ALL" && branchId !== "All" && branchId !== "COMPANY" && branchId !== "company") {
+    query.branchId = branchId;
+  }
 
   if (search) {
     query.$or = [
@@ -19,7 +21,8 @@ export const getTables = async (restaurantId: string, branchId?: string, skip: n
   
   let dbQuery = Table.find(query)
     .populate("assignedWaiter", "name phoneNumber")
-    .populate("coverWaiter", "name phoneNumber");
+    .populate("coverWaiter", "name phoneNumber")
+    .populate("branchId", "branchName branchCode address");
 
   if (limit > 0) {
     dbQuery = dbQuery.skip(skip).limit(limit);
@@ -32,12 +35,14 @@ export const getTables = async (restaurantId: string, branchId?: string, skip: n
 
 export const getNextTableIdStr = async (restaurantId: string, branchId?: string) => {
   const query: any = { restaurantId, isDelete: false };
-  if (branchId && branchId !== "ALL") query.branchId = branchId;
+  if (branchId && branchId !== "ALL" && branchId !== "All" && branchId !== "COMPANY" && branchId !== "company") {
+    query.branchId = branchId;
+  }
   
   const tables = await Table.find(query);
   
   let prefix = "TBL";
-  if (branchId && branchId !== "ALL") {
+  if (branchId && branchId !== "ALL" && branchId !== "All" && branchId !== "COMPANY" && branchId !== "company") {
     const branch = await Branch.findById(branchId);
     if (branch && branch.branchName) {
       const initials = branch.branchName.trim().split(/\s+/).map(word => word.charAt(0)).join('').toUpperCase();
@@ -62,9 +67,13 @@ export const getNextTableIdStr = async (restaurantId: string, branchId?: string)
 
 export const getTableById = async (restaurantId: string, branchId: string | undefined, tableId: string) => {
   const query: any = { _id: tableId, restaurantId, isDelete: false };
+  if (branchId && branchId !== "ALL" && branchId !== "All" && branchId !== "COMPANY" && branchId !== "company") {
+    query.branchId = branchId;
+  }
   const table = await Table.findOne(query)
     .populate("assignedWaiter", "name phoneNumber")
-    .populate("coverWaiter", "name phoneNumber");
+    .populate("coverWaiter", "name phoneNumber")
+    .populate("branchId", "branchName branchCode address");
   if (!table) throw new Error("Table not found");
   return table;
 };
