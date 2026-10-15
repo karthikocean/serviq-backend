@@ -10,6 +10,7 @@ import Admin from "../../models/Admin";
 import Subscription from "../../models/Subscription";
 import AdminRole from "../../models/AdminRole";
 import Table from "../../models/Table";
+import UserToken from "../../models/UserToken";
 
 export const createBranch = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -251,6 +252,8 @@ export const getAllBranches = async (req: AuthRequest, res: Response): Promise<v
         
         return {
             ...branch,
+            managerId: manager?._id ? String(manager._id) : '',
+            rawManagerId: manager?._id ? String(manager._id) : '',
             managerName: manager?.name || '',
             managerEmail: manager?.email || '',
             managerMobile: manager?.phoneNumber || '',
@@ -287,6 +290,8 @@ export const getBranchById = async (req: AuthRequest, res: Response): Promise<vo
     
     const branchWithManager = {
         ...branch,
+        managerId: manager?._id ? String(manager._id) : '',
+        rawManagerId: manager?._id ? String(manager._id) : '',
         managerName: manager?.name || '',
         managerEmail: manager?.email || '',
         managerMobile: manager?.phoneNumber || '',
@@ -408,7 +413,24 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
             if (managerName) manager.name = managerName;
             if (managerMobile) manager.phoneNumber = managerMobile;
             if (managerEmail) manager.email = managerEmail;
+            if (req.body.managerPassword || req.body.newPassword || req.body.password) {
+              manager.password = req.body.managerPassword || req.body.newPassword || req.body.password;
+              await UserToken.deleteMany({ userId: manager._id });
+            }
             await manager.save();
+        }
+    } else if (req.body.managerPassword || req.body.newPassword || req.body.password) {
+        let manager = await Admin.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false });
+        if (!manager) {
+            manager = await Admin.findOne({ branchId: branch._id, userType: { $ne: 'RESTAURANT_OWNER' }, isDelete: false });
+        }
+        if (!manager) {
+            manager = await User.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false }) as any;
+        }
+        if (manager) {
+            manager.password = req.body.managerPassword || req.body.newPassword || req.body.password;
+            await manager.save();
+            await UserToken.deleteMany({ userId: manager._id });
         }
     }
 
@@ -464,6 +486,100 @@ export const deleteBranch = async (req: AuthRequest, res: Response): Promise<voi
     await session.abortTransaction();
     session.endSession();
     console.error("Error deleting branch:", error);
+    sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const resetBranchPassword = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user as any;
+    if (!user) {
+      sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+      return;
+    }
+
+    const branchId = req.params.id;
+    const { password, newPassword } = req.body;
+    const finalPassword = newPassword || password;
+
+    if (!finalPassword) {
+      sendError(res, "New password is required.", StatusCodes.BAD_REQUEST);
+      return;
+    }
+
+    const branch = await Branch.findOne({ _id: branchId, restaurantId: user.restaurantId, isDelete: false });
+    if (!branch) {
+      sendError(res, "Branch not found.", StatusCodes.NOT_FOUND);
+      return;
+    }
+
+    let manager = await Admin.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false });
+    if (!manager) {
+      manager = await Admin.findOne({ branchId: branch._id, userType: { $ne: 'RESTAURANT_OWNER' }, isDelete: false });
+    }
+    if (!manager) {
+      manager = await User.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false }) as any;
+    }
+    if (!manager) {
+      manager = await User.findOne({ branchId: branch._id, isDelete: false }) as any;
+    }
+
+    if (manager) {
+      manager.password = finalPassword;
+      await manager.save();
+      await UserToken.deleteMany({ userId: manager._id });
+      sendSuccess(res, `Password reset successfully for branch manager ${manager.name || ''}.`, { managerId: manager._id }, StatusCodes.OK);
+      return;
+    }
+
+    // If no manager exists yet for this branch, create one
+    let branchManagerRole = await AdminRole.findOne({ restaurantId: user.restaurantId, roleName: 'Branch Manager', isDelete: false });
+    if (!branchManagerRole) {
+      const defaultManagerPermissions = {
+        dashboard: { view: true, add: false, edit: false, delete: false },
+        menu: { view: true, add: true, edit: true, delete: true },
+        tables: { view: true, add: true, edit: true, delete: true },
+        orders: { view: true, add: true, edit: true, delete: true },
+        staff_management: { view: true, add: true, edit: true, delete: true },
+        reports_analytics: { view: true, add: false, edit: false, delete: false },
+        user_accounts: { view: true, add: true, edit: true, delete: true },
+        settings: { view: true, add: true, edit: true, delete: false },
+        'waiter-list': { view: true, add: true, edit: true, delete: true },
+        'kitchen-list': { view: true, add: true, edit: true, delete: true },
+        'qr-code-config': { view: true, add: true, edit: true, delete: true },
+      };
+
+      branchManagerRole = new AdminRole({
+        restaurantId: user.restaurantId,
+        roleName: 'Branch Manager',
+        roleType: 'BRANCH_MANAGER',
+        permissions: defaultManagerPermissions,
+        isDefault: false,
+        isActive: true
+      });
+      await branchManagerRole.save();
+    }
+
+    const mgrName = `${branch.branchName || 'Branch'} Manager`;
+    const mgrEmail = branch.email || `${String(branch.branchCode || 'branch').toLowerCase().replace(/[^a-z0-9]/g, '')}@restaurant.com`;
+    const mgrMobile = branch.contactNumber;
+
+    const newManager = new Admin({
+      name: mgrName,
+      email: mgrEmail,
+      phoneNumber: mgrMobile,
+      password: finalPassword,
+      userType: 'BRANCH_ADMIN',
+      restaurantId: user.restaurantId,
+      branchId: branch._id,
+      roleId: branchManagerRole._id,
+      isActive: true
+    });
+    await newManager.save();
+
+    sendSuccess(res, `Branch Manager created and password set successfully.`, { managerId: newManager._id }, StatusCodes.OK);
+  } catch (error: any) {
+    console.error("Error resetting branch password:", error);
     sendError(res, error?.message || "Internal server error.", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
