@@ -107,13 +107,14 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
     if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
     const userId = req.params.userId as string;
-    const { password } = req.body;
+    const { password, newPassword } = req.body;
+    const finalPassword = newPassword || password;
 
-    if (!password) {
+    if (!finalPassword) {
       return sendError(res, "Password is required", StatusCodes.BAD_REQUEST);
     }
 
-    await changePasswordForRestaurant(restaurantId, userId, password);
+    await changePasswordForRestaurant(restaurantId, userId, finalPassword);
     sendSuccess(res, "Password updated successfully.");
   } catch (error: any) {
     if (error.message === "User not found") {

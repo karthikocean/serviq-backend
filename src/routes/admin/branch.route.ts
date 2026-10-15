@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createBranch, getAllBranches, getBranchById, updateBranch, deleteBranch } from "../../controllers/admin/branch.controller";
+import { createBranch, getAllBranches, getBranchById, updateBranch, deleteBranch, resetBranchPassword } from "../../controllers/admin/branch.controller";
 import { protectAdmin } from "../../middleware/authMiddleware";
 
 const router = Router();
@@ -224,5 +224,7 @@ router.put("/:id", protectAdmin, updateBranch);
  *         description: Internal server error
  */
 router.delete("/:id", protectAdmin, deleteBranch);
+router.put("/:id/reset-password", protectAdmin, resetBranchPassword);
+router.put("/:id/password", protectAdmin, resetBranchPassword);
 
 export default router;
