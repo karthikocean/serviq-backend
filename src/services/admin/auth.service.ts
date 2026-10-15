@@ -223,20 +223,26 @@ export const updateAdminPassword = async (userId: string, currentPassword: strin
     throw new Error("Incorrect current password.");
   }
 
-  const salt = await bcrypt.genSalt(10);
-  user.password = await bcrypt.hash(newPassword, salt);
+  user.password = newPassword;
   await user.save();
 
-  // Invalidate existing sessions so they have to login again (optional, but good practice)
+  // Invalidate existing sessions so they have to login again
   await UserToken.deleteMany({ userId: user._id });
   return true;
 };
 
 export const forgotAdminPassword = async (email: string) => {
-  const normalizedEmail = email.trim().toLowerCase();
-  let user = await Admin.findOne({ email: normalizedEmail, isDelete: false });
+  const cleanIdentifier = email ? email.trim() : "";
+  const normalizedEmail = cleanIdentifier.toLowerCase();
+  let user = await Admin.findOne({
+    $or: [{ email: normalizedEmail }, { phoneNumber: cleanIdentifier }],
+    isDelete: false
+  });
   if (!user) {
-    user = await User.findOne({ email: normalizedEmail, isDelete: false }) as any;
+    user = await User.findOne({
+      $or: [{ email: normalizedEmail }, { phoneNumber: cleanIdentifier }],
+      isDelete: false
+    }) as any;
   }
   if (!user) throw new Error("User not found.");
 
@@ -248,10 +254,17 @@ export const forgotAdminPassword = async (email: string) => {
 export const verifyOtp = async (email: string, otp: string) => {
   if (otp !== "1234") throw new Error("Invalid OTP.");
   
-  const normalizedEmail = email.trim().toLowerCase();
-  let user = await Admin.findOne({ email: normalizedEmail, isDelete: false });
+  const cleanIdentifier = email ? email.trim() : "";
+  const normalizedEmail = cleanIdentifier.toLowerCase();
+  let user = await Admin.findOne({
+    $or: [{ email: normalizedEmail }, { phoneNumber: cleanIdentifier }],
+    isDelete: false
+  });
   if (!user) {
-    user = await User.findOne({ email: normalizedEmail, isDelete: false }) as any;
+    user = await User.findOne({
+      $or: [{ email: normalizedEmail }, { phoneNumber: cleanIdentifier }],
+      isDelete: false
+    }) as any;
   }
   if (!user) throw new Error("User not found.");
 
@@ -261,15 +274,21 @@ export const verifyOtp = async (email: string, otp: string) => {
 export const resetAdminPassword = async (email: string, otp: string, newPassword: string) => {
   if (otp !== "1234") throw new Error("Invalid OTP.");
 
-  const normalizedEmail = email.trim().toLowerCase();
-  let user = await Admin.findOne({ email: normalizedEmail, isDelete: false });
+  const cleanIdentifier = email ? email.trim() : "";
+  const normalizedEmail = cleanIdentifier.toLowerCase();
+  let user = await Admin.findOne({
+    $or: [{ email: normalizedEmail }, { phoneNumber: cleanIdentifier }],
+    isDelete: false
+  });
   if (!user) {
-    user = await User.findOne({ email: normalizedEmail, isDelete: false }) as any;
+    user = await User.findOne({
+      $or: [{ email: normalizedEmail }, { phoneNumber: cleanIdentifier }],
+      isDelete: false
+    }) as any;
   }
   if (!user) throw new Error("User not found.");
 
-  const salt = await bcrypt.genSalt(10);
-  user.password = await bcrypt.hash(newPassword, salt);
+  user.password = newPassword;
   await user.save();
 
   await UserToken.deleteMany({ userId: user._id });
@@ -277,8 +296,12 @@ export const resetAdminPassword = async (email: string, otp: string, newPassword
 };
 
 export const forgotAdminPin = async (email: string) => {
-  const normalizedEmail = email.trim().toLowerCase();
-  let user = await User.findOne({ email: normalizedEmail, isDelete: false }) as any;
+  const cleanIdentifier = email ? email.trim() : "";
+  const normalizedEmail = cleanIdentifier.toLowerCase();
+  let user = await User.findOne({
+    $or: [{ email: normalizedEmail }, { phoneNumber: cleanIdentifier }],
+    isDelete: false
+  }) as any;
   
   if (!user) {
     throw new Error("User with PIN not found.");
@@ -292,8 +315,12 @@ export const forgotAdminPin = async (email: string) => {
 export const resetAdminPin = async (email: string, otp: string, newPin: string) => {
   if (otp !== "1234") throw new Error("Invalid OTP.");
 
-  const normalizedEmail = email.trim().toLowerCase();
-  let user = await User.findOne({ email: normalizedEmail, isDelete: false }) as any;
+  const cleanIdentifier = email ? email.trim() : "";
+  const normalizedEmail = cleanIdentifier.toLowerCase();
+  let user = await User.findOne({
+    $or: [{ email: normalizedEmail }, { phoneNumber: cleanIdentifier }],
+    isDelete: false
+  }) as any;
   if (!user) throw new Error("User not found.");
 
   user.kitchenPin = newPin;
