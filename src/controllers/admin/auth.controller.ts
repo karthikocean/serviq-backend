@@ -78,8 +78,9 @@ export const updatePassword = async (req: AuthRequest, res: Response): Promise<v
 
 export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email } = req.body;
-    const result = await forgotAdminPassword(email);
+    const { email, phone, phoneNumber, identifier } = req.body;
+    const target = email || phoneNumber || phone || identifier;
+    const result = await forgotAdminPassword(target);
     sendSuccess(res, "OTP generated successfully.", result);
   } catch (error: any) {
     if (error.message === "User not found.") {
@@ -92,8 +93,9 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
 
 export const verifyOtpController = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, otp } = req.body;
-    await verifyOtpService(email, otp);
+    const { email, phone, phoneNumber, identifier, otp } = req.body;
+    const target = email || phoneNumber || phone || identifier;
+    await verifyOtpService(target, otp);
     sendSuccess(res, "OTP verified successfully.");
   } catch (error: any) {
     if (error.message === "Invalid OTP.") {
@@ -108,8 +110,14 @@ export const verifyOtpController = async (req: Request, res: Response): Promise<
 
 export const resetPassword = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, otp, newPassword } = req.body;
-    await resetAdminPassword(email, otp, newPassword);
+    const { email, phone, phoneNumber, identifier, otp, newPassword, password } = req.body;
+    const target = email || phoneNumber || phone || identifier;
+    const finalPassword = newPassword || password;
+    if (!finalPassword) {
+      sendError(res, "New password is required.", StatusCodes.BAD_REQUEST);
+      return;
+    }
+    await resetAdminPassword(target, otp, finalPassword);
     sendSuccess(res, "Password reset successfully.");
   } catch (error: any) {
     if (error.message === "Invalid OTP.") {
