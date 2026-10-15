@@ -28,11 +28,16 @@ export const scanQrCode = async (req: Request, res: Response): Promise<void> => 
     let qr = await QrCode.findOne({ qrCodeId, isDelete: false })
       .populate("restaurantId", "restaurantName name logo coverImage address currency phone")
       .populate("branchId", "branchName address city phone")
-      .populate("tableId", "tableNumber section seatingCapacity status");
+      .populate({
+        path: "tableId",
+        select: "tableNumber section seatingCapacity status assignedWaiter",
+        populate: { path: "assignedWaiter", select: "name phoneNumber" }
+      });
 
     let restaurant: any = null;
     let branch: any = null;
     let table: any = null;
+    let waiterName: string | null = null;
 
     if (qr) {
       qr.scansCount = (qr.scansCount || 0) + 1;
@@ -41,18 +46,28 @@ export const scanQrCode = async (req: Request, res: Response): Promise<void> => 
       restaurant = qr.restaurantId;
       branch = qr.branchId;
       table = qr.tableId;
+      waiterName = (table as any)?.assignedWaiter?.name || null;
     } else {
       let tableDoc: any = null;
       if (mongoose.Types.ObjectId.isValid(qrCodeId)) {
         tableDoc = await Table.findOne({ _id: qrCodeId, isDelete: false })
           .populate("restaurantId", "restaurantName name logo coverImage address currency phone")
-          .populate("branchId", "branchName address city phone");
+          .populate("branchId", "branchName address city phone")
+          .populate("assignedWaiter", "name phoneNumber");
       }
 
       if (!tableDoc) {
         tableDoc = await Table.findOne({ assignedQrId: qrCodeId, isDelete: false })
           .populate("restaurantId", "restaurantName name logo coverImage address currency phone")
-          .populate("branchId", "branchName address city phone");
+          .populate("branchId", "branchName address city phone")
+          .populate("assignedWaiter", "name phoneNumber");
+      }
+
+      if (!tableDoc) {
+        tableDoc = await Table.findOne({ tableNumber: qrCodeId, isDelete: false })
+          .populate("restaurantId", "restaurantName name logo coverImage address currency phone")
+          .populate("branchId", "branchName address city phone")
+          .populate("assignedWaiter", "name phoneNumber");
       }
 
       if (!tableDoc) {
@@ -62,6 +77,7 @@ export const scanQrCode = async (req: Request, res: Response): Promise<void> => 
 
       restaurant = tableDoc.restaurantId;
       branch = tableDoc.branchId;
+      waiterName = tableDoc.assignedWaiter?.name || null;
       table = {
         _id: tableDoc._id,
         tableNumber: tableDoc.tableNumber,
@@ -91,7 +107,8 @@ export const scanQrCode = async (req: Request, res: Response): Promise<void> => 
         tableNumber: table?.tableNumber || "Table",
         section: table?.section || "Main",
         seatingCapacity: table?.seatingCapacity || 4,
-        status: table?.status || "Available"
+        status: table?.status || "Available",
+        waiter: waiterName || null
       }
     });
   } catch (error: any) {
@@ -118,8 +135,23 @@ export const getHeaderInfo = async (req: Request, res: Response): Promise<void> 
     const restaurant = await Restaurant.findById(restaurantId).select("restaurantName name logo coverImage address currency");
     const branch = await Branch.findById(branchId).select("branchName address city");
     let table = null;
+    let hasActiveOrders = false;
     if (tableId && mongoose.Types.ObjectId.isValid(tableId)) {
-      table = await Table.findById(tableId).select("tableNumber section seatingCapacity status");
+      table = await Table.findById(tableId)
+        .select("tableNumber section seatingCapacity status assignedWaiter")
+        .populate("assignedWaiter", "name phoneNumber");
+
+      if (table) {
+        const activeOrderCount = await Order.countDocuments({
+          restaurantId: new mongoose.Types.ObjectId(restaurantId),
+          branchId: new mongoose.Types.ObjectId(branchId),
+          tableId: new mongoose.Types.ObjectId(tableId),
+          billingStatus: "unpaid",
+          status: { $nin: ["completed", "cancelled"] },
+          isDelete: false
+        });
+        hasActiveOrders = activeOrderCount > 0;
+      }
     }
 
     sendSuccess(res, "Header information fetched successfully", {
@@ -138,7 +170,11 @@ export const getHeaderInfo = async (req: Request, res: Response): Promise<void> 
       table: table ? {
         _id: (table as any)?._id,
         tableNumber: (table as any)?.tableNumber,
-        section: (table as any)?.section
+        section: (table as any)?.section,
+        seatingCapacity: (table as any)?.seatingCapacity,
+        status: (table as any)?.status,
+        waiter: (table as any)?.assignedWaiter?.name || null,
+        hasActiveOrders
       } : null
     });
   } catch (error: any) {
@@ -228,10 +264,22 @@ export const getCategories = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const categories = await Category.find({
+    const resolvedBranchId = await resolveMenuBranchId(restaurantId, branchId);
+    const targetBranchObjectId = resolvedBranchId || (branchId && mongoose.Types.ObjectId.isValid(branchId) ? new mongoose.Types.ObjectId(branchId) : undefined);
+
+    const categoryQuery: any = {
       restaurantId: new mongoose.Types.ObjectId(restaurantId),
       status: { $ne: "INACTIVE" }
-    }).sort({ createdAt: 1 });
+    };
+
+    if (targetBranchObjectId) {
+      categoryQuery.$or = [
+        { branchId: targetBranchObjectId },
+        { branchId: { $exists: false } }
+      ];
+    }
+
+    const categories = await Category.find(categoryQuery).sort({ createdAt: 1 });
 
     sendSuccess(res, "Categories fetched successfully", categories);
   } catch (error: any) {

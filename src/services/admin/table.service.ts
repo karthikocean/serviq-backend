@@ -18,7 +18,7 @@ export const getTables = async (restaurantId: string, branchId?: string, skip: n
   }
 
   const total = await Table.countDocuments(query);
-  
+
   let dbQuery = Table.find(query)
     .populate("assignedWaiter", "name phoneNumber")
     .populate("coverWaiter", "name phoneNumber")
@@ -27,7 +27,7 @@ export const getTables = async (restaurantId: string, branchId?: string, skip: n
   if (limit > 0) {
     dbQuery = dbQuery.skip(skip).limit(limit);
   }
-  
+
   const items = await dbQuery;
 
   return { total, items };
@@ -38,9 +38,9 @@ export const getNextTableIdStr = async (restaurantId: string, branchId?: string)
   if (branchId && branchId !== "ALL" && branchId !== "All" && branchId !== "COMPANY" && branchId !== "company") {
     query.branchId = branchId;
   }
-  
+
   const tables = await Table.find(query);
-  
+
   let prefix = "TBL";
   if (branchId && branchId !== "ALL" && branchId !== "All" && branchId !== "COMPANY" && branchId !== "company") {
     const branch = await Branch.findById(branchId);
@@ -49,7 +49,7 @@ export const getNextTableIdStr = async (restaurantId: string, branchId?: string)
       prefix = `TBL-${initials}`;
     }
   }
-  
+
   let maxId = 0;
   for (const table of tables) {
     if (table.tableNumber) {
@@ -60,7 +60,7 @@ export const getNextTableIdStr = async (restaurantId: string, branchId?: string)
       }
     }
   }
-  
+
   maxId += 1;
   return `${prefix}-${maxId.toString().padStart(3, '0')}`;
 };
@@ -87,10 +87,10 @@ export const createTable = async (restaurantId: string, branchId: string, tableD
     branchId
   });
   await newTable.save();
-  
+
   // Automatically generate QR code for the new table
   await generateQRsForTables(restaurantId, branchId, [newTable._id.toString()]);
-  
+
   const updatedTable = await Table.findById(newTable._id);
   return updatedTable;
 };
@@ -134,33 +134,34 @@ export const generateQRsForTables = async (restaurantId: string, branchId: strin
   for (const table of tables) {
     // We create a unique QR string or URL
     const uniqueHash = crypto.randomBytes(16).toString("hex");
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-    const qrUrl = `${frontendUrl}/menu/${restaurantId}/${branchId}?table=${table._id}&hash=${uniqueHash}`;
-    
+    const frontendUrl = process.env.CUSTOMER_FRONTEND_URL || "http://192.168.88.28:5173";
+    const cleanBaseUrl = frontendUrl.replace(/\/+$/, "");
+    const qrUrl = `${cleanBaseUrl}/menu/${restaurantId}/${branchId}?table=${table._id}&hash=${uniqueHash}`;
+
     let qr = null;
     if (table.assignedQrId) {
-       qr = await QrCode.findById(table.assignedQrId);
+      qr = await QrCode.findById(table.assignedQrId);
     }
-    
+
     if (qr) {
-       qr.qrUrl = qrUrl;
-       await qr.save();
+      qr.qrUrl = qrUrl;
+      await qr.save();
     } else {
-       qr = new QrCode({
-         restaurantId,
-         branchId,
-         tableId: table._id,
-         qrCodeId: uniqueHash,
-         qrUrl: qrUrl,
-         status: "Assigned"
-       });
-       await qr.save();
-       table.assignedQrId = qr._id as any;
+      qr = new QrCode({
+        restaurantId,
+        branchId,
+        tableId: table._id,
+        qrCodeId: uniqueHash,
+        qrUrl: qrUrl,
+        status: "Assigned"
+      });
+      await qr.save();
+      table.assignedQrId = qr._id as any;
     }
-    
+
     table.qrUrl = qrUrl;
     await table.save();
-    
+
     qrCodesGenerated.push({ tableId: table._id, tableNumber: table.tableNumber, qrUrl });
   }
 
@@ -207,7 +208,7 @@ export const assignWaiterToTables = async (restaurantId: string, branchId: strin
     if (coverWaiterId !== undefined) {
       updateQuery.coverWaiter = coverWaiterId || null;
     }
-    
+
     await Table.updateMany(
       { _id: { $in: tableIds }, restaurantId, branchId },
       { $set: updateQuery }
