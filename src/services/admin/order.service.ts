@@ -4,7 +4,7 @@ import Branch from "../../models/Branch";
 
 export const getOrders = async (
   restaurantId: string,
-  branchId: string,
+  branchId?: string,
   status?: string,
   billingStatus?: string,
   waiterId?: string,
@@ -12,7 +12,7 @@ export const getOrders = async (
   limit: number = 10
 ) => {
   const query: any = { restaurantId, isDelete: false };
-  if (branchId && branchId !== "ALL") {
+  if (branchId && branchId !== "ALL" && branchId !== "All" && branchId !== "COMPANY" && branchId !== "company") {
     query.branchId = branchId;
   }
   if (status) query.status = status;
@@ -29,6 +29,7 @@ export const getOrders = async (
   const totalCount = await Order.countDocuments(query);
   const orders = await Order.find(query)
     .populate("tableId", "tableNumber section")
+    .populate("branchId", "branchName branchCode")
     .populate("waiterId", "name phoneNumber")
     .populate("items.menuId", "name image veg category")
     .sort({ createdAt: -1 })
@@ -38,9 +39,14 @@ export const getOrders = async (
   return { orders, totalCount };
 };
 
-export const getOrderById = async (restaurantId: string, branchId: string, orderId: string) => {
-  const order = await Order.findOne({ _id: orderId, restaurantId, branchId, isDelete: false })
+export const getOrderById = async (restaurantId: string, branchId: string | undefined, orderId: string) => {
+  const query: any = { _id: orderId, restaurantId, isDelete: false };
+  if (branchId && branchId !== "ALL" && branchId !== "All" && branchId !== "COMPANY" && branchId !== "company") {
+    query.branchId = branchId;
+  }
+  const order = await Order.findOne(query)
     .populate("tableId", "tableNumber section")
+    .populate("branchId", "branchName branchCode")
     .populate("waiterId", "name phoneNumber")
     .populate("items.menuId", "name image veg category");
     
@@ -49,23 +55,85 @@ export const getOrderById = async (restaurantId: string, branchId: string, order
 };
 
 export const createOrder = async (restaurantId: string, branchId: string, orderData: any) => {
-  // If table is provided, check for existing unpaid order
+  // If table is provided, resolve branchId if needed and check for existing active unpaid order
   if (orderData.tableId) {
-    const existingOrder = await Order.findOne({
+    if (!branchId || branchId === "ALL" || branchId === "All") {
+      const table = await Table.findById(orderData.tableId);
+      if (table && table.branchId) {
+        branchId = table.branchId.toString();
+      }
+    }
+
+    const existingOrderQuery: any = {
       tableId: orderData.tableId,
       restaurantId,
-      branchId,
+      status: { $nin: ["cancelled", "completed"] },
       billingStatus: "unpaid",
       isDelete: false
-    });
+    };
+    if (branchId && branchId !== "ALL" && branchId !== "All") {
+      existingOrderQuery.branchId = branchId;
+    }
+
+    const existingOrder = await Order.findOne(existingOrderQuery);
 
     if (existingOrder) {
-      throw new Error("Table is already occupied with an active order. Please edit the existing order to add items.");
+      // Append new items to existing active order instead of erroring
+      if (orderData.items && orderData.items.length > 0) {
+        for (const newItem of orderData.items) {
+          const newItemMenuId = newItem.menuId && typeof newItem.menuId === 'object' && newItem.menuId._id
+            ? newItem.menuId._id
+            : newItem.menuId;
+
+          const existingItemIndex = existingOrder.items.findIndex((item: any) => {
+            const itemMenuId = item.menuId && typeof item.menuId === 'object' && item.menuId._id
+              ? item.menuId._id
+              : item.menuId;
+
+            if (itemMenuId && newItemMenuId) return String(itemMenuId) === String(newItemMenuId);
+            return item.name?.toLowerCase() === newItem.name?.toLowerCase();
+          });
+
+          if (existingItemIndex > -1) {
+            existingOrder.items[existingItemIndex].qty = (existingOrder.items[existingItemIndex].qty || 1) + (newItem.qty || 1);
+          } else {
+            existingOrder.items.push({
+              ...newItem,
+              menuId: newItemMenuId
+            });
+          }
+        }
+        existingOrder.markModified('items');
+      }
+
+      // Add totals
+      existingOrder.subtotal = (existingOrder.subtotal || 0) + (orderData.subtotal || 0);
+      existingOrder.tax = (existingOrder.tax || 0) + (orderData.tax || 0);
+      existingOrder.charge = (existingOrder.charge || 0) + (orderData.charge || 0);
+      existingOrder.total = (existingOrder.total || 0) + (orderData.total || 0);
+      if (orderData.notes) {
+        existingOrder.notes = existingOrder.notes
+          ? `${existingOrder.notes} | ${orderData.notes}`
+          : orderData.notes;
+      }
+      if (orderData.waiterId && !existingOrder.waiterId) {
+        existingOrder.waiterId = orderData.waiterId;
+      }
+
+      await existingOrder.save();
+
+      // Ensure table status remains Occupied
+      await Table.updateOne(
+        { _id: orderData.tableId },
+        { status: "Occupied" }
+      );
+
+      return existingOrder;
     }
   }
 
   let prefix = "ORD";
-  if (branchId && branchId !== "ALL") {
+  if (branchId && branchId !== "ALL" && branchId !== "All") {
     const branch = await Branch.findById(branchId);
     if (branch && branch.branchName) {
       const initials = branch.branchName.trim().split(/\s+/).map(word => word.charAt(0)).join('').toUpperCase();
@@ -74,7 +142,7 @@ export const createOrder = async (restaurantId: string, branchId: string, orderD
   }
 
   const query: any = { restaurantId, isDelete: false };
-  if (branchId && branchId !== "ALL") query.branchId = branchId;
+  if (branchId && branchId !== "ALL" && branchId !== "All") query.branchId = branchId;
   const lastOrder = await Order.findOne(query).sort({ _id: -1 });
   let nextNumber = 1;
   if (lastOrder && lastOrder.orderId) {
@@ -101,7 +169,7 @@ export const createOrder = async (restaurantId: string, branchId: string, orderD
   // If table was provided, update table status
   if (orderData.tableId) {
     await Table.updateOne(
-      { _id: orderData.tableId, restaurantId, branchId },
+      { _id: orderData.tableId },
       { status: "Occupied" }
     );
   }

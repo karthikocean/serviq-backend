@@ -25,7 +25,8 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
         branchName, branchCode, branchOpeningDate, contactNumber, email, 
         street, city, state, country, pincode, 
         managerName, managerMobile, managerEmail, managerPassword,
-        status, isMainBranch, branchType, gstinNumber, fssaiLicense
+        status, isMainBranch, branchType, gstinNumber, fssaiLicense,
+        useCustomMenu
     } = req.body;
 
     // Validate Required Fields
@@ -131,7 +132,8 @@ export const createBranch = async (req: AuthRequest, res: Response): Promise<voi
       status: status || 'Active',
       isActive: status !== 'Inactive',
       isMainBranch: isMain,
-      branchType: isMain ? 'MAIN' : 'SUB'
+      branchType: isMain ? 'MAIN' : 'SUB',
+      useCustomMenu: useCustomMenu === true || useCustomMenu === 'true'
     });
     
     await newBranch.save();
@@ -242,14 +244,18 @@ export const getAllBranches = async (req: AuthRequest, res: Response): Promise<v
     
     const branchesWithManagers = await Promise.all(branches.map(async (branch) => {
         const manager = await getManagerForBranch(branch._id);
-        const totalTables = await Table.countDocuments({ branchId: branch._id, isDelete: false });
+        const tables = await Table.find({ branchId: branch._id, isDelete: false })
+          .populate("assignedWaiter", "name phoneNumber")
+          .populate("coverWaiter", "name phoneNumber");
+        const totalTables = tables.length;
         
         return {
             ...branch,
             managerName: manager?.name || '',
             managerEmail: manager?.email || '',
             managerMobile: manager?.phoneNumber || '',
-            totalTables
+            totalTables,
+            tables
         };
     }));
 
@@ -274,14 +280,18 @@ export const getBranchById = async (req: AuthRequest, res: Response): Promise<vo
     }
     
     const manager = await getManagerForBranch(branch._id);
-    const totalTables = await Table.countDocuments({ branchId: branch._id, isDelete: false });
+    const tables = await Table.find({ branchId: branch._id, isDelete: false })
+      .populate("assignedWaiter", "name phoneNumber")
+      .populate("coverWaiter", "name phoneNumber");
+    const totalTables = tables.length;
     
     const branchWithManager = {
         ...branch,
         managerName: manager?.name || '',
         managerEmail: manager?.email || '',
         managerMobile: manager?.phoneNumber || '',
-        totalTables
+        totalTables,
+        tables
     };
 
     sendSuccess(res, "Branch details retrieved successfully.", branchWithManager, StatusCodes.OK);
@@ -303,7 +313,8 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
         branchName, branchCode, branchOpeningDate, contactNumber, email, 
         street, city, state, country, pincode, 
         status, isMainBranch, branchType, gstinNumber, fssaiLicense,
-        managerName, managerMobile, managerEmail
+        managerName, managerMobile, managerEmail,
+        useCustomMenu
     } = req.body;
 
     const branch = await Branch.findOne({ _id: req.params.id, restaurantId: user.restaurantId, isDelete: false });
@@ -376,6 +387,10 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
             branch.isMainBranch = false;
             branch.branchType = 'SUB';
         }
+    }
+
+    if (useCustomMenu !== undefined) {
+      branch.useCustomMenu = useCustomMenu === true || useCustomMenu === 'true';
     }
 
     await branch.save();

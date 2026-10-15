@@ -14,6 +14,9 @@ export interface IBilling extends Document {
     orderRefId: string; // The readable order ID (e.g., ORD-845)
     invoiceId: string; // e.g., INV-10245
     tableNumber: string;
+    orderType?: string;
+    customerName?: string;
+    customerPhone?: string;
     subtotal: number;
     tax: number;
     discount: number;
@@ -36,7 +39,10 @@ const billingSchema = new Schema<IBilling>(
         orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true },
         orderRefId: { type: String, required: true },
         invoiceId: { type: String, required: true, unique: true },
-        tableNumber: { type: String, required: true },
+        tableNumber: { type: String, default: "N/A" },
+        orderType: { type: String, default: "Dine-In" },
+        customerName: { type: String, default: "" },
+        customerPhone: { type: String, default: "" },
         subtotal: { type: Number, required: true },
         tax: { type: Number, required: true },
         discount: { type: Number, default: 0 },

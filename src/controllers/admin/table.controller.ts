@@ -36,16 +36,25 @@ export const assignWaiter = async (req: AuthRequest, res: Response): Promise<voi
 export const getAllTables = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const restaurantId = req.user?.restaurantId;
-    let branchId = getTargetBranchId(req);
-    
-    // If the user explicitly requested all branches (empty branchId) and has permission
-    if (!branchId && req.query.branchId === '' && (req.user?.userType === "RESTAURANT_OWNER" || req.user?.userType === "SUPER_ADMIN")) {
-      branchId = undefined;
-    } else if (!branchId) {
-      return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
-    }
-
     if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    let branchId: string | undefined = undefined;
+    const qBranch = req.query.branchId !== undefined && req.query.branchId !== null ? String(req.query.branchId).trim() : undefined;
+
+    if (qBranch && qBranch !== '' && qBranch !== 'ALL' && qBranch !== 'All' && qBranch.toUpperCase() !== 'COMPANY') {
+      branchId = qBranch;
+    } else if (qBranch === '' || qBranch === 'ALL' || qBranch === 'All' || qBranch?.toUpperCase() === 'COMPANY') {
+      branchId = undefined; // Explicitly all branches
+    } else {
+      // If branchId is not provided in query:
+      // For RESTAURANT_OWNER and SUPER_ADMIN (or when omitted): show tables across all branches
+      // For branch-level staff (BRANCH_ADMIN / STAFF), restrict to their assigned activeBranchId
+      if (req.user?.userType === 'BRANCH_ADMIN' || req.user?.userType === 'STAFF') {
+        branchId = req.user?.activeBranchId;
+      } else {
+        branchId = undefined; // All branches
+      }
+    }
 
     const page = parseInt(req.query.page as string) || 0;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -64,13 +73,16 @@ export const getAllTables = async (req: AuthRequest, res: Response): Promise<voi
 export const getNextTableId = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const restaurantId = req.user?.restaurantId;
-    let branchId = getTargetBranchId(req);
-    
-    if (!branchId && req.query.branchId === '' && (req.user?.userType === "RESTAURANT_OWNER" || req.user?.userType === "SUPER_ADMIN")) {
-      branchId = undefined;
-    }
-
     if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    let branchId: string | undefined = undefined;
+    const qBranch = req.query.branchId !== undefined && req.query.branchId !== null ? String(req.query.branchId).trim() : undefined;
+
+    if (qBranch && qBranch !== '' && qBranch !== 'ALL' && qBranch !== 'All' && qBranch.toUpperCase() !== 'COMPANY') {
+      branchId = qBranch;
+    } else if (req.user?.userType === 'BRANCH_ADMIN' || req.user?.userType === 'STAFF') {
+      branchId = req.user?.activeBranchId;
+    }
 
     const nextId = await getNextTableIdStr(restaurantId, branchId);
     sendSuccess(res, "Next table ID fetched successfully.", { nextId });
@@ -82,11 +94,10 @@ export const getNextTableId = async (req: AuthRequest, res: Response): Promise<v
 export const getTable = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const restaurantId = req.user?.restaurantId;
-    const branchId = getTargetBranchId(req);
-    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+    if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
     const { tableId } = req.params;
-    const table = await getTableById(restaurantId, branchId as string, tableId as string);
+    const table = await getTableById(restaurantId, undefined, tableId as string);
     sendSuccess(res, "Table fetched successfully.", table);
   } catch (error: any) {
     if (error.message === "Table not found") {
@@ -100,8 +111,10 @@ export const getTable = async (req: AuthRequest, res: Response): Promise<void> =
 export const createNewTable = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const restaurantId = req.user?.restaurantId;
-    const branchId = getTargetBranchId(req);
-    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+    let branchId = req.body?.branchId || getTargetBranchId(req);
+    if (!restaurantId || !branchId || branchId === 'ALL') {
+      return sendError(res, "A valid branchId is required to create a table", StatusCodes.BAD_REQUEST);
+    }
 
     const newTable = await createTable(restaurantId, branchId, req.body);
     sendSuccess(res, "Table created successfully.", { id: newTable?._id });
@@ -109,7 +122,7 @@ export const createNewTable = async (req: AuthRequest, res: Response): Promise<v
     if (error.message === "Table number already exists") {
       sendError(res, error.message, StatusCodes.CONFLICT);
     } else {
-      sendError(res, "Failed to create table", StatusCodes.INTERNAL_SERVER_ERROR);
+      sendError(res, error?.message || "Failed to create table", StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
 };

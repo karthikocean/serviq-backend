@@ -16,6 +16,7 @@ export interface IBranch extends Document {
   };
   isMainBranch: boolean;
   branchType: 'MAIN' | 'SUB';
+  useCustomMenu: boolean;
   gstinNumber?: string;
   fssaiLicense?: string;
   status: 'Active' | 'Inactive';
@@ -40,6 +41,7 @@ const BranchSchema = new Schema<IBranch>(
     },
     isMainBranch: { type: Boolean, default: false },
     branchType: { type: String, enum: ['MAIN', 'SUB'], default: 'SUB' },
+    useCustomMenu: { type: Boolean, default: false },
     gstinNumber: { type: String, trim: true },
     fssaiLicense: { type: String, trim: true },
     status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },

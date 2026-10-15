@@ -5,16 +5,36 @@ import User from "../../models/User";
 import mongoose from "mongoose";
 
 export const getBillDetails = async (restaurantId: string, branchId: string, orderId: string) => {
-  const order = await Order.findOne({ _id: orderId, restaurantId, branchId, isDelete: false })
+  const query: any = { _id: orderId, restaurantId, isDelete: false };
+  if (branchId && branchId !== "ALL" && branchId !== "All") {
+    query.branchId = branchId;
+  }
+
+  let order = await Order.findOne(query)
     .populate("tableId", "tableNumber section")
     .populate("items.menuId", "name price gst");
+
+  if (!order) {
+    order = await Order.findOne({ _id: orderId, restaurantId, isDelete: false })
+      .populate("tableId", "tableNumber section")
+      .populate("items.menuId", "name price gst");
+  }
 
   if (!order) throw new Error("Order not found");
   return order;
 };
 
 export const applyDiscount = async (restaurantId: string, branchId: string, orderId: string, discount: number) => {
-  const order = await Order.findOne({ _id: orderId, restaurantId, branchId, isDelete: false, billingStatus: "unpaid" });
+  const query: any = { _id: orderId, restaurantId, isDelete: false, billingStatus: "unpaid" };
+  if (branchId && branchId !== "ALL" && branchId !== "All") {
+    query.branchId = branchId;
+  }
+
+  let order = await Order.findOne(query);
+  if (!order) {
+    order = await Order.findOne({ _id: orderId, restaurantId, isDelete: false, billingStatus: "unpaid" });
+  }
+
   if (!order) throw new Error("Order not found or already paid");
 
   // Recalculate total with discount
@@ -30,12 +50,40 @@ export const applyDiscount = async (restaurantId: string, branchId: string, orde
   return order;
 };
 
-export const processTablePayment = async (restaurantId: string, branchId: string, tableId: string, paymentMethod: "cash" | "card" | "upi") => {
+export const processTablePayment = async (restaurantId: string, branchId: string, tableId: string, paymentMethod: "cash" | "card" | "upi" | string) => {
   let createdBillingId = null;
 
   try {
-    const orders = await Order.find({ tableId, restaurantId, branchId, isDelete: false, billingStatus: "unpaid" });
+    const tableObjectId = mongoose.Types.ObjectId.isValid(tableId) ? new mongoose.Types.ObjectId(tableId) : null;
     
+    // Find unpaid orders for this table OR directly by orderId
+    const queryConditions: any[] = [
+      { tableId: tableId }
+    ];
+    if (tableObjectId) {
+      queryConditions.push({ tableId: tableObjectId });
+      queryConditions.push({ _id: tableObjectId });
+    }
+    queryConditions.push({ orderId: tableId });
+
+    let orders = await Order.find({
+      $or: queryConditions,
+      restaurantId,
+      branchId,
+      isDelete: false,
+      billingStatus: "unpaid"
+    });
+    
+    // If not found with strict branchId, search across the restaurant for this table/order
+    if (!orders || orders.length === 0) {
+      orders = await Order.find({
+        $or: queryConditions,
+        restaurantId,
+        isDelete: false,
+        billingStatus: "unpaid"
+      });
+    }
+
     if (!orders || orders.length === 0) {
       throw new Error("No unpaid orders found for this table.");
     }
@@ -50,18 +98,23 @@ export const processTablePayment = async (restaurantId: string, branchId: string
     const orderRefId = orders[0].orderId;
     let staffName = "Admin";
 
-    const tableDoc = await Table.findById(tableId);
-    const tableNumber = tableDoc?.tableNumber || "N/A";
+    const primaryOrder = orders[0];
+    const resolvedTableId = primaryOrder.tableId || tableObjectId || tableId;
+    const tableDoc = resolvedTableId ? await Table.findById(resolvedTableId) : null;
+    const orderType = primaryOrder.orderType || (tableDoc ? "Dine-In" : "Takeaway");
+    const tableNumber = tableDoc?.tableNumber || (orderType === "Dine-In" ? "N/A" : orderType);
+    const customerName = primaryOrder.customerName || "";
+    const customerPhone = primaryOrder.customerPhone || "";
 
     // Recalculate and merge
     for (const order of orders) {
-      subtotal += order.subtotal;
-      tax += order.tax;
+      subtotal += order.subtotal || 0;
+      tax += order.tax || 0;
       discount += order.discount || 0;
       charge += order.charge || 0;
-      totalAmount += order.total;
+      totalAmount += order.total || 0;
 
-      for (const item of order.items) {
+      for (const item of (order.items || [])) {
         items.push({
           name: item.name,
           qty: item.qty,
@@ -79,16 +132,10 @@ export const processTablePayment = async (restaurantId: string, branchId: string
     // Double check the math just to be absolutely sure backend recalculation is solid
     const recalculatedTotal = Math.max(0, subtotal + tax + charge - discount);
 
-    const lastBilling = await Billing.findOne({ restaurantId }).sort({ createdAt: -1 });
-    let nextInvoiceNumber = 10001;
-
-    if (lastBilling && lastBilling.invoiceId && lastBilling.invoiceId.startsWith("INV-")) {
-      const lastNumber = parseInt(lastBilling.invoiceId.replace("INV-", ""), 10);
-      if (!isNaN(lastNumber)) {
-        nextInvoiceNumber = lastNumber + 1;
-      }
-    }
-    const invoiceId = `INV-${nextInvoiceNumber}`;
+    // Generate unique invoice number safely
+    const count = await Billing.countDocuments({ restaurantId });
+    const timestampSuffix = Date.now().toString().slice(-4);
+    const invoiceId = `INV-${10001 + count}-${timestampSuffix}`;
 
     const billingRecord = new Billing({
       restaurantId,
@@ -97,6 +144,9 @@ export const processTablePayment = async (restaurantId: string, branchId: string
       orderRefId,
       invoiceId,
       tableNumber,
+      orderType,
+      customerName,
+      customerPhone,
       subtotal,
       tax,
       discount,
@@ -112,9 +162,13 @@ export const processTablePayment = async (restaurantId: string, branchId: string
     createdBillingId = billingRecord._id; // Store ID for manual rollback if needed
 
     // Update all orders
+    const validPaymentMethod = ["cash", "card", "upi"].includes(paymentMethod.toLowerCase())
+      ? (paymentMethod.toLowerCase() as "cash" | "card" | "upi")
+      : "cash";
+
     for (const order of orders) {
       order.billingStatus = "paid";
-      order.paymentMethod = paymentMethod;
+      order.paymentMethod = validPaymentMethod;
       order.status = "completed"; // Automatically complete the order when table is closed and paid
       await order.save();
     }
@@ -249,34 +303,84 @@ export const getBillingHistory = async (restaurantId: string, branchId: string, 
 export const getActiveTablesBilling = async (restaurantId: string, branchId: string, filters: any = {}) => {
   const query: any = { restaurantId, isDelete: false, billingStatus: "unpaid" };
   
-  if (branchId && branchId !== "ALL") {
+  if (branchId && branchId !== "ALL" && branchId !== "All") {
     query.branchId = branchId;
   }
 
+  const conditions: any[] = [];
+
   if (filters.search) {
-    query.$or = [
-      { orderId: { $regex: filters.search, $options: 'i' } },
-      { billNo: { $regex: filters.search, $options: 'i' } }
-    ];
+    const searchRegex = { $regex: filters.search.trim(), $options: 'i' };
+    conditions.push({
+      $or: [
+        { orderId: searchRegex },
+        { billNo: searchRegex },
+        { customerName: searchRegex },
+        { customerPhone: searchRegex }
+      ]
+    });
   }
 
-  if (filters.tableId && filters.tableId !== 'ALL' && filters.tableId !== 'All Tables') {
-    query.tableId = filters.tableId;
+  if (filters.customer) {
+    const custRegex = { $regex: filters.customer.trim(), $options: 'i' };
+    conditions.push({
+      $or: [
+        { customerName: custRegex },
+        { customerPhone: custRegex }
+      ]
+    });
   }
 
-  if (filters.cashierId && filters.cashierId !== 'ALL') {
-    query.waiterId = filters.cashierId;
+  if (filters.tableId && filters.tableId !== 'ALL' && filters.tableId !== 'All' && filters.tableId !== 'All Tables') {
+    conditions.push({ tableId: filters.tableId });
   }
 
-  if (filters.orderType && filters.orderType !== 'ALL') {
-    query.orderType = new RegExp(`^${filters.orderType}$`, 'i');
+  if (filters.cashierId && filters.cashierId !== 'ALL' && filters.cashierId !== 'All') {
+    conditions.push({ waiterId: filters.cashierId });
   }
 
-  const orders = await Order.find(query).populate("tableId", "tableNumber section").populate("waiterId", "name");
+  if (filters.orderType && !['all', 'all order types'].includes(String(filters.orderType).toLowerCase())) {
+    const ot = String(filters.orderType).trim();
+    if (ot.toLowerCase().includes('dine')) {
+      conditions.push({
+        $or: [
+          { orderType: { $regex: /dine/i } },
+          { orderType: { $exists: false }, tableId: { $ne: null } }
+        ]
+      });
+    } else if (ot.toLowerCase().includes('take')) {
+      conditions.push({
+        $or: [
+          { orderType: { $regex: /take/i } }
+        ]
+      });
+    } else if (ot.toLowerCase().includes('deliv')) {
+      conditions.push({
+        $or: [
+          { orderType: { $regex: /deliv/i } }
+        ]
+      });
+    } else {
+      const normalized = ot.replace(/[-_]/g, '[-_ ]?');
+      conditions.push({ orderType: new RegExp(`^${normalized}$`, 'i') });
+    }
+  }
+
+  if (conditions.length > 0) {
+    query.$and = conditions;
+  }
+
+  const orders = await Order.find(query)
+    .populate("tableId", "tableNumber section")
+    .populate("waiterId", "name")
+    .sort({ createdAt: -1 });
 
   return orders.map((order, index) => {
     const table: any = order.tableId;
-    if (!table) return null;
+    const rawOrderType = (order as any).orderType;
+    const orderType = rawOrderType
+      ? (rawOrderType.toLowerCase().includes('take') ? 'Takeaway' : rawOrderType.toLowerCase().includes('deliv') ? 'Delivery' : 'Dine-In')
+      : (table ? "Dine-In" : "Takeaway");
 
     const items = (order.items || []).map((item: any) => ({
       name: item.name,
@@ -290,12 +394,17 @@ export const getActiveTablesBilling = async (restaurantId: string, branchId: str
 
     return {
       id: order._id.toString(),
+      _id: order._id.toString(),
       sNo: index + 1,
       billNo: (order as any).billNo || `B-${1041 + index}`,
       orderId: order.orderId,
-      orderType: (order as any).orderType || "Dine-In",
-      tableId: table._id.toString(),
-      table: `Table ${table.tableNumber}`,
+      orderType: orderType,
+      tableId: table ? table._id.toString() : order._id.toString(),
+      table: table ? `Table ${table.tableNumber}` : "-",
+      tableNumber: table ? table.tableNumber : "-",
+      customerName: order.customerName || "",
+      customerPhone: order.customerPhone || "",
+      deliveryAddress: order.deliveryAddress || "",
       billDateTime: order.createdAt,
       subtotal: order.subtotal || 0,
       tax: order.tax || 0,
@@ -303,8 +412,8 @@ export const getActiveTablesBilling = async (restaurantId: string, branchId: str
       billAmount: order.total || 0,
       paidAmount: 0.00,
       status: "Unpaid",
-      cashier: waiter ? waiter.name : "Staff",
+      cashier: waiter ? waiter.name : (orderType !== "Dine-In" ? "Counter" : "Staff"),
       items: items
     };
-  }).filter(Boolean);
+  });
 };

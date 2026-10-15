@@ -13,6 +13,7 @@ export interface IMenu extends Document {
     veg: boolean;
     gst: number;
     bestseller: boolean;
+    isCompanyMenu?: boolean;
     isDelete: boolean;
     isActive: boolean;
     createdAt?: Date;
@@ -33,6 +34,7 @@ const menuSchema = new Schema<IMenu>(
         veg: { type: Boolean, default: true },
         gst: { type: Number, default: 0 },
         bestseller: { type: Boolean, default: false },
+        isCompanyMenu: { type: Boolean, default: false },
         isDelete: { type: Boolean, default: false },
         isActive: { type: Boolean, default: true }
     },

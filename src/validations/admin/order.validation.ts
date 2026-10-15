@@ -2,7 +2,12 @@ import { z } from "zod";
 
 export const createOrderSchema = z.object({
   body: z.object({
-    tableId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid table ID"),
+    branchId: z.string().optional(),
+    tableId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid table ID").optional(),
+    orderType: z.string().optional(),
+    customerName: z.string().optional(),
+    customerPhone: z.string().optional(),
+    deliveryAddress: z.string().optional(),
     waiterId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid waiter ID").optional(),
     items: z.array(z.object({
       menuId: z.any(), // Allow string or object (when populated)
