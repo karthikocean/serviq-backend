@@ -4,6 +4,7 @@ import Admin from "../../models/Admin";
 import AdminRole from "../../models/AdminRole";
 import UserRole from "../../models/UserRole";
 import Table from "../../models/Table";
+import UserToken from "../../models/UserToken";
 
 export const getUsersByRestaurantId = async (
   restaurantId: string,
@@ -268,4 +269,5 @@ export const changePasswordForRestaurant = async (restaurantId: string, userId: 
 
   user.password = newPassword;
   await user.save();
+  await UserToken.deleteMany({ userId: user._id });
 };
