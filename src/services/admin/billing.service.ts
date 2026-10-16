@@ -173,9 +173,10 @@ export const processTablePayment = async (restaurantId: string, branchId: string
       await order.save();
     }
 
-    // Free the table
+    // Free the table and clear active guest session
     if (tableDoc) {
       tableDoc.status = "Available";
+      tableDoc.currentGuestId = null;
       await tableDoc.save();
     }
 

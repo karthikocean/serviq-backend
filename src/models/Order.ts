@@ -29,6 +29,8 @@ export interface IOrder extends Document {
     billingStatus: "unpaid" | "paid";
     paymentMethod?: "cash" | "card" | "upi" | null;
     waiterId?: mongoose.Types.ObjectId;
+    guestId?: string | null;
+    idempotencyKey?: string | null;
     isDelete: boolean;
     createdAt?: Date;
     updatedAt?: Date;
@@ -40,6 +42,8 @@ const orderSchema = new Schema<IOrder>(
         branchId: { type: Schema.Types.ObjectId, ref: "Branch", required: true },
         orderId: { type: String, required: true, unique: true },
         tableId: { type: Schema.Types.ObjectId, ref: "Table", default: null },
+        guestId: { type: String, default: null, index: true },
+        idempotencyKey: { type: String, default: null, index: true },
         time: { type: String, required: true },
         orderType: { type: String, default: "Dine-In" },
         customerName: { type: String, default: "" },

@@ -2,11 +2,16 @@ import { Router } from "express";
 import {
   scanQrCode,
   getHeaderInfo,
+  verifySession,
   sendQuickHelp,
   getCategories,
   getMenuItems,
   getSpecials,
   getOrders,
+  getCart,
+  updateCartItem,
+  removeCartItem,
+  clearCart,
   createCustomerOrder
 } from "../controllers/website/website.controller";
 
@@ -26,22 +31,32 @@ router.get("/scan", scanQrCode);
 // 2. Fetch Restaurant & Table Header Info
 router.get("/header", getHeaderInfo);
 
-// 3. Quick Help Service Request (Water, Bill, Message)
+// 3. Verify Active Table Dining Session
+router.post("/session/verify", verifySession);
+
+// 4. Quick Help Service Request (Water, Bill, Message)
 router.post("/service-request", sendQuickHelp);
 
-// 4. Menu Categories
+// 5. Menu Categories
 router.get("/categories", getCategories);
 
-// 5. Menu Items (with search, category filter, veg/non-veg, best-seller)
+// 6. Menu Items (with search, category filter, veg/non-veg, best-seller)
 router.get("/menu", getMenuItems);
 
-// 6. Today's Specials
+// 7. Today's Specials
 router.get("/specials", getSpecials);
 
-// 7. Active Orders for Table
-router.get("/orders", getOrders);
+// 8. Backend Cart Management
+router.get("/cart", getCart);
+router.post("/cart/item", updateCartItem);
+router.delete("/cart/item/:menuId", removeCartItem);
+router.post("/cart/clear", clearCart);
 
-// 8. Create Order (Cart Checkout)
+// 9. Active Orders & Aggregated Bill for Table
+router.get("/orders", getOrders);
+router.get("/bill", getOrders);
+
+// 10. Create Order (Cart Checkout with Idempotency)
 router.post("/orders/create", createCustomerOrder);
 
 export default router;

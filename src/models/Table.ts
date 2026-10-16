@@ -14,6 +14,7 @@ export interface Itable extends Document {
     section?: string;
     assignedWaiter?: mongoose.Types.ObjectId;
     coverWaiter?: mongoose.Types.ObjectId;
+    currentGuestId?: string | null;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -31,7 +32,8 @@ const tableSchema = new Schema<Itable>(
         qrUrl: { type: String, default: "" },
         section: { type: String, default: "Main" },
         assignedWaiter: { type: Schema.Types.ObjectId, ref: "User", default: null },
-        coverWaiter: { type: Schema.Types.ObjectId, ref: "User", default: null }
+        coverWaiter: { type: Schema.Types.ObjectId, ref: "User", default: null },
+        currentGuestId: { type: String, default: null, index: true }
     },
     { timestamps: true }
 );

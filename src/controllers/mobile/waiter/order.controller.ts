@@ -376,9 +376,10 @@ export const checkoutOrder = async (req: AuthRequest, res: Response): Promise<vo
     order.status = "completed";
     await order.save();
 
-    // Free up table
+    // Free up table and reset active guest session
     if (tableDoc) {
       tableDoc.status = "Available";
+      tableDoc.currentGuestId = null;
       await tableDoc.save();
     }
 
