@@ -14,11 +14,25 @@ import { getTargetBranchId } from "../../utils/authUtils";
 export const getBillingHistory = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const restaurantId = req.user?.restaurantId;
-    const branchId = getTargetBranchId(req);
-    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+    if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    let branchId: string | undefined = undefined;
+    const qBranch = req.query.branchId !== undefined && req.query.branchId !== null ? String(req.query.branchId).trim() : undefined;
+
+    if (qBranch && qBranch !== '' && qBranch !== 'ALL' && qBranch !== 'All' && qBranch.toUpperCase() !== 'COMPANY') {
+      branchId = qBranch;
+    } else if (qBranch === '' || qBranch === 'ALL' || qBranch === 'All' || qBranch?.toUpperCase() === 'COMPANY') {
+      branchId = undefined;
+    } else {
+      if (req.user?.userType === 'BRANCH_ADMIN' || req.user?.userType === 'STAFF') {
+        branchId = req.user?.activeBranchId;
+      } else {
+        branchId = undefined; // All branches
+      }
+    }
 
     const filters = req.query;
-    const history = await getBillingHistoryService(restaurantId, branchId, filters);
+    const history = await getBillingHistoryService(restaurantId, branchId || "ALL", filters);
     sendSuccess(res, "Billing history fetched successfully.", history);
   } catch (error: any) {
     sendError(res, error?.message || "Failed to fetch billing history", error?.message ? StatusCodes.BAD_REQUEST : StatusCodes.INTERNAL_SERVER_ERROR);
@@ -28,8 +42,22 @@ export const getBillingHistory = async (req: AuthRequest, res: Response): Promis
 export const getActiveTables = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const restaurantId = req.user?.restaurantId;
-    const branchId = getTargetBranchId(req);
-    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+    if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+
+    let branchId: string | undefined = undefined;
+    const qBranch = req.query.branchId !== undefined && req.query.branchId !== null ? String(req.query.branchId).trim() : undefined;
+
+    if (qBranch && qBranch !== '' && qBranch !== 'ALL' && qBranch !== 'All' && qBranch.toUpperCase() !== 'COMPANY') {
+      branchId = qBranch;
+    } else if (qBranch === '' || qBranch === 'ALL' || qBranch === 'All' || qBranch?.toUpperCase() === 'COMPANY') {
+      branchId = undefined;
+    } else {
+      if (req.user?.userType === 'BRANCH_ADMIN' || req.user?.userType === 'STAFF') {
+        branchId = req.user?.activeBranchId;
+      } else {
+        branchId = undefined; // All branches
+      }
+    }
 
     const filters = req.query;
     const tables = await getActiveTablesBilling(restaurantId, branchId, filters);
@@ -42,8 +70,8 @@ export const getActiveTables = async (req: AuthRequest, res: Response): Promise<
 export const getBill = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const restaurantId = req.user?.restaurantId;
-    const branchId = getTargetBranchId(req);
-    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+    const branchId = getTargetBranchId(req) || req.user?.activeBranchId || "ALL";
+    if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
     const orderId = req.params.orderId as string;
     const bill = await getBillDetails(restaurantId, branchId, orderId);
@@ -60,8 +88,8 @@ export const getBill = async (req: AuthRequest, res: Response): Promise<void> =>
 export const applyBillDiscount = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const restaurantId = req.user?.restaurantId;
-    const branchId = getTargetBranchId(req);
-    if (!restaurantId || !branchId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
+    const branchId = getTargetBranchId(req) || req.user?.activeBranchId || "ALL";
+    if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
     const orderId = req.params.orderId as string;
     const { discount } = req.body;
@@ -79,8 +107,8 @@ export const applyBillDiscount = async (req: AuthRequest, res: Response): Promis
 export const payBill = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const restaurantId = req.user?.restaurantId;
-    const branchId = getTargetBranchId(req);
-    if (!restaurantId || !branchId) return sendError(res, "Unauthorized: Restaurant or Branch not found", StatusCodes.UNAUTHORIZED);
+    const branchId = req.body?.branchId || getTargetBranchId(req) || req.user?.activeBranchId || "ALL";
+    if (!restaurantId) return sendError(res, "Unauthorized: Restaurant not found", StatusCodes.UNAUTHORIZED);
 
     const { tableId, paymentMethod } = req.body;
     if (!tableId) {

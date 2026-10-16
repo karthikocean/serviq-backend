@@ -4,43 +4,63 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../../../models/User";
 import UserToken from "../../../models/UserToken";
+import Branch from "../../../models/Branch";
+import Restaurant from "../../../models/Restaurant";
 import { AuthRequest } from "../../../middleware/authMiddleware";
 import { sendSuccess, sendError } from "../../../utils/response";
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body;
+    const { email, password, phoneNumber, phone } = req.body;
+    const identifier = (email || phoneNumber || phone || "").trim();
 
-    if (!email || !password) {
-      return sendError(res, "Email and password are required.", StatusCodes.BAD_REQUEST);
+    if (!identifier || !password) {
+      return sendError(res, "Email or phone number and password are required.", StatusCodes.BAD_REQUEST);
     }
 
-    const user = await User.findOne({ email, isDelete: false }).populate("roleId");
+    const cleanIdentifier = identifier.toLowerCase();
+    const user = await User.findOne({
+      $or: [{ email: cleanIdentifier }, { phoneNumber: identifier }],
+      isDelete: false
+    }).populate("roleId");
 
     if (!user) {
-      return sendError(res, "Invalid mail.", StatusCodes.UNAUTHORIZED);
+      return sendError(res, "Invalid credentials.", StatusCodes.UNAUTHORIZED);
     }
 
     if (!user.isActive) {
       return sendError(res, "Account is deactivated. Please contact admin.", StatusCodes.FORBIDDEN);
     }
 
-    // Explicit Station validation
-    if (user.userType !== 'STATION') {
-      return sendError(res, "Access restricted to Kitchen Stations only.", StatusCodes.FORBIDDEN);
+    const role = user.roleId as any;
+    const roleCode = (role?.code || '').toUpperCase().trim();
+    const roleName = (role?.roleName || role?.name || '').toUpperCase().trim();
+    const isKitchenAuthorized = 
+      user.userType === 'STATION' ||
+      roleCode === 'KITCHEN' ||
+      roleCode === 'KITCHEN_STAFF' ||
+      roleName.includes('KITCHEN') ||
+      roleName.includes('CHEF') ||
+      roleName.includes('COOK');
+
+    if (!isKitchenAuthorized) {
+      return sendError(res, "Access restricted to Kitchen staff and stations only.", StatusCodes.FORBIDDEN);
     }
 
-    // if (!user.roleId) {
-    //   return sendError(res, "No role assigned to this station.", StatusCodes.FORBIDDEN);
-    // }
-
-    // const role = user.roleId as any;
-    // if (role.name?.toUpperCase() !== 'KITCHEN') {
-    //   return sendError(res, "You are not authorized as a Kitchen station.", StatusCodes.FORBIDDEN);
-    // }
-
     if (!user.branchId) {
-      return sendError(res, "Station is not assigned to any branch.", StatusCodes.FORBIDDEN);
+      return sendError(res, "Station or staff is not assigned to any branch.", StatusCodes.FORBIDDEN);
+    }
+
+    const branch = await Branch.findById(user.branchId);
+    if (!branch || branch.isDelete || !branch.isActive || branch.status === 'Inactive' || branch.status !== 'Active') {
+      return sendError(res, "Your assigned branch is currently inactive. Please contact your restaurant owner.", StatusCodes.FORBIDDEN);
+    }
+
+    if (user.restaurantId) {
+      const restaurant = await Restaurant.findById(user.restaurantId);
+      if (restaurant && (!restaurant.isActive || restaurant.isDelete)) {
+        return sendError(res, "Your restaurant account has been deactivated. Please contact support.", StatusCodes.FORBIDDEN);
+      }
     }
 
     const isMatch = await bcrypt.compare(password, user.password as string);

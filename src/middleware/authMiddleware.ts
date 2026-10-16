@@ -73,6 +73,45 @@ export const protectAdmin = async (req: AuthRequest, res: Response, next: NextFu
         return;
     }
 
+    // Check branch status for non-owners/super-admins
+    const userType = String(user.userType || '');
+    if (userType !== 'RESTAURANT_OWNER' && userType !== 'SUPER_ADMIN' && user.branchId) {
+        const branch = await Branch.findById(user.branchId);
+        if (!branch || branch.isDelete || !branch.isActive || branch.status === 'Inactive' || branch.status !== 'Active') {
+            res.status(StatusCodes.FORBIDDEN).json({
+                success: false,
+                message: "Your branch is currently inactive. Please contact your restaurant owner."
+            });
+            return;
+        }
+    }
+
+    // Block Waiter and Kitchen staff from accessing admin panel endpoints
+    let roleDoc: any = user.roleId;
+    if (user.roleId && (typeof user.roleId === "string" || user.roleId._bsontype)) {
+      roleDoc = (await AdminRole.findById(user.roleId)) || (await UserRole.findById(user.roleId));
+    }
+    const roleCode = (roleDoc?.code || '').toUpperCase().trim();
+    const roleName = (roleDoc?.roleName || roleDoc?.name || '').toLowerCase().trim();
+    const isWaiterOrKitchen = 
+      roleCode === 'WAITER' || 
+      roleCode === 'KITCHEN' || 
+      roleCode === 'KITCHEN_STAFF' || 
+      roleName.includes('waiter') || 
+      roleName.includes('kitchen') || 
+      roleName.includes('chef') || 
+      roleName.includes('cook') || 
+      (user.userType as string) === 'STATION';
+
+    const userTypeStr = String(user.userType || '');
+    if (userTypeStr !== 'RESTAURANT_OWNER' && userTypeStr !== 'SUPER_ADMIN' && isWaiterOrKitchen) {
+      res.status(StatusCodes.FORBIDDEN).json({
+        success: false,
+        message: "Access denied. Waiter and Kitchen staff must use the mobile application."
+      });
+      return;
+    }
+
     let branchId = decoded.activeBranchId || user.branchId?.toString();
  
     if (user.userType === 'RESTAURANT_OWNER') {
@@ -87,6 +126,7 @@ export const protectAdmin = async (req: AuthRequest, res: Response, next: NextFu
        userType: user.userType,
        restaurantId: user.restaurantId.toString(),
        activeBranchId: branchId,
+       branchId: branchId,
        roleId: user.roleId?.toString()
      };
     next();
@@ -185,6 +225,15 @@ export const protectMobile = async (req: AuthRequest, res: Response, next: NextF
 
     if (!user.branchId) {
         res.status(StatusCodes.FORBIDDEN).json({ success: false, message: "No branch context found for user." });
+        return;
+    }
+
+    const branch = await Branch.findById(user.branchId);
+    if (!branch || branch.isDelete || !branch.isActive || branch.status === 'Inactive' || branch.status !== 'Active') {
+        res.status(StatusCodes.FORBIDDEN).json({
+            success: false,
+            message: "Your branch is currently inactive. Please contact your restaurant owner."
+        });
         return;
     }
 

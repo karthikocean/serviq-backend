@@ -27,8 +27,34 @@ export const loginAdmin = async (email: string, password: string) => {
   }
   
   const role: any = user.roleId;
-  if (role && (role.code === 'KITCHEN' || role.code === 'WAITER')) {
-    throw new Error("Access denied for kitchen and waiter staff");
+  const roleCode = (role?.code || '').toUpperCase().trim();
+  const roleName = (role?.roleName || role?.name || '').toLowerCase().trim();
+  const isWaiterOrKitchen = 
+    roleCode === 'WAITER' || 
+    roleCode === 'KITCHEN' || 
+    roleCode === 'KITCHEN_STAFF' || 
+    roleName.includes('waiter') || 
+    roleName.includes('kitchen') || 
+    roleName.includes('chef') || 
+    roleName.includes('cook') || 
+    (user.userType as string) === 'STATION';
+
+  if (isWaiterOrKitchen) {
+    throw new Error("Access denied. Waiter and Kitchen staff must use the mobile application.");
+  }
+
+  const userTypeStr = String(user.userType || '');
+  const isOwner = userTypeStr === 'RESTAURANT_OWNER' || userTypeStr === 'SUPER_ADMIN';
+  const hasAdminAccess = isOwner
+    ? true
+    : (role?.adminAccess !== undefined
+        ? Boolean(role.adminAccess)
+        : (role?.isAdminAccess !== undefined
+            ? Boolean(role.isAdminAccess)
+            : false));
+
+  if (!isOwner && !hasAdminAccess) {
+    throw new Error("Access denied. You do not have permission to access the admin panel.");
   }
 
   if (!user.isActive) {
@@ -62,39 +88,33 @@ export const loginAdmin = async (email: string, password: string) => {
 
   let activeBranchId = user.branchId;
 
-  if (user.userType !== 'RESTAURANT_OWNER') {
+  if (!isOwner) {
     if (user.branchId) {
       const branch = await Branch.findById(user.branchId);
-      if (branch && !branch.isActive && branch.status !== 'Active') {
-        throw new Error("Your branch is currently inactive. Please contact your restaurant owner.");
+      if (!branch || branch.isDelete || !branch.isActive || branch.status === 'Inactive' || branch.status !== 'Active') {
+        throw new Error("Your assigned branch is currently inactive. Please contact your restaurant owner.");
       }
+    } else if (userTypeStr === 'BRANCH_ADMIN') {
+      throw new Error("No branch assigned to your account. Please contact your restaurant owner.");
     }
   }
 
   if (user.userType === 'RESTAURANT_OWNER') {
-    const mainBranch = await Branch.findOne({ restaurantId: user.restaurantId, isMainBranch: true });
+    const mainBranch = await Branch.findOne({ restaurantId: user.restaurantId, isMainBranch: true, isDelete: false, isActive: true, status: 'Active' });
     if (mainBranch) {
       activeBranchId = mainBranch._id as any;
     } else {
-      const firstBranch = await Branch.findOne({ restaurantId: user.restaurantId });
-      if (firstBranch) {
-        activeBranchId = firstBranch._id as any;
+      const firstActiveBranch = await Branch.findOne({ restaurantId: user.restaurantId, isDelete: false, isActive: true, status: 'Active' });
+      if (firstActiveBranch) {
+        activeBranchId = firstActiveBranch._id as any;
       } else {
-        activeBranchId = "ALL" as any;
+        const anyBranch = await Branch.findOne({ restaurantId: user.restaurantId, isDelete: false });
+        activeBranchId = anyBranch ? (anyBranch._id as any) : ("ALL" as any);
       }
     }
   }
 
   const roleObj: any = user.roleId;
-  const userTypeStr = String(user.userType || '');
-  const isOwner = userTypeStr === 'RESTAURANT_OWNER' || userTypeStr === 'SUPER_ADMIN';
-  const hasAdminAccess = isOwner
-    ? true
-    : (roleObj?.adminAccess !== undefined
-        ? Boolean(roleObj.adminAccess)
-        : (roleObj?.isAdminAccess !== undefined
-            ? Boolean(roleObj.isAdminAccess)
-            : true));
 
   let formattedRole: any = null;
   if (roleObj) {
@@ -122,6 +142,7 @@ export const loginAdmin = async (email: string, password: string) => {
       userType: user.userType,
       restaurantId: user.restaurantId,
       activeBranchId: activeBranchId,
+      branchId: activeBranchId,
       roleId: user.roleId
     },
     process.env.JWT_SECRET as string,
@@ -146,6 +167,7 @@ export const loginAdmin = async (email: string, password: string) => {
       userType: user.userType,
       restaurantId: user.restaurantId,
       activeBranchId: activeBranchId,
+      branchId: activeBranchId,
       role: formattedRole || user.roleId,
       roleId: formattedRole || user.roleId,
       adminAccess: hasAdminAccess,

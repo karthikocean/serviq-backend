@@ -11,17 +11,30 @@ export const getUsers = async (req: AuthRequest, res: Response): Promise<void> =
     const restaurantId = req.user?.restaurantId;
     if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
-    const branchId = getTargetBranchId(req);
-    const search = req.query.search as string;
-    const roleFilter = req.query.roleFilter as string;
-    const statusFilter = req.query.statusFilter as string;
+    const isOwner = req.user?.userType === 'RESTAURANT_OWNER' || req.user?.userType === 'SUPER_ADMIN';
+    const rawBranchId = (req.query.branchId || req.body?.branchId) as string | undefined;
+
+    let branchId: string | undefined = undefined;
+    if (rawBranchId && rawBranchId !== 'ALL' && rawBranchId !== 'All' && rawBranchId !== 'COMPANY' && rawBranchId !== 'company' && /^[0-9a-fA-F]{24}$/.test(rawBranchId)) {
+      branchId = rawBranchId;
+    } else if (!isOwner) {
+      const scoped = req.user?.activeBranchId || req.user?.branchId;
+      if (scoped && scoped !== 'ALL' && scoped !== 'COMPANY' && /^[0-9a-fA-F]{24}$/.test(String(scoped))) {
+        branchId = String(scoped);
+      }
+    }
+
+    const search = (req.query.search || req.query.searchQuery || req.query.searchTerm) as string;
+    const roleFilter = (req.query.roleFilter || req.query.role) as string;
+    const statusFilter = (req.query.statusFilter || req.query.status) as string;
+    const dutyFilter = (req.query.dutyFilter || req.query.dutyStatus) as string;
     
     const page = parseInt(req.query.page as string) || 0;
     const limit = parseInt(req.query.limit as string) || 10;
     const pageIndex = Math.max(0, page);
     const skip = pageIndex * limit;
 
-    const { total, users } = await getUsersByRestaurantId(restaurantId, branchId, search, roleFilter, statusFilter, skip, limit);
+    const { total, users } = await getUsersByRestaurantId(restaurantId, branchId, search, roleFilter, statusFilter, skip, limit, dutyFilter);
     
     pagination(total, users, limit, pageIndex, res, "Users fetched successfully.");
   } catch (error: any) {
@@ -49,10 +62,17 @@ export const createUser = async (req: AuthRequest, res: Response): Promise<void>
     const restaurantId = req.user?.restaurantId;
     if (!restaurantId) return sendError(res, "Unauthorized", StatusCodes.UNAUTHORIZED);
 
-    const newUser = await createUserForRestaurant(restaurantId, req.body);
+    const bodyData = { ...req.body };
+    const creatorBranchId = getTargetBranchId(req) || req.user?.activeBranchId || req.user?.branchId;
+    if (!bodyData.branchId && creatorBranchId && creatorBranchId !== 'ALL' && creatorBranchId !== 'COMPANY' && /^[0-9a-fA-F]{24}$/.test(String(creatorBranchId))) {
+      bodyData.branchId = String(creatorBranchId);
+    }
+
+    const newUser = await createUserForRestaurant(restaurantId, bodyData);
     sendSuccess(res, "User created successfully.", { id: newUser._id });
   } catch (error: any) {
     if (error.message === "Email already registered" || 
+        error.message === "Phone number already registered" || 
         error.message === "This branch already has an active manager." || 
         error.message === "This branch already has a Kitchen Station account.") {
         sendError(res, error.message, StatusCodes.CONFLICT);
