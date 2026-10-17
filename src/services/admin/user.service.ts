@@ -13,37 +13,70 @@ export const getUsersByRestaurantId = async (
   roleFilter?: string,
   statusFilter?: string,
   skip: number = 0,
-  limit: number = 10
+  limit: number = 10,
+  dutyFilter?: string
 ) => {
-  const adminQuery: any = { restaurantId, isDelete: false, userType: 'BRANCH_ADMIN' };
-  const userQuery: any = { restaurantId, isDelete: false, userType: 'STAFF' };
+  // Query all non-owner administrative accounts (e.g. branch admins, managers)
+  const adminQuery: any = { restaurantId, isDelete: false, userType: { $ne: 'RESTAURANT_OWNER' } };
+  // Query all users/staff/stations belonging to this restaurant in the User collection
+  const userQuery: any = { restaurantId, isDelete: false };
 
   const applyFilters = async (query: any, isUser: boolean) => {
-    if (statusFilter === 'Active') {
-      query.status = 'Active';
-    } else if (statusFilter === 'Inactive') {
-      query.status = 'Inactive';
+    if (statusFilter && statusFilter !== 'All' && statusFilter !== 'ALL') {
+      const sLower = statusFilter.toLowerCase().trim();
+      if (sLower === 'active') {
+        query.$or = [{ status: 'Active' }, { status: { $exists: false }, isActive: true }, { isActive: true }];
+      } else if (sLower === 'inactive') {
+        query.$or = [{ status: 'Inactive' }, { isActive: false }];
+      }
     }
 
-    if (branchId && branchId !== 'ALL') {
+    if (dutyFilter && dutyFilter !== 'All' && dutyFilter !== 'ALL') {
+      const normDuty = dutyFilter.toUpperCase().replace(/\s+/g, '_');
+      if (normDuty === 'ON_DUTY' || normDuty === 'OFF_DUTY') {
+        query.dutyStatus = normDuty;
+      }
+    }
+
+    if (branchId && branchId !== 'ALL' && branchId !== 'All' && branchId !== 'COMPANY' && branchId !== 'company' && /^[0-9a-fA-F]{24}$/.test(branchId)) {
       query.branchId = branchId;
     }
 
-    if (roleFilter && roleFilter !== 'All') {
-      query.roleId = roleFilter;
+    if (roleFilter && roleFilter !== 'All' && roleFilter !== 'ALL') {
+      if (/^[0-9a-fA-F]{24}$/.test(roleFilter)) {
+        query.roleId = roleFilter;
+      } else {
+        const regex = new RegExp(`^${roleFilter.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+        const [userRoles, adminRoles] = await Promise.all([
+          UserRole.find({ restaurantId, roleName: regex, isDelete: false }).select('_id'),
+          AdminRole.find({ restaurantId, roleName: regex, isDelete: false }).select('_id')
+        ]);
+        const matchedRoleIds = [...userRoles.map(r => r._id), ...adminRoles.map(r => r._id)];
+        if (matchedRoleIds.length > 0) {
+          query.roleId = { $in: matchedRoleIds };
+        } else {
+          query.roleId = null;
+        }
+      }
     }
 
-    if (search) {
-      const searchQuery = { $regex: search, $options: 'i' };
-      const matchingRoles = isUser 
-        ? await UserRole.find({ restaurantId, roleName: searchQuery, isDelete: false }).select('_id')
-        : await AdminRole.find({ restaurantId, roleName: searchQuery, isDelete: false }).select('_id');
+    if (search && search.trim()) {
+      const cleanSearch = search.trim();
+      const escapedSearch = cleanSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const searchRegex = { $regex: escapedSearch, $options: 'i' };
+
+      const [userRoles, adminRoles] = await Promise.all([
+        UserRole.find({ restaurantId, roleName: searchRegex, isDelete: false }).select('_id'),
+        AdminRole.find({ restaurantId, roleName: searchRegex, isDelete: false }).select('_id')
+      ]);
+      const matchedRoleIds = [...userRoles.map(r => r._id), ...adminRoles.map(r => r._id)];
 
       query.$or = [
-        { name: searchQuery },
-        { email: searchQuery },
-        { phoneNumber: searchQuery },
-        { roleId: { $in: matchingRoles.map(r => r._id) } }
+        { name: searchRegex },
+        { email: searchRegex },
+        { phoneNumber: searchRegex },
+        { employeeCode: searchRegex },
+        ...(matchedRoleIds.length > 0 ? [{ roleId: { $in: matchedRoleIds } }] : [])
       ];
     }
   };
@@ -64,6 +97,42 @@ export const getUsersByRestaurantId = async (
     .select("-password")
     .populate("roleId branchId")
     .lean();
+
+  // Cross-populate roleId for Users if unpopulated or referencing AdminRole
+  const unpopulatedUsers = users.filter((u: any) => !u.roleId || typeof u.roleId !== 'object' || !(u.roleId as any)?.roleName);
+  if (unpopulatedUsers.length > 0) {
+    const rawIds: string[] = unpopulatedUsers
+      .map((u: any) => (u.roleId?._id ? u.roleId._id.toString() : (u.roleId ? u.roleId.toString() : '')))
+      .filter((id: string) => Boolean(id) && /^[0-9a-fA-F]{24}$/.test(id));
+    if (rawIds.length > 0) {
+      const fallbackRoles: any[] = await AdminRole.find({ _id: { $in: rawIds } }).lean();
+      const fallbackMap = new Map<string, any>(fallbackRoles.map((r: any) => [r._id.toString(), r]));
+      users.forEach((u: any) => {
+        const rId = (u.roleId?._id || u.roleId)?.toString();
+        if (rId && fallbackMap.has(rId)) {
+          u.roleId = fallbackMap.get(rId);
+        }
+      });
+    }
+  }
+
+  // Cross-populate roleId for Admins if unpopulated or referencing UserRole
+  const unpopulatedAdmins = admins.filter((a: any) => !a.roleId || typeof a.roleId !== 'object' || !(a.roleId as any)?.roleName);
+  if (unpopulatedAdmins.length > 0) {
+    const rawIds: string[] = unpopulatedAdmins
+      .map((a: any) => (a.roleId?._id ? a.roleId._id.toString() : (a.roleId ? a.roleId.toString() : '')))
+      .filter((id: string) => Boolean(id) && /^[0-9a-fA-F]{24}$/.test(id));
+    if (rawIds.length > 0) {
+      const fallbackRoles: any[] = await UserRole.find({ _id: { $in: rawIds } }).lean();
+      const fallbackMap = new Map<string, any>(fallbackRoles.map((r: any) => [r._id.toString(), r]));
+      admins.forEach((a: any) => {
+        const rId = (a.roleId?._id || a.roleId)?.toString();
+        if (rId && fallbackMap.has(rId)) {
+          a.roleId = fallbackMap.get(rId);
+        }
+      });
+    }
+  }
 
   const combined = [...admins, ...users].sort((a: any, b: any) => {
     const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -122,24 +191,37 @@ export const getStationsByRestaurantId = async (restaurantId: string, branchId?:
 };
 
 export const createUserForRestaurant = async (restaurantId: string, userData: any) => {
-  if (userData.email) {
-    const existingAdmin = await Admin.findOne({ email: userData.email, isDelete: false });
-    const existingUser = await User.findOne({ email: userData.email, isDelete: false });
+  const cleanData = { ...userData };
+
+  if (cleanData.email && typeof cleanData.email === "string" && cleanData.email.trim()) {
+    cleanData.email = cleanData.email.trim().toLowerCase();
+    const existingAdmin = await Admin.findOne({ email: cleanData.email, isDelete: false });
+    const existingUser = await User.findOne({ email: cleanData.email, isDelete: false });
     if (existingAdmin || existingUser) throw new Error("Email already registered");
+  } else {
+    delete cleanData.email;
   }
 
-  if (userData.phoneNumber) {
-    const existingAdmin = await Admin.findOne({ phoneNumber: userData.phoneNumber, isDelete: false });
-    const existingUser = await User.findOne({ phoneNumber: userData.phoneNumber, isDelete: false });
+  if (cleanData.phoneNumber && typeof cleanData.phoneNumber === "string" && cleanData.phoneNumber.trim()) {
+    cleanData.phoneNumber = cleanData.phoneNumber.trim();
+    const existingAdmin = await Admin.findOne({ phoneNumber: cleanData.phoneNumber, isDelete: false });
+    const existingUser = await User.findOne({ phoneNumber: cleanData.phoneNumber, isDelete: false });
     if (existingAdmin || existingUser) throw new Error("Phone number already registered");
+  } else {
+    delete cleanData.phoneNumber;
   }
 
-  const isBranchAdmin = userData.userType === 'BRANCH_ADMIN';
+  // BranchAdmin requires email; if no email, create as STAFF user
+  let isBranchAdmin = cleanData.userType === 'BRANCH_ADMIN';
+  if (isBranchAdmin && !cleanData.email) {
+    isBranchAdmin = false;
+    cleanData.userType = 'STAFF';
+  }
 
-  if (userData.userType === 'STATION' && userData.branchId) {
+  if (cleanData.userType === 'STATION' && cleanData.branchId) {
     const existingStation = await User.findOne({
       restaurantId,
-      branchId: userData.branchId,
+      branchId: cleanData.branchId,
       userType: 'STATION',
       isDelete: false
     });
@@ -148,17 +230,23 @@ export const createUserForRestaurant = async (restaurantId: string, userData: an
     }
   }
 
-  if (userData.roleId && userData.branchId && userData.isActive !== false) {
-    const role = isBranchAdmin 
-      ? await AdminRole.findById(userData.roleId)
-      : await UserRole.findById(userData.roleId);
+  if (cleanData.roleId && cleanData.branchId && cleanData.isActive !== false) {
+    let role = isBranchAdmin 
+      ? await AdminRole.findById(cleanData.roleId)
+      : await UserRole.findById(cleanData.roleId);
+
+    if (!role) {
+      role = isBranchAdmin
+        ? await UserRole.findById(cleanData.roleId)
+        : await AdminRole.findById(cleanData.roleId);
+    }
 
     if (role && role.roleType === 'BRANCH_MANAGER') {
       const managerRoles = await AdminRole.find({ restaurantId, roleType: 'BRANCH_MANAGER', isDelete: false }).select('_id');
       const managerRoleIds = managerRoles.map(r => r._id);
       const existingManager = await Admin.findOne({
         restaurantId,
-        branchId: userData.branchId,
+        branchId: cleanData.branchId,
         roleId: { $in: managerRoleIds },
         isActive: true,
         isDelete: false
@@ -172,15 +260,15 @@ export const createUserForRestaurant = async (restaurantId: string, userData: an
   let newRecord;
   if (isBranchAdmin) {
     newRecord = new Admin({
-      ...userData,
+      ...cleanData,
       restaurantId,
-      status: userData.status || (userData.isActive ? 'Active' : 'Inactive'),
+      status: cleanData.status || (cleanData.isActive ? 'Active' : 'Inactive'),
     });
   } else {
     newRecord = new User({
-      ...userData,
+      ...cleanData,
       restaurantId,
-      status: userData.status || (userData.isActive ? 'Active' : 'Inactive'),
+      status: cleanData.status || (cleanData.isActive ? 'Active' : 'Inactive'),
     });
   }
 

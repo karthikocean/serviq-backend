@@ -12,8 +12,10 @@ import Admin from "../../models/Admin";
  */
 const buildBranchFilter = (restaurantId: string, branchId?: string) => {
   const filter: any = {
-    restaurantId: new mongoose.Types.ObjectId(restaurantId),
-    isDelete: false
+    restaurantId: mongoose.Types.ObjectId.isValid(restaurantId)
+      ? new mongoose.Types.ObjectId(restaurantId)
+      : restaurantId,
+    isDelete: { $ne: true }
   };
 
   if (branchId && branchId.toUpperCase() !== "ALL" && mongoose.Types.ObjectId.isValid(branchId)) {
@@ -166,7 +168,7 @@ export const getDashboardStats = async (restaurantId: string, branchId?: string)
     createdAt: { $gte: startOfToday, $lte: endOfToday }
   });
 
-  // 8. TOP SELLING ITEM
+  // 8. TOP SELLING ITEM (Dynamic from DB: This month first, fallback to all-time)
   const topItemPromise = Order.aggregate([
     {
       $match: {
@@ -176,14 +178,56 @@ export const getDashboardStats = async (restaurantId: string, branchId?: string)
     },
     { $unwind: "$items" },
     {
-      $group: {
-        _id: "$items.name",
-        totalQty: { $sum: "$items.qty" },
-        totalRevenue: { $sum: { $multiply: ["$items.qty", "$items.price"] } }
+      $match: {
+        "items.name": { $exists: true, $ne: "" },
+        "items.status": { $ne: "cancelled" }
       }
     },
-    { $sort: { totalQty: -1, totalRevenue: -1 } },
-    { $limit: 1 }
+    {
+      $facet: {
+        thisMonth: [
+          {
+            $match: {
+              createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+            }
+          },
+          {
+            $group: {
+              _id: "$items.name",
+              totalQty: { $sum: { $ifNull: ["$items.qty", 1] } },
+              totalRevenue: {
+                $sum: {
+                  $multiply: [
+                    { $ifNull: ["$items.qty", 1] },
+                    { $ifNull: ["$items.price", 0] }
+                  ]
+                }
+              }
+            }
+          },
+          { $sort: { totalQty: -1, totalRevenue: -1 } },
+          { $limit: 1 }
+        ],
+        allTime: [
+          {
+            $group: {
+              _id: "$items.name",
+              totalQty: { $sum: { $ifNull: ["$items.qty", 1] } },
+              totalRevenue: {
+                $sum: {
+                  $multiply: [
+                    { $ifNull: ["$items.qty", 1] },
+                    { $ifNull: ["$items.price", 0] }
+                  ]
+                }
+              }
+            }
+          },
+          { $sort: { totalQty: -1, totalRevenue: -1 } },
+          { $limit: 1 }
+        ]
+      }
+    }
   ]);
 
   // Execute all queries concurrently
@@ -238,10 +282,32 @@ export const getDashboardStats = async (restaurantId: string, branchId?: string)
     (s: any) => s.dutyStatus === "ON_DUTY" || s.status === "Active"
   ).length;
 
-  // Top Item calculations
-  const topItemName = topItemAgg[0]?._id || "Chicken Biryani";
-  const topItemQty = topItemAgg[0]?.totalQty || 0;
-  const topItemRevenue = topItemAgg[0]?.totalRevenue || 0;
+  // Top Item calculations (Purely dynamic from DB: this month first, then all-time, then menu)
+  const topThisMonth = topItemAgg[0]?.thisMonth?.[0];
+  const topAllTime = topItemAgg[0]?.allTime?.[0];
+  const bestItem = topThisMonth || topAllTime;
+
+  let topItemName = "-";
+  let topItemQty = 0;
+  let topItemRevenue = 0;
+
+  if (bestItem && bestItem._id) {
+    topItemName = bestItem._id;
+    topItemQty = bestItem.totalQty || 0;
+    topItemRevenue = bestItem.totalRevenue || 0;
+  } else {
+    // If no orders found, dynamically fetch restaurant's bestseller or active menu item from DB
+    const baseMenuFilter = buildBranchFilter(restaurantId, branchId);
+    const menuFallback = await Menu.findOne({
+      ...baseMenuFilter,
+      isActive: true,
+      isDelete: { $ne: true }
+    }).sort({ bestseller: -1, createdAt: -1 });
+
+    if (menuFallback?.name) {
+      topItemName = menuFallback.name;
+    }
+  }
 
   // Check branches info if branchId is ALL
   const isAllBranches = !branchId || branchId.toUpperCase() === "ALL";
@@ -311,7 +377,7 @@ export const getDashboardStats = async (restaurantId: string, branchId?: string)
       quantitySold: topItemQty,
       revenue: topItemRevenue,
       label: "Top Item",
-      subLabel: "Highest seller"
+      subLabel: topItemQty > 0 ? `${topItemQty} orders sold` : (topItemName !== "-" ? "Menu Bestseller" : "No orders yet")
     }
   };
 };
