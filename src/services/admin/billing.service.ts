@@ -3,6 +3,7 @@ import Table from "../../models/Table";
 import Billing from "../../models/Billing";
 import User from "../../models/User";
 import mongoose from "mongoose";
+import { closeTableDiningSession } from "../common/tableSession.service";
 
 export const getBillDetails = async (restaurantId: string, branchId: string, orderId: string) => {
   const query: any = { _id: orderId, restaurantId, isDelete: false };
@@ -173,11 +174,9 @@ export const processTablePayment = async (restaurantId: string, branchId: string
       await order.save();
     }
 
-    // Free the table and clear active guest session
+    // Free the table and clear active guest session via centralized service
     if (tableDoc) {
-      tableDoc.status = "Available";
-      tableDoc.currentGuestId = null;
-      await tableDoc.save();
+      await closeTableDiningSession(tableDoc._id, "ADMIN_PAYMENT_SETTLED");
     }
 
     return billingRecord;

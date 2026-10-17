@@ -2,8 +2,11 @@ import cron from 'node-cron';
 import Restaurant from '../models/Restaurant';
 import Subscription from '../models/Subscription';
 import User from '../models/User';
+import Table from '../models/Table';
+import Order from '../models/Order';
 import SystemNotification from '../models/SystemNotification';
 import { broadcastSystemNotificationSocket } from '../controllers/super-admin/system-notification.controller';
+import { getIO } from '../socket';
 
 export const startCronJobs = () => {
     // Run daily at midnight: 0 0 * * *
@@ -146,6 +149,86 @@ export const startCronJobs = () => {
             }
         } catch (error) {
             console.error('Error in Scheduled Notifications Cron Job:', error);
+        }
+    });
+
+    // Run every minute to check and release idle tables (0 orders within 30 minutes)
+    cron.schedule('* * * * *', async () => {
+        try {
+            const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+
+            // Find all tables that are Occupied with an active guest session created > 30 minutes ago
+            const idleTables = await Table.find({
+                status: 'Occupied',
+                currentGuestId: { $ne: null },
+                guestCreatedAt: { $ne: null, $lte: thirtyMinutesAgo },
+                isDelete: false
+            });
+
+            if (idleTables.length === 0) return;
+
+            for (const table of idleTables) {
+                const guestId = table.currentGuestId;
+                const guestCreatedAt = table.guestCreatedAt;
+                if (!guestId) continue;
+
+                // 1. Race-Condition Guard: Check if ANY order exists for this table & guest session
+                const orderCount = await Order.countDocuments({
+                    tableId: table._id,
+                    guestId: guestId,
+                    isDelete: false
+                });
+
+                // If customer placed any order, DO NOT release the table!
+                if (orderCount > 0) {
+                    continue;
+                }
+
+                // 2. Atomic Release Guard: Verify currentGuestId and guestCreatedAt still match
+                // to prevent wiping a new customer's session if someone just scanned
+                const updateResult = await Table.updateOne(
+                    {
+                        _id: table._id,
+                        currentGuestId: guestId,
+                        guestCreatedAt: guestCreatedAt,
+                        status: 'Occupied'
+                    },
+                    {
+                        $set: {
+                            status: 'Available',
+                            currentGuestId: null,
+                            guestCreatedAt: null
+                        }
+                    }
+                );
+
+                if (updateResult.modifiedCount > 0) {
+                    console.log(`[Cron] Released idle table ${table.tableNumber} (0 orders within 30 mins)`);
+
+                    // 3. Broadcast real-time update to POS and Waiter screens
+                    try {
+                        const io = getIO();
+                        if (io) {
+                            const payload = {
+                                tableId: table._id,
+                                tableNumber: table.tableNumber,
+                                status: 'Available',
+                                currentGuestId: null,
+                                reason: 'IDLE_TIMEOUT_RELEASED',
+                                timestamp: new Date()
+                            };
+                            if (table.branchId) {
+                                io.to(`room_branch_${table.branchId}`).emit('table_status_updated', payload);
+                                io.to(`room_branch_${table.branchId}`).emit('table_updated', payload);
+                            }
+                        }
+                    } catch (socketErr) {
+                        console.warn('[Cron] Socket emit error on idle table release:', socketErr);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error in Idle Tables Release Cron Job:', error);
         }
     });
 };

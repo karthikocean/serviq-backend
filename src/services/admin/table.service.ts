@@ -132,11 +132,11 @@ export const generateQRsForTables = async (restaurantId: string, branchId: strin
   const qrCodesGenerated = [];
 
   for (const table of tables) {
-    // We create a unique QR string or URL
+    // We create a unique, compact, and secure QR URL based only on uniqueHash
     const uniqueHash = crypto.randomBytes(16).toString("hex");
     const frontendUrl = process.env.CUSTOMER_FRONTEND_URL || "http://192.168.88.28:5173";
     const cleanBaseUrl = frontendUrl.replace(/\/+$/, "");
-    const qrUrl = `${cleanBaseUrl}/menu/${restaurantId}/${branchId}?table=${table._id}&hash=${uniqueHash}`;
+    const qrUrl = `${cleanBaseUrl}/scan/${uniqueHash}`;
 
     let qr = null;
     if (table.assignedQrId) {
@@ -144,6 +144,7 @@ export const generateQRsForTables = async (restaurantId: string, branchId: strin
     }
 
     if (qr) {
+      qr.qrCodeId = uniqueHash;
       qr.qrUrl = qrUrl;
       await qr.save();
     } else {

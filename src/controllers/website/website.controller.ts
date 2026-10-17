@@ -101,32 +101,10 @@ export const scanQrCode = async (req: Request, res: Response): Promise<void> => 
         guestId = actualTable.currentGuestId || null;
         tableStatus = actualTable.status || "Available";
 
-        // Check active dining orders
-        let activeUnpaidCount = 0;
-        if (guestId) {
-          activeUnpaidCount = await Order.countDocuments({
-            tableId: resolvedTableId,
-            guestId,
-            isDelete: false,
-            billingStatus: "unpaid",
-            status: { $nin: ["cancelled", "completed"] }
-          });
-
-          if (activeUnpaidCount > 0) {
-            tableStatus = "Occupied";
-          } else if (actualTable.status === "Available" || actualTable.status === "Free") {
-            // Previous guest session ended and bill settled
-            guestId = null;
-            actualTable.currentGuestId = null;
-            await actualTable.save();
-          }
-        }
-
-        // 3. Collision Protection / Occupied Table Guard:
-        // If the table is currently Occupied or has active unpaid orders from another customer
-        const isTableOccupied = tableStatus === "Occupied" || actualTable.status === "Occupied" || activeUnpaidCount > 0;
+        // 1. Collision Protection / Occupied Table Guard:
+        // If the table is currently Occupied, check if scanning client is the same returning guest
+        const isTableOccupied = tableStatus === "Occupied" || actualTable.status === "Occupied";
         if (isTableOccupied) {
-          // If table has an active session, verify if the scanning client is the same returning guest
           const isReturningGuest = Boolean(guestId && incomingGuestId && incomingGuestId === guestId);
 
           if (!isReturningGuest) {
@@ -145,17 +123,15 @@ export const scanQrCode = async (req: Request, res: Response): Promise<void> => 
           }
         }
 
-        // 4. If no active guest session exists on this table, generate and assign fresh guestId.
-        // Option A: Table remains "Available" while customer is only browsing menu/cart.
-        // It transitions to "Occupied" only when they actually place an order (KOT sent to kitchen).
+        // 2. Table is Available (or same returning guest session re-scan):
+        // Lock table immediately: assign unique guestId, save guestCreatedAt, and mark status as "Occupied"
         if (!guestId) {
           const rawNum = (actualTable.tableNumber || "T").replace(/[^a-zA-Z0-9]/g, "");
-          guestId = `GST-${rawNum}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+          guestId = incomingGuestId || `GST-${rawNum}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
           actualTable.currentGuestId = guestId;
-          if (actualTable.status !== "Occupied") {
-            actualTable.status = "Available";
-            tableStatus = "Available";
-          }
+          actualTable.guestCreatedAt = new Date();
+          actualTable.status = "Occupied";
+          tableStatus = "Occupied";
           await actualTable.save();
         }
       }
@@ -640,6 +616,18 @@ export const updateCartItem = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    // Verify Table and active session match
+    const table = await Table.findById(tableId);
+    if (!table || table.isDelete) {
+      sendError(res, "Table not found", StatusCodes.NOT_FOUND);
+      return;
+    }
+
+    if (table.currentGuestId && String(table.currentGuestId) !== String(guestId)) {
+      sendError(res, "This table is occupied by another session. Please scan the QR again.", StatusCodes.CONFLICT);
+      return;
+    }
+
     // Verify Menu item from DB
     const menuItem = await Menu.findOne({
       _id: new mongoose.Types.ObjectId(String(menuId)),
@@ -741,6 +729,13 @@ export const removeCartItem = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    // Verify Table session match
+    const table = await Table.findById(tableId);
+    if (table && table.currentGuestId && String(table.currentGuestId) !== String(guestId)) {
+      sendError(res, "This table is occupied by another session. Please scan the QR again.", StatusCodes.CONFLICT);
+      return;
+    }
+
     const cart = await Cart.findOne({
       restaurantId: new mongoose.Types.ObjectId(String(restaurantId)),
       branchId: new mongoose.Types.ObjectId(String(branchId)),
@@ -778,6 +773,18 @@ export const removeCartItem = async (req: Request, res: Response): Promise<void>
 export const clearCart = async (req: Request, res: Response): Promise<void> => {
   try {
     const { restaurantId, branchId, tableId, guestId } = req.body;
+    if (!restaurantId || !branchId || !tableId || !guestId) {
+      sendError(res, "restaurantId, branchId, tableId, and guestId are required", StatusCodes.BAD_REQUEST);
+      return;
+    }
+
+    // Verify Table session match
+    const table = await Table.findById(tableId);
+    if (table && table.currentGuestId && String(table.currentGuestId) !== String(guestId)) {
+      sendError(res, "This table is occupied by another session. Please scan the QR again.", StatusCodes.CONFLICT);
+      return;
+    }
+
     await Cart.findOneAndUpdate(
       {
         restaurantId: new mongoose.Types.ObjectId(String(restaurantId)),
@@ -826,8 +833,13 @@ export const createCustomerOrder = async (req: Request, res: Response): Promise<
       return;
     }
 
-    // Resolve or align active guest session on table
+    // Resolve or align active guest session on table with conflict guard
     let activeGuestId = guestId || table.currentGuestId;
+    if (table.currentGuestId && guestId && table.currentGuestId !== guestId) {
+      sendError(res, "This table is occupied by another session. Please scan the QR again.", StatusCodes.CONFLICT);
+      return;
+    }
+
     if (!activeGuestId) {
       const rawNum = (table.tableNumber || "T").replace(/[^a-zA-Z0-9]/g, "");
       activeGuestId = `GST-${rawNum}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
@@ -835,6 +847,9 @@ export const createCustomerOrder = async (req: Request, res: Response): Promise<
 
     if (table.currentGuestId !== activeGuestId) {
       table.currentGuestId = activeGuestId;
+    }
+    if (!table.guestCreatedAt) {
+      table.guestCreatedAt = new Date();
     }
     table.status = "Occupied";
     await table.save();

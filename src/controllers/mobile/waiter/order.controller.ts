@@ -9,6 +9,7 @@ import { AuthRequest } from "../../../middleware/authMiddleware";
 import { sendSuccess, sendError } from "../../../utils/response";
 import { pagination } from "../../../utils/pagination";
 import { sendNotification } from "../../../utils/notificationHelper";
+import { closeTableDiningSession } from "../../../services/common/tableSession.service";
 
 export const getActiveOrders = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -376,11 +377,9 @@ export const checkoutOrder = async (req: AuthRequest, res: Response): Promise<vo
     order.status = "completed";
     await order.save();
 
-    // Free up table and reset active guest session
+    // Free up table and reset active guest session via centralized service
     if (tableDoc) {
-      tableDoc.status = "Available";
-      tableDoc.currentGuestId = null;
-      await tableDoc.save();
+      await closeTableDiningSession(tableDoc._id, "WAITER_PAYMENT_SETTLED");
     }
 
     sendSuccess(res, "Order checked out and billed successfully", { invoiceId: billingRecord.invoiceId, paymentMethod });
