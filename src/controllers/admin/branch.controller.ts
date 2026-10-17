@@ -322,62 +322,123 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
         useCustomMenu
     } = req.body;
 
-    const branch = await Branch.findOne({ _id: req.params.id, restaurantId: user.restaurantId, isDelete: false });
+    const branchQuery: any = { _id: req.params.id, isDelete: false };
+    if (user.userType !== 'SUPER_ADMIN' && user.restaurantId) {
+      branchQuery.restaurantId = user.restaurantId;
+    }
+
+    let branch = await Branch.findOne(branchQuery);
+    if (!branch) {
+      const fallbackBranch = await Branch.findOne({ _id: req.params.id, isDelete: false });
+      if (fallbackBranch && (user.userType === 'SUPER_ADMIN' || String(fallbackBranch.restaurantId) === String(user.restaurantId))) {
+        branch = fallbackBranch;
+      }
+    }
+
     if (!branch) {
       sendError(res, "Branch not found.", StatusCodes.NOT_FOUND);
       return;
     }
 
     if (fssaiLicense !== undefined) {
-      const fssaiLicenseRegex = /^1\d{13}$/;
-      if (fssaiLicense && !fssaiLicenseRegex.test(fssaiLicense.trim())) {
-        sendError(
-          res,
-          "Invalid FSSAI License number. It must contain exactly 14 digits and start with 1.",
-          StatusCodes.BAD_REQUEST
-        );
-        return;
+      const trimmedFssai = typeof fssaiLicense === 'string' ? fssaiLicense.trim() : '';
+      if (trimmedFssai) {
+        const fssaiLicenseRegex = /^1\d{13}$/;
+        if (!fssaiLicenseRegex.test(trimmedFssai)) {
+          sendError(
+            res,
+            "Invalid FSSAI License number. It must contain exactly 14 digits and start with 1.",
+            StatusCodes.BAD_REQUEST
+          );
+          return;
+        }
+        branch.fssaiLicense = trimmedFssai;
+      } else {
+        branch.fssaiLicense = undefined;
       }
-      branch.fssaiLicense = fssaiLicense ? fssaiLicense.trim() : undefined;
     }
 
     if (gstinNumber !== undefined) {
-      const normalizedGstin = gstinNumber ? gstinNumber.trim().toUpperCase() : undefined;
-      if (normalizedGstin) {
+      const trimmedGstin = typeof gstinNumber === 'string' ? gstinNumber.trim().toUpperCase() : '';
+      if (trimmedGstin) {
         const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
-        if (!gstinRegex.test(normalizedGstin)) {
+        if (!gstinRegex.test(trimmedGstin)) {
           sendError(res, "Invalid GSTIN. Please enter a valid 15-character GSTIN.", StatusCodes.BAD_REQUEST);
           return;
         }
+        branch.gstinNumber = trimmedGstin;
+      } else {
+        branch.gstinNumber = undefined;
       }
-      branch.gstinNumber = normalizedGstin || gstinNumber;
     }
 
-    if (branchCode && branchCode !== branch.branchCode) {
-        const existingBranch = await Branch.findOne({ branchCode });
+    const resolvedBranchCode = branchCode !== undefined ? String(branchCode).trim() : undefined;
+    if (resolvedBranchCode && resolvedBranchCode !== branch.branchCode) {
+        const existingBranch = await Branch.findOne({ 
+          branchCode: resolvedBranchCode, 
+          _id: { $ne: branch._id }, 
+          isDelete: false 
+        });
         if (existingBranch) {
             sendError(res, "Branch code already exists.", StatusCodes.CONFLICT);
             return;
         }
+        branch.branchCode = resolvedBranchCode;
     }
 
-    branch.branchName = branchName || branch.branchName;
-    branch.branchCode = branchCode || branch.branchCode;
-    branch.branchOpeningDate = branchOpeningDate !== undefined ? branchOpeningDate : branch.branchOpeningDate;
-    branch.contactNumber = contactNumber || branch.contactNumber;
-    branch.email = email !== undefined ? email : branch.email;
-    
-    if (street || city || state || country || pincode) {
-        branch.address.street = street || branch.address.street;
-        branch.address.city = city || branch.address.city;
-        branch.address.state = state || branch.address.state;
-        branch.address.country = country || branch.address.country;
-        branch.address.pincode = pincode || branch.address.pincode;
+    const resolvedBranchName = branchName || req.body.name;
+    if (resolvedBranchName) {
+      branch.branchName = String(resolvedBranchName).trim();
+    }
+
+    const resolvedContact = contactNumber || req.body.mobileNumber || req.body.phoneNumber || req.body.phone;
+    if (resolvedContact) {
+      branch.contactNumber = String(resolvedContact).trim();
+    }
+
+    if (branchOpeningDate !== undefined) {
+      branch.branchOpeningDate = branchOpeningDate;
+    }
+
+    if (email !== undefined) {
+      branch.email = typeof email === 'string' ? email.trim() : email;
     }
     
-    if (status) {
-        branch.status = status;
-        branch.isActive = status !== 'Inactive';
+    // Address handling
+    const addr = req.body.address || {};
+    const streetVal = street !== undefined ? street : (addr.street !== undefined ? addr.street : req.body.addressLine1);
+    const cityVal = city !== undefined ? city : addr.city;
+    const stateVal = state !== undefined ? state : addr.state;
+    const countryVal = country !== undefined ? country : addr.country;
+    const pincodeVal = pincode !== undefined ? pincode : (addr.pincode !== undefined ? addr.pincode : (req.body.postalCode || req.body.zipCode));
+
+    if (!branch.address) {
+      branch.address = { street: '', city: '', state: '', country: '', pincode: '' };
+    }
+    if (streetVal !== undefined && String(streetVal).trim() !== '') branch.address.street = String(streetVal).trim();
+    if (cityVal !== undefined && String(cityVal).trim() !== '') branch.address.city = String(cityVal).trim();
+    if (stateVal !== undefined && String(stateVal).trim() !== '') branch.address.state = String(stateVal).trim();
+    if (countryVal !== undefined && String(countryVal).trim() !== '') branch.address.country = String(countryVal).trim();
+    if (pincodeVal !== undefined && String(pincodeVal).trim() !== '') branch.address.pincode = String(pincodeVal).trim();
+
+    // Ensure required address fields have fallback so Mongoose validation won't crash
+    if (!branch.address.street) branch.address.street = branch.address.city || branch.branchName || 'Main Street';
+    if (!branch.address.city) branch.address.city = 'City';
+    if (!branch.address.state) branch.address.state = 'State';
+    if (!branch.address.country) branch.address.country = 'India';
+    if (!branch.address.pincode) branch.address.pincode = '000000';
+    
+    // Status and isActive handling
+    const rawStatus = status !== undefined ? status : (req.body.isActive !== undefined ? (req.body.isActive ? 'Active' : 'Inactive') : req.body.status);
+    if (rawStatus !== undefined) {
+      const isInactive = 
+        rawStatus === false || 
+        String(rawStatus).toLowerCase() === 'inactive' || 
+        String(rawStatus).toLowerCase() === 'false' ||
+        rawStatus === 0;
+
+      branch.status = isInactive ? 'Inactive' : 'Active';
+      branch.isActive = !isInactive;
     }
 
     if (branchType !== undefined || isMainBranch !== undefined) {
@@ -385,7 +446,7 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
         const setAsSub = branchType === 'SUB' || isMainBranch === false;
         
         if (setAsMain) {
-            await Branch.updateMany({ restaurantId: user.restaurantId }, { $set: { isMainBranch: false, branchType: 'SUB' } });
+            await Branch.updateMany({ restaurantId: branch.restaurantId }, { $set: { isMainBranch: false, branchType: 'SUB' } });
             branch.isMainBranch = true;
             branch.branchType = 'MAIN';
         } else if (setAsSub) {
@@ -400,8 +461,23 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
 
     await branch.save();
 
+    // If branch is inactive, invalidate sessions of all staff, waiters, and kitchen users of this branch immediately
+    if (branch.status === 'Inactive' || !branch.isActive) {
+      const branchUsers = await User.find({ branchId: branch._id });
+      const branchAdmins = await Admin.find({ branchId: branch._id, userType: { $ne: 'RESTAURANT_OWNER' } });
+      const userIds = [...branchUsers.map(u => u._id), ...branchAdmins.map(a => a._id)];
+      if (userIds.length > 0) {
+        await UserToken.deleteMany({ userId: { $in: userIds } });
+      }
+    }
+
     // Update Manager Details
-    if (managerName || managerMobile || managerEmail) {
+    const resolvedMgrName = managerName || req.body.branchManager || req.body.manager;
+    const resolvedMgrMobile = managerMobile || req.body.managerPhone;
+    const resolvedMgrEmail = managerEmail;
+    const resolvedPassword = req.body.managerPassword || req.body.newPassword || req.body.password;
+
+    if (resolvedMgrName || resolvedMgrMobile || resolvedMgrEmail) {
         let manager = await Admin.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false });
         if (!manager) {
             manager = await Admin.findOne({ branchId: branch._id, userType: { $ne: 'RESTAURANT_OWNER' }, isDelete: false });
@@ -410,16 +486,16 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
             manager = await User.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false }) as any;
         }
         if (manager) {
-            if (managerName) manager.name = managerName;
-            if (managerMobile) manager.phoneNumber = managerMobile;
-            if (managerEmail) manager.email = managerEmail;
-            if (req.body.managerPassword || req.body.newPassword || req.body.password) {
-              manager.password = req.body.managerPassword || req.body.newPassword || req.body.password;
+            if (resolvedMgrName) manager.name = resolvedMgrName;
+            if (resolvedMgrMobile) manager.phoneNumber = resolvedMgrMobile;
+            if (resolvedMgrEmail) manager.email = resolvedMgrEmail;
+            if (resolvedPassword) {
+              manager.password = resolvedPassword;
               await UserToken.deleteMany({ userId: manager._id });
             }
             await manager.save();
         }
-    } else if (req.body.managerPassword || req.body.newPassword || req.body.password) {
+    } else if (resolvedPassword) {
         let manager = await Admin.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false });
         if (!manager) {
             manager = await Admin.findOne({ branchId: branch._id, userType: { $ne: 'RESTAURANT_OWNER' }, isDelete: false });
@@ -428,7 +504,7 @@ export const updateBranch = async (req: AuthRequest, res: Response): Promise<voi
             manager = await User.findOne({ branchId: branch._id, userType: 'BRANCH_ADMIN', isDelete: false }) as any;
         }
         if (manager) {
-            manager.password = req.body.managerPassword || req.body.newPassword || req.body.password;
+            manager.password = resolvedPassword;
             await manager.save();
             await UserToken.deleteMany({ userId: manager._id });
         }
@@ -464,17 +540,26 @@ export const deleteBranch = async (req: AuthRequest, res: Response): Promise<voi
 
     branch.isDelete = true;
     branch.isActive = false;
+    branch.status = 'Inactive';
     await branch.save({ session });
+
+    // Invalidate tokens and deactivate associated users
+    const branchUsers = await User.find({ branchId: branch._id });
+    const branchAdmins = await Admin.find({ branchId: branch._id });
+    const userIds = [...branchUsers.map(u => u._id), ...branchAdmins.map(a => a._id)];
+    if (userIds.length > 0) {
+      await UserToken.deleteMany({ userId: { $in: userIds } });
+    }
 
     // Deactivate associated users and admins
     await User.updateMany(
         { branchId: branch._id, isDelete: false },
-        { $set: { isDelete: true, isActive: false } },
+        { $set: { isDelete: true, isActive: false, status: 'Inactive' } },
         { session }
     );
     await Admin.updateMany(
         { branchId: branch._id, isDelete: false },
-        { $set: { isDelete: true, isActive: false } },
+        { $set: { isDelete: true, isActive: false, status: 'Inactive' } },
         { session }
     );
 

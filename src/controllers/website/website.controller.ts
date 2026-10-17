@@ -71,6 +71,14 @@ export const scanQrCode = async (req: Request, res: Response): Promise<void> => 
       };
     }
 
+    if (branch) {
+      const branchDoc = await Branch.findById(branch._id || branch);
+      if (branchDoc && (branchDoc.status === 'Inactive' || !branchDoc.isActive || branchDoc.isDelete)) {
+        sendError(res, "This branch is currently inactive. Orders cannot be placed at this time.", StatusCodes.FORBIDDEN);
+        return;
+      }
+    }
+
     sendSuccess(res, "QR code resolved successfully", {
       qrCodeId,
       restaurant: {
@@ -416,7 +424,11 @@ export const createCustomerOrder = async (req: Request, res: Response): Promise<
     let prefix = "ORD";
     if (branchId) {
       const branch = await Branch.findById(branchId);
-      if (branch && branch.branchName) {
+      if (!branch || branch.status === 'Inactive' || !branch.isActive || branch.isDelete) {
+        sendError(res, "This branch is currently inactive. Orders cannot be placed at this time.", StatusCodes.FORBIDDEN);
+        return;
+      }
+      if (branch.branchName) {
         const initials = branch.branchName.trim().split(/\s+/).map(w => w.charAt(0)).join('').toUpperCase();
         prefix = `ORD-${initials}`;
       }

@@ -300,11 +300,23 @@ export const getBillingHistory = async (restaurantId: string, branchId: string, 
   };
 };
 
-export const getActiveTablesBilling = async (restaurantId: string, branchId: string, filters: any = {}) => {
-  const query: any = { restaurantId, isDelete: false, billingStatus: "unpaid" };
+export const getActiveTablesBilling = async (restaurantId: string, branchId?: string, filters: any = {}) => {
+  const query: any = { isDelete: false, billingStatus: "unpaid" };
+
+  if (mongoose.Types.ObjectId.isValid(restaurantId)) {
+    query.restaurantId = new mongoose.Types.ObjectId(restaurantId);
+  } else if (restaurantId) {
+    query.restaurantId = restaurantId;
+  }
   
-  if (branchId && branchId !== "ALL" && branchId !== "All") {
-    query.branchId = branchId;
+  const effectiveBranch = (branchId && branchId !== "ALL" && branchId !== "All" && branchId !== "COMPANY") 
+    ? branchId 
+    : (filters.branchId && filters.branchId !== "ALL" && filters.branchId !== "All" && filters.branchId !== "COMPANY" ? filters.branchId : undefined);
+
+  if (effectiveBranch && mongoose.Types.ObjectId.isValid(effectiveBranch)) {
+    query.branchId = new mongoose.Types.ObjectId(effectiveBranch);
+  } else if (effectiveBranch) {
+    query.branchId = effectiveBranch;
   }
 
   const conditions: any[] = [];
@@ -332,11 +344,19 @@ export const getActiveTablesBilling = async (restaurantId: string, branchId: str
   }
 
   if (filters.tableId && filters.tableId !== 'ALL' && filters.tableId !== 'All' && filters.tableId !== 'All Tables') {
-    conditions.push({ tableId: filters.tableId });
+    if (mongoose.Types.ObjectId.isValid(filters.tableId)) {
+      conditions.push({ tableId: new mongoose.Types.ObjectId(filters.tableId) });
+    } else {
+      conditions.push({ tableId: filters.tableId });
+    }
   }
 
   if (filters.cashierId && filters.cashierId !== 'ALL' && filters.cashierId !== 'All') {
-    conditions.push({ waiterId: filters.cashierId });
+    if (mongoose.Types.ObjectId.isValid(filters.cashierId)) {
+      conditions.push({ waiterId: new mongoose.Types.ObjectId(filters.cashierId) });
+    } else {
+      conditions.push({ waiterId: filters.cashierId });
+    }
   }
 
   if (filters.orderType && !['all', 'all order types'].includes(String(filters.orderType).toLowerCase())) {
@@ -371,7 +391,7 @@ export const getActiveTablesBilling = async (restaurantId: string, branchId: str
   }
 
   const orders = await Order.find(query)
-    .populate("tableId", "tableNumber section")
+    .populate("tableId", "tableNumber section branchId")
     .populate("waiterId", "name")
     .sort({ createdAt: -1 });
 
@@ -391,21 +411,25 @@ export const getActiveTablesBilling = async (restaurantId: string, branchId: str
     }));
 
     const waiter: any = order.waiterId;
+    const rawBillNo = (order as any).billNo || (order.orderId ? `BILL-${order.orderId}` : `B-${1041 + index}`);
 
     return {
       id: order._id.toString(),
       _id: order._id.toString(),
       sNo: index + 1,
-      billNo: (order as any).billNo || `B-${1041 + index}`,
+      billNo: rawBillNo,
       orderId: order.orderId,
       orderType: orderType,
-      tableId: table ? table._id.toString() : order._id.toString(),
+      orderStatus: order.status,
+      billingStatus: order.billingStatus || "unpaid",
+      tableId: table ? table._id.toString() : (order.tableId ? order.tableId.toString() : order._id.toString()),
       table: table ? `Table ${table.tableNumber}` : "-",
       tableNumber: table ? table.tableNumber : "-",
       customerName: order.customerName || "",
       customerPhone: order.customerPhone || "",
       deliveryAddress: order.deliveryAddress || "",
       billDateTime: order.createdAt,
+      createdAt: order.createdAt,
       subtotal: order.subtotal || 0,
       tax: order.tax || 0,
       discount: order.discount || 0,
@@ -413,6 +437,7 @@ export const getActiveTablesBilling = async (restaurantId: string, branchId: str
       paidAmount: 0.00,
       status: "Unpaid",
       cashier: waiter ? waiter.name : (orderType !== "Dine-In" ? "Counter" : "Staff"),
+      branchId: order.branchId ? order.branchId.toString() : (table?.branchId ? table.branchId.toString() : ""),
       items: items
     };
   });
